@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import LaTeXRenderer from './LaTeXRenderer';
-
-const API = `${window.location.origin}/api`;
+import { API } from '@/config';
 
 const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
   const [filteredQuestions, setFilteredQuestions] = useState(questions);

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
-const BACKEND_URL = window.location.origin;
-const API = `${BACKEND_URL}/api`;
+import { API } from '@/config';
 
 export const AdminDashboard = ({ user }) => {
   const [teachers, setTeachers] = useState([]);

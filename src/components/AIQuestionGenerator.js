@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import MathKeyboard from './MathKeyboard';
 import LaTeXRenderer from './LaTeXRenderer';
-
-const API = `${window.location.origin}/api`;
+import { API } from '@/config';
 
 const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [formData, setFormData] = useState({

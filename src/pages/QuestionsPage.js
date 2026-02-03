@@ -5,8 +5,7 @@ import AIQuestionGenerator from '../components/AIQuestionGenerator';
 import MathKeyboard from '../components/MathKeyboard';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import QuestionBank from '../components/QuestionBank';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 export const QuestionsPage = ({ user }) => {
   const [questions, setQuestions] = useState([]);

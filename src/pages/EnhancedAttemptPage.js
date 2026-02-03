@@ -4,8 +4,7 @@ import axios from 'axios';
 import StudentMathInput from '../components/StudentMathInput';
 import StudentCalculator from '../components/StudentCalculator';
 import LaTeXRenderer from '../components/LaTeXRenderer';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 export const EnhancedAttemptPage = () => {
   const { attemptId } = useParams();

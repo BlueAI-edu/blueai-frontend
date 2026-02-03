@@ -6,8 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area
 } from 'recharts';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 // Color constants
 const COLORS = {

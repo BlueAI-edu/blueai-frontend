@@ -7,8 +7,7 @@ import LaTeXRenderer from '../components/LaTeXRenderer';
 import FormulaSheet from '../components/FormulaSheet';
 import GraphPlotter from '../components/GraphPlotter';
 import StepByStepInput from '../components/StepByStepInput';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 export const AttemptPage = () => {
   const { attemptId } = useParams();

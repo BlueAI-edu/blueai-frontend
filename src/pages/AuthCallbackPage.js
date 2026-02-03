@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 export const AuthCallback = () => {
   const navigate = useNavigate();

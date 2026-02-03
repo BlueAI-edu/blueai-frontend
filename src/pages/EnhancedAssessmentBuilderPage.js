@@ -4,8 +4,7 @@ import axios from 'axios';
 import AssessmentModeSelector from '../components/EnhancedAssessmentBuilder/AssessmentModeSelector';
 import QuestionEditor from '../components/EnhancedAssessmentBuilder/QuestionEditor';
 import AIBulkGenerator from '../components/EnhancedAssessmentBuilder/AIBulkGenerator';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();

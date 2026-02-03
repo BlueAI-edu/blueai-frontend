@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
-
-const API = process.env.REACT_APP_BACKEND_URL + '/api';
+import { API } from '@/config';
 
 export const EnhancedAssessmentDetailPage = ({ user }) => {
   const { assessmentId } = useParams();

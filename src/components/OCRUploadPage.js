@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const API_URL = window.location.origin;
+import { API_URL } from '@/config';
 
 export default function OCRUploadPage({ user }) {
   const navigate = useNavigate();

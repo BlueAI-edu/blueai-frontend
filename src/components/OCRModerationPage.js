@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-const API_URL = window.location.origin;
+import { API_URL } from '@/config';
 
 export default function OCRModerationPage({ user }) {
   const navigate = useNavigate();
