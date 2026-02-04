@@ -1,10 +1,9 @@
 import '@/App.css';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 
 // Page Components
 import { LandingPage } from './pages/LandingPage';
-import { AuthCallback } from './pages/AuthCallbackPage';
 import { Login } from './pages/LoginPage';
 import { JoinPage } from './pages/JoinPage';
 import { AttemptPage } from './pages/AttemptPage';
@@ -31,13 +30,6 @@ axios.defaults.withCredentials = true;
 
 // Main App Router
 function App() {
-  const location = useLocation();
-
-  // Handle OAuth callback
-  if (location.hash?.includes('session_id=')) {
-    return <AuthCallback />;
-  }
-
   return (
     <Routes>
       {/* Public Routes */}
