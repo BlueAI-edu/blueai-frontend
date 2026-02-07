@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { API_URL } from '@/config';
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { API_URL } from "@/config";
 
 export default function OCRReviewPage({ user }) {
   const navigate = useNavigate();
@@ -8,11 +8,11 @@ export default function OCRReviewPage({ user }) {
   const [submission, setSubmission] = useState(null);
   const [pages, setPages] = useState([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [editedText, setEditedText] = useState('');
+  const [editedText, setEditedText] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     fetchSubmission();
@@ -20,25 +20,28 @@ export default function OCRReviewPage({ user }) {
 
   useEffect(() => {
     if (pages.length > 0) {
-      setEditedText(pages[currentPageIndex]?.approved_ocr_text || '');
+      setEditedText(pages[currentPageIndex]?.approved_ocr_text || "");
     }
   }, [currentPageIndex, pages]);
 
   const fetchSubmission = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/ocr/submissions/${submissionId}`, {
-        credentials: 'include'
-      });
+      const response = await fetch(
+        `${API_URL}/api/ocr/submissions/${submissionId}`,
+        {
+          credentials: "include",
+        },
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch submission');
+        throw new Error("Failed to fetch submission");
       }
 
       const data = await response.json();
       setSubmission(data.submission);
       setPages(data.pages);
       if (data.pages.length > 0) {
-        setEditedText(data.pages[0].approved_ocr_text || '');
+        setEditedText(data.pages[0].approved_ocr_text || "");
       }
     } catch (err) {
       setError(err.message);
@@ -49,26 +52,26 @@ export default function OCRReviewPage({ user }) {
 
   const handleSavePage = async () => {
     setSaving(true);
-    setError('');
-    setSuccessMessage('');
+    setError("");
+    setSuccessMessage("");
 
     try {
       const currentPage = pages[currentPageIndex];
       const response = await fetch(
         `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
         {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             approved_ocr_text: editedText,
-            is_approved: true
-          })
-        }
+            is_approved: true,
+          }),
+        },
       );
 
       if (!response.ok) {
-        throw new Error('Failed to save page');
+        throw new Error("Failed to save page");
       }
 
       // Update local state
@@ -76,11 +79,11 @@ export default function OCRReviewPage({ user }) {
       updatedPages[currentPageIndex] = {
         ...updatedPages[currentPageIndex],
         approved_ocr_text: editedText,
-        is_approved: true
+        is_approved: true,
       };
       setPages(updatedPages);
-      setSuccessMessage('Page saved successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setSuccessMessage("Page saved successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -90,7 +93,7 @@ export default function OCRReviewPage({ user }) {
 
   const handleApproveAll = async () => {
     setSaving(true);
-    setError('');
+    setError("");
 
     try {
       // Save current page first
@@ -100,26 +103,26 @@ export default function OCRReviewPage({ user }) {
       const approveResponse = await fetch(
         `${API_URL}/api/ocr/submissions/${submissionId}/approve`,
         {
-          method: 'POST',
-          credentials: 'include'
-        }
+          method: "POST",
+          credentials: "include",
+        },
       );
 
       if (!approveResponse.ok) {
-        throw new Error('Failed to approve submission');
+        throw new Error("Failed to approve submission");
       }
 
       // Trigger AI marking
       const markResponse = await fetch(
         `${API_URL}/api/ocr/submissions/${submissionId}/mark`,
         {
-          method: 'POST',
-          credentials: 'include'
-        }
+          method: "POST",
+          credentials: "include",
+        },
       );
 
       if (!markResponse.ok) {
-        throw new Error('Failed to mark submission');
+        throw new Error("Failed to mark submission");
       }
 
       // Navigate to moderation page
@@ -133,25 +136,25 @@ export default function OCRReviewPage({ user }) {
 
   const handleRerunOCR = async () => {
     setSaving(true);
-    setError('');
+    setError("");
 
     try {
       const response = await fetch(
         `${API_URL}/api/ocr/submissions/${submissionId}/process`,
         {
-          method: 'POST',
-          credentials: 'include'
-        }
+          method: "POST",
+          credentials: "include",
+        },
       );
 
       if (!response.ok) {
-        throw new Error('Failed to re-run OCR');
+        throw new Error("Failed to re-run OCR");
       }
 
       // Refresh submission data
       await fetchSubmission();
-      setSuccessMessage('OCR re-processed successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setSuccessMessage("OCR re-processed successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -190,15 +193,20 @@ export default function OCRReviewPage({ user }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/teacher/dashboard')}
+                onClick={() => navigate("/teacher/dashboard")}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
                 ← Back to Dashboard
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Review OCR Text</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Review OCR Text
+              </h1>
             </div>
             <div className="text-sm text-gray-500">
-              Student: <span className="font-medium text-gray-900">{submission.student_name}</span>
+              Student:{" "}
+              <span className="font-medium text-gray-900">
+                {submission.student_name}
+              </span>
             </div>
           </div>
         </div>
@@ -228,7 +236,9 @@ export default function OCRReviewPage({ user }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
+                onClick={() =>
+                  setCurrentPageIndex(Math.max(0, currentPageIndex - 1))
+                }
                 disabled={currentPageIndex === 0}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -238,7 +248,11 @@ export default function OCRReviewPage({ user }) {
                 Page {currentPageIndex + 1} of {pages.length}
               </span>
               <button
-                onClick={() => setCurrentPageIndex(Math.min(pages.length - 1, currentPageIndex + 1))}
+                onClick={() =>
+                  setCurrentPageIndex(
+                    Math.min(pages.length - 1, currentPageIndex + 1),
+                  )
+                }
                 disabled={currentPageIndex === pages.length - 1}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -252,10 +266,10 @@ export default function OCRReviewPage({ user }) {
                   onClick={() => setCurrentPageIndex(index)}
                   className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
                     index === currentPageIndex
-                      ? 'bg-blue-600 text-white'
+                      ? "bg-blue-600 text-white"
                       : page.is_approved
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   {index + 1}
@@ -269,22 +283,57 @@ export default function OCRReviewPage({ user }) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Image Viewer */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Scanned Image</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Scanned Image
+            </h2>
             <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
-              <div className="aspect-[3/4] flex items-center justify-center">
-                <div className="text-center text-gray-500">
-                  <svg className="w-16 h-16 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <div className="flex items-center justify-center min-h-[400px]">
+                <img
+                  key={currentPage?.page_number}
+                  src={`${API_URL}/api/ocr/submissions/${submissionId}/image/${currentPage?.page_number}`}
+                  alt={`Page ${currentPage?.page_number}`}
+                  className="max-w-full max-h-[600px] object-contain"
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "flex";
+                  }}
+                  onLoad={(e) => {
+                    e.target.style.display = "block";
+                    if (e.target.nextSibling)
+                      e.target.nextSibling.style.display = "none";
+                  }}
+                />
+                <div
+                  className="text-center text-gray-500 flex-col items-center justify-center"
+                  style={{ display: "none" }}
+                >
+                  <svg
+                    className="w-16 h-16 mx-auto mb-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   <p className="text-sm">Image preview not available</p>
-                  <p className="text-xs mt-1">File: {currentPage?.file_path?.split('/').pop()}</p>
+                  <p className="text-xs mt-1">
+                    File: {currentPage?.file_path?.split("/").pop()}
+                  </p>
                 </div>
               </div>
             </div>
             {currentPage?.confidence && (
               <div className="mt-4">
                 <p className="text-sm text-gray-600">
-                  OCR Confidence: <span className="font-medium">{(currentPage.confidence * 100).toFixed(1)}%</span>
+                  OCR Confidence:{" "}
+                  <span className="font-medium">
+                    {(currentPage.confidence * 100).toFixed(1)}%
+                  </span>
                 </p>
               </div>
             )}
@@ -293,7 +342,9 @@ export default function OCRReviewPage({ user }) {
           {/* Right: OCR Text Editor */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Extracted Text</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Extracted Text
+              </h2>
               {currentPage?.is_approved && (
                 <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                   ✓ Approved
@@ -312,7 +363,7 @@ export default function OCRReviewPage({ user }) {
                 disabled={saving}
                 className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                {saving ? 'Saving...' : 'Save & Approve Page'}
+                {saving ? "Saving..." : "Save & Approve Page"}
               </button>
               <button
                 onClick={handleRerunOCR}
@@ -329,9 +380,12 @@ export default function OCRReviewPage({ user }) {
         <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Ready to Mark?</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Ready to Mark?
+              </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Once you're satisfied with all pages, approve and send for AI marking
+                Once you're satisfied with all pages, approve and send for AI
+                marking
               </p>
             </div>
             <button
@@ -339,7 +393,7 @@ export default function OCRReviewPage({ user }) {
               disabled={saving}
               className="bg-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
-              {saving ? 'Processing...' : 'Approve All & Mark'}
+              {saving ? "Processing..." : "Approve All & Mark"}
             </button>
           </div>
         </div>
