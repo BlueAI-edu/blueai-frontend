@@ -45,7 +45,6 @@ export const loginRequest = {
     'openid',
     'profile',
     'email',
-    'User.Read'
   ],
 };
 
