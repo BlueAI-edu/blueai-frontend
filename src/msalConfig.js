@@ -8,8 +8,8 @@ export const msalConfig = {
     redirectUri: window.location.origin + '/teacher/login',
   },
   cache: {
-    cacheLocation: 'localStorage',
-    storeAuthStateInCookie: false,
+    cacheLocation: 'sessionStorage',
+    storeAuthStateInCookie: true,
   },
   system: {
     loggerOptions: {

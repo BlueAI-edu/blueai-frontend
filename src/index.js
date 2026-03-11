@@ -6,8 +6,6 @@ import { MsalProvider } from '@azure/msal-react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { msalInstance } from './msalConfig';
 
-// Expose MSAL instance globally for the login handler
-window.msalInstance = { instance: msalInstance };
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
