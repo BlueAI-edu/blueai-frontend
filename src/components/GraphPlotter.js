@@ -1,15 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
+import { evaluate } from "mathjs";
 
 const GraphPlotter = ({ onSave, initialData = null }) => {
   const canvasRef = useRef(null);
-  const [mode, setMode] = useState('function'); // 'function' or 'points'
-  const [equation, setEquation] = useState(initialData?.equation || '');
+  const [mode, setMode] = useState("function"); // 'function' or 'points'
+  const [equation, setEquation] = useState(initialData?.equation || "");
   const [points, setPoints] = useState(initialData?.points || []);
   const [gridSize, setGridSize] = useState({ min: -10, max: 10 });
   const [zoom, setZoom] = useState(20); // pixels per unit
   const [showGrid, setShowGrid] = useState(true);
-  const [lineColor, setLineColor] = useState('#2563eb');
-  const [error, setError] = useState('');
+  const [lineColor, setLineColor] = useState("#2563eb");
+  const [error, setError] = useState("");
 
   const canvasWidth = 600;
   const canvasHeight = 600;
@@ -20,7 +21,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
   const canvasToGraph = (x, y) => {
     return {
       x: (x - centerX) / zoom,
-      y: (centerY - y) / zoom
+      y: (centerY - y) / zoom,
     };
   };
 
@@ -28,7 +29,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
   const graphToCanvas = (x, y) => {
     return {
       x: centerX + x * zoom,
-      y: centerY - y * zoom
+      y: centerY - y * zoom,
     };
   };
 
@@ -37,12 +38,12 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
     // Background
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     if (showGrid) {
       // Grid lines
-      ctx.strokeStyle = '#e5e7eb';
+      ctx.strokeStyle = "#e5e7eb";
       ctx.lineWidth = 1;
 
       for (let i = gridSize.min; i <= gridSize.max; i++) {
@@ -63,7 +64,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
     }
 
     // Axes
-    ctx.strokeStyle = '#000000';
+    ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     // X-axis
     ctx.beginPath();
@@ -77,40 +78,25 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
     ctx.stroke();
 
     // Axis labels
-    ctx.fillStyle = '#000000';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    
+    ctx.fillStyle = "#000000";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+
     for (let i = gridSize.min; i <= gridSize.max; i++) {
       if (i !== 0) {
         const pos = graphToCanvas(i, 0);
         ctx.fillText(i.toString(), pos.x, centerY + 20);
-        
+
         const posY = graphToCanvas(0, i);
         ctx.fillText(i.toString(), centerX - 20, posY.y + 5);
       }
     }
   };
 
-  // Evaluate math expression safely
+  // Evaluate math expression safely using mathjs (sandboxed — cannot access browser APIs)
   const evaluateExpression = (expr, xVal) => {
     try {
-      // Replace x with the value
-      let expression = expr.toLowerCase()
-        .replace(/\^/g, '**')
-        .replace(/x/g, `(${xVal})`)
-        .replace(/sin/g, 'Math.sin')
-        .replace(/cos/g, 'Math.cos')
-        .replace(/tan/g, 'Math.tan')
-        .replace(/sqrt/g, 'Math.sqrt')
-        .replace(/abs/g, 'Math.abs')
-        .replace(/log/g, 'Math.log10')
-        .replace(/ln/g, 'Math.log')
-        .replace(/pi/g, 'Math.PI')
-        .replace(/e(?![a-z])/g, 'Math.E');
-
-      // eslint-disable-next-line no-eval
-      return eval(expression);
+      return evaluate(expr, { x: xVal });
     } catch (e) {
       return null;
     }
@@ -120,7 +106,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
   const plotFunction = (ctx) => {
     if (!equation.trim()) return;
 
-    setError('');
+    setError("");
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -130,7 +116,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
 
     for (let x = gridSize.min; x <= gridSize.max; x += step) {
       const y = evaluateExpression(equation, x);
-      
+
       if (y === null || !isFinite(y)) {
         started = false;
         continue;
@@ -157,15 +143,15 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
   // Plot points
   const plotPoints = (ctx) => {
     ctx.fillStyle = lineColor;
-    points.forEach(point => {
+    points.forEach((point) => {
       const pos = graphToCanvas(point.x, point.y);
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI);
       ctx.fill();
-      
+
       // Label
-      ctx.fillStyle = '#000000';
-      ctx.font = '11px Arial';
+      ctx.fillStyle = "#000000";
+      ctx.font = "11px Arial";
       ctx.fillText(`(${point.x}, ${point.y})`, pos.x + 8, pos.y - 8);
       ctx.fillStyle = lineColor;
     });
@@ -176,14 +162,14 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     drawGrid(ctx);
 
-    if (mode === 'function') {
+    if (mode === "function") {
       try {
         plotFunction(ctx);
       } catch (e) {
-        setError('Invalid equation. Use format like: 2*x+3 or x^2 or sin(x)');
+        setError("Invalid equation. Use format like: 2*x+3 or x^2 or sin(x)");
       }
     } else {
       plotPoints(ctx);
@@ -192,7 +178,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
 
   // Handle canvas click for point mode
   const handleCanvasClick = (e) => {
-    if (mode !== 'points') return;
+    if (mode !== "points") return;
 
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -216,15 +202,15 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
 
   const handleSave = () => {
     const canvas = canvasRef.current;
-    const imageData = canvas.toDataURL('image/png');
-    
+    const imageData = canvas.toDataURL("image/png");
+
     onSave({
       mode,
-      equation: mode === 'function' ? equation : null,
-      points: mode === 'points' ? points : null,
+      equation: mode === "function" ? equation : null,
+      points: mode === "points" ? points : null,
       image: imageData,
       gridSize,
-      zoom
+      zoom,
     });
   };
 
@@ -235,21 +221,21 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
       {/* Mode Selection */}
       <div className="flex gap-2 mb-4">
         <button
-          onClick={() => setMode('function')}
+          onClick={() => setMode("function")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === 'function'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            mode === "function"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
           }`}
         >
           Plot Function
         </button>
         <button
-          onClick={() => setMode('points')}
+          onClick={() => setMode("points")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === 'points'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            mode === "points"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
           }`}
         >
           Plot Points
@@ -257,7 +243,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
       </div>
 
       {/* Function Input */}
-      {mode === 'function' && (
+      {mode === "function" && (
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Enter equation (y = ...)
@@ -277,7 +263,7 @@ const GraphPlotter = ({ onSave, initialData = null }) => {
       )}
 
       {/* Points Info */}
-      {mode === 'points' && (
+      {mode === "points" && (
         <div className="mb-4">
           <p className="text-sm text-gray-700 mb-2">
             Click on the graph to plot points. Points: {points.length}
