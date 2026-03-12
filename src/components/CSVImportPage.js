@@ -37,8 +37,17 @@ export const CSVImportPage = ({ user }) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.csv')) {
+    const ALLOWED_CSV_TYPES = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
+    const MAX_CSV_SIZE = 2 * 1024 * 1024; // 2MB
+
+    const validType = ALLOWED_CSV_TYPES.includes(file.type) || file.name.endsWith('.csv');
+    if (!validType) {
       setError('Please select a CSV file');
+      return;
+    }
+
+    if (file.size > MAX_CSV_SIZE) {
+      setError('File is too large. Maximum size is 2MB.');
       return;
     }
 

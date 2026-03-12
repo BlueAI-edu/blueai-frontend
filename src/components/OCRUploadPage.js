@@ -31,8 +31,30 @@ export default function OCRUploadPage({ user }) {
     }
   };
 
+  const ALLOWED_OCR_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+  const MAX_OCR_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_OCR_FILES = 20;
+
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
+
+    if (selectedFiles.length > MAX_OCR_FILES) {
+      setError(`Too many files. Maximum ${MAX_OCR_FILES} files allowed.`);
+      return;
+    }
+
+    for (const file of selectedFiles) {
+      if (!ALLOWED_OCR_TYPES.includes(file.type)) {
+        setError(`"${file.name}" is not a supported type. Only PDF, JPG, and PNG are accepted.`);
+        return;
+      }
+      if (file.size > MAX_OCR_FILE_SIZE) {
+        setError(`"${file.name}" exceeds the 10MB limit.`);
+        return;
+      }
+    }
+
+    setError('');
     setFiles(selectedFiles);
   };
 

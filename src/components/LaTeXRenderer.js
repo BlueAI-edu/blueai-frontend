@@ -25,7 +25,6 @@ const LaTeXRenderer = ({ text, block = false, inline = false }) => {
           const html = katex.renderToString(latex, {
             displayMode: true,
             throwOnError: false,
-            trust: true
           });
           return <div key={index} dangerouslySetInnerHTML={{ __html: html }} className="my-2" />;
         } catch (e) {
@@ -43,7 +42,6 @@ const LaTeXRenderer = ({ text, block = false, inline = false }) => {
             const html = katex.renderToString(latex, {
               displayMode: false,
               throwOnError: false,
-              trust: true
             });
             return <span key={`${index}-${inlineIndex}`} dangerouslySetInnerHTML={{ __html: html }} />;
           } catch (e) {
