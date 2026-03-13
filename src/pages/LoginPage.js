@@ -34,38 +34,34 @@ export const Login = () => {
     setLoading(true);
     setError('');
 
-    let userData;
     try {
       const endpoint = isSignUp ? '/auth/register' : '/auth/login';
       const payload = isSignUp
         ? { email, password, name, school_name: schoolName }
         : { email, password };
 
-      const response = await axios.post(`${API}${endpoint}`, payload);
-      userData = response.data;
+      await axios.post(`${API}${endpoint}`, payload);
     } catch (err) {
       setError(err.response?.data?.detail || 'Authentication failed');
       setLoading(false);
       return;
     }
-    navigate('/teacher/dashboard', { state: { user: userData } });
+    navigate('/teacher/dashboard');
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     setError('');
-    let userData;
     try {
-      const response = await axios.post(`${API}/auth/google`, {}, {
+      await axios.post(`${API}/auth/google`, {}, {
         headers: { 'Authorization': `Bearer ${credentialResponse.credential}` }
       });
-      userData = response.data;
     } catch (err) {
       setError(err.response?.data?.detail || 'Google authentication failed');
       setLoading(false);
       return;
     }
-    navigate('/teacher/dashboard', { state: { user: userData } });
+    navigate('/teacher/dashboard');
   };
 
   const { instance } = useMsal();
@@ -73,13 +69,11 @@ export const Login = () => {
   const handleMicrosoftLogin = async () => {
     setLoading(true);
     setError('');
-    let userData;
     try {
       const msalResponse = await instance.loginPopup(loginRequest);
-      const response = await axios.post(`${API}/auth/microsoft`, {}, {
+      await axios.post(`${API}/auth/microsoft`, {}, {
         headers: { 'Authorization': `Bearer ${msalResponse.accessToken}` }
       });
-      userData = response.data;
     } catch (err) {
       if (err.errorCode === 'user_cancelled') {
         setLoading(false);
@@ -89,7 +83,7 @@ export const Login = () => {
       setLoading(false);
       return;
     }
-    navigate('/teacher/dashboard', { state: { user: userData } });
+    navigate('/teacher/dashboard');
   };
 
   const handleForgotPassword = async (e) => {

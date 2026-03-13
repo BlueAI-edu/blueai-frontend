@@ -10,12 +10,6 @@ export const ProtectedRoute = ({ children, adminOnly = false }) => {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.state?.user) {
-      setUser(location.state.user);
-      setIsAuthenticated(true);
-      return;
-    }
-
     const checkAuth = async () => {
       try {
         const response = await axios.get(`${API}/auth/me`);
