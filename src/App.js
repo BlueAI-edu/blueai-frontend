@@ -27,6 +27,7 @@ import OCRModerationPage from './components/OCRModerationPage';
 
 // Configure axios
 axios.defaults.withCredentials = true;
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 // Main App Router
 function App() {
