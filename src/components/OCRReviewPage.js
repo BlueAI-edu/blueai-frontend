@@ -61,7 +61,7 @@ export default function OCRReviewPage({ user }) {
         `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
           credentials: "include",
           body: JSON.stringify({
             approved_ocr_text: editedText,
@@ -104,6 +104,7 @@ export default function OCRReviewPage({ user }) {
         `${API_URL}/api/ocr/submissions/${submissionId}/approve`,
         {
           method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
           credentials: "include",
         },
       );
@@ -117,6 +118,7 @@ export default function OCRReviewPage({ user }) {
         `${API_URL}/api/ocr/submissions/${submissionId}/mark`,
         {
           method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
           credentials: "include",
         },
       );
@@ -143,6 +145,7 @@ export default function OCRReviewPage({ user }) {
         `${API_URL}/api/ocr/submissions/${submissionId}/process`,
         {
           method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
           credentials: "include",
         },
       );

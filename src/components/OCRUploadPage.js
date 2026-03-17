@@ -74,7 +74,7 @@ export default function OCRUploadPage({ user }) {
       // Step 1: Create OCR submission
       const createResponse = await fetch(`${API_URL}/api/ocr/submissions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include',
         body: JSON.stringify({
           assessment_id: selectedAssessment,
@@ -98,6 +98,7 @@ export default function OCRUploadPage({ user }) {
 
       const uploadResponse = await fetch(`${API_URL}/api/ocr/submissions/${submission_id}/upload`, {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include',
         body: formData
       });
@@ -111,6 +112,7 @@ export default function OCRUploadPage({ user }) {
       // Step 3: Process OCR
       const processResponse = await fetch(`${API_URL}/api/ocr/submissions/${submission_id}/process`, {
         method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
 

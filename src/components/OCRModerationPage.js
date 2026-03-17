@@ -90,7 +90,7 @@ export default function OCRModerationPage({ user }) {
         `${API_URL}/api/ocr/submissions/${submissionId}/moderate`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'include',
           body: JSON.stringify({
             total_score: totalScore,
@@ -127,6 +127,7 @@ export default function OCRModerationPage({ user }) {
         `${API_URL}/api/ocr/submissions/${submissionId}/finalize`,
         {
           method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'include'
         }
       );
