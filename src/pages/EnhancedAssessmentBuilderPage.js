@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import AssessmentModeSelector from '../components/EnhancedAssessmentBuilder/AssessmentModeSelector';
-import QuestionEditor from '../components/EnhancedAssessmentBuilder/QuestionEditor';
-import AIBulkGenerator from '../components/EnhancedAssessmentBuilder/AIBulkGenerator';
 import { API } from '@/config';
+
+const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
+const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
+const AIBulkGenerator = lazy(() => import('../components/EnhancedAssessmentBuilder/AIBulkGenerator'));
 
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();
@@ -333,10 +334,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {currentStep === 1 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <AssessmentModeSelector
-              selectedMode={assessmentData.assessmentMode}
-              onModeChange={(mode) => updateField('assessmentMode', mode)}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-gray-500">Loading...</div>}>
+              <AssessmentModeSelector
+                selectedMode={assessmentData.assessmentMode}
+                onModeChange={(mode) => updateField('assessmentMode', mode)}
+              />
+            </Suspense>
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setCurrentStep(2)}
@@ -512,15 +515,17 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
             <div className="space-y-4">
               {assessmentData.questions.map((question, index) => (
-                <QuestionEditor
-                  key={index}
-                  question={question}
-                  questionIndex={index}
-                  onQuestionChange={updateQuestion}
-                  onRemove={removeQuestion}
-                  assessmentMode={assessmentData.assessmentMode}
-                  assessmentId={assessmentId}
-                />
+                <Suspense key={index} fallback={<div className="p-4 bg-white rounded-lg shadow text-center text-gray-500">Loading question...</div>}>
+                  <QuestionEditor
+                    key={index}
+                    question={question}
+                    questionIndex={index}
+                    onQuestionChange={updateQuestion}
+                    onRemove={removeQuestion}
+                    assessmentMode={assessmentData.assessmentMode}
+                    assessmentId={assessmentId}
+                  />
+                </Suspense>
               ))}
 
               <div className="flex gap-3">
@@ -552,10 +557,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                         ✕
                       </button>
                     </div>
-                    <AIBulkGenerator
-                      onQuestionsGenerated={handleAIBulkGenerate}
-                      assessmentMode={assessmentData.assessmentMode}
-                    />
+                    <Suspense fallback={<div className="p-4 text-center text-gray-500">Loading AI generator...</div>}>
+                      <AIBulkGenerator
+                        onQuestionsGenerated={handleAIBulkGenerate}
+                        assessmentMode={assessmentData.assessmentMode}
+                      />
+                    </Suspense>
                   </div>
                 </div>
               </div>

@@ -1,78 +1,95 @@
 import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import axios from 'axios';
 
-// Page Components
-import { LandingPage } from './pages/LandingPage';
-import { Login } from './pages/LoginPage';
-import { JoinPage } from './pages/JoinPage';
-import { AttemptPage } from './pages/AttemptPage';
-import { TeacherDashboard } from './pages/TeacherDashboardPage';
-import { QuestionsPage } from './pages/QuestionsPage';
-import { EnhancedAssessmentBuilderPage } from './pages/EnhancedAssessmentBuilderPage';
-import { EnhancedAttemptPage } from './pages/EnhancedAttemptPage';
-import { EnhancedAssessmentDetailPage } from './pages/EnhancedAssessmentDetailPage';
-import { EnhancedSubmissionDetailPage } from './pages/EnhancedSubmissionDetailPage';
+const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const Login = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.Login })));
+const JoinPage = lazy(() => import('./pages/JoinPage').then(m => ({ default: m.JoinPage })));
+const AttemptPage = lazy(() => import('./pages/AttemptPage').then(m => ({ default: m.AttemptPage })));
+const TeacherDashboard = lazy(() => import('./pages/TeacherDashboardPage').then(m => ({ default: m.TeacherDashboard })));
+const QuestionsPage = lazy(() => import('./pages/QuestionsPage').then(m => ({ default: m.QuestionsPage })));
+const EnhancedAssessmentBuilderPage = lazy(() => import('./pages/EnhancedAssessmentBuilderPage').then(m => ({ default: m.EnhancedAssessmentBuilderPage })));
+const EnhancedAttemptPage = lazy(() => import('./pages/EnhancedAttemptPage').then(m => ({ default: m.EnhancedAttemptPage })));
+const EnhancedAssessmentDetailPage = lazy(() => import('./pages/EnhancedAssessmentDetailPage').then(m => ({ default: m.EnhancedAssessmentDetailPage })));
+const EnhancedSubmissionDetailPage = lazy(() => import('./pages/EnhancedSubmissionDetailPage').then(m => ({ default: m.EnhancedSubmissionDetailPage })));
 
-// Shared Components
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { AssessmentsPage, AssessmentDetailPage, SubmissionDetailPage, SecurityReportPage, ProfilePage } from './components/TeacherPages';
-import { AdminDashboard } from './components/AdminPages';
-import { AnalyticsPage } from './components/AnalyticsPage';
-import { ClassesPage, ClassDetailPage } from './components/ClassesPage';
-import { CSVImportPage } from './components/CSVImportPage';
-import OCRUploadPage from './components/OCRUploadPage';
-import OCRReviewPage from './components/OCRReviewPage';
-import OCRModerationPage from './components/OCRModerationPage';
+const AssessmentsPage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.AssessmentsPage })));
+const AssessmentDetailPage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.AssessmentDetailPage })));
+const SubmissionDetailPage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.SubmissionDetailPage })));
+const SecurityReportPage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.SecurityReportPage })));
+const ProfilePage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.ProfilePage })));
 
-// Configure axios
+const AdminDashboard = lazy(() => import('./components/AdminPages').then(m => ({ default: m.AdminDashboard })));
+const AnalyticsPage = lazy(() => import('./components/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
+const ClassesPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.ClassesPage })));
+const ClassDetailPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.ClassDetailPage })));
+const CSVImportPage = lazy(() => import('./components/CSVImportPage').then(m => ({ default: m.CSVImportPage })));
+const OCRUploadPage = lazy(() => import('./components/OCRUploadPage').then(m => ({ default: m.default || m.OCRUploadPage })));
+const OCRReviewPage = lazy(() => import('./components/OCRReviewPage').then(m => ({ default: m.default || m.OCRReviewPage })));
+const OCRModerationPage = lazy(() => import('./components/OCRModerationPage').then(m => ({ default: m.default || m.OCRModerationPage })));
+
+const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m => ({ default: m.ProtectedRoute })));
+
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-// Main App Router
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-lg">Loading...</div>
+  </div>
+);
+
+const LazyProtectedRoute = ({ children, adminOnly = false }) => {
+  const ProtectedRouteComponent = ProtectedRoute;
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <ProtectedRouteComponent adminOnly={adminOnly}>
+        {children}
+      </ProtectedRouteComponent>
+    </Suspense>
+  );
+};
+
 function App() {
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/join" element={<JoinPage />} />
-      <Route path="/attempt/:attemptId" element={<AttemptPage />} />
-      <Route path="/enhanced-attempt/:attemptId" element={<EnhancedAttemptPage />} />
-      
-      {/* Teacher Auth Routes */}
-      <Route path="/teacher/login" element={<Login />} />
-      
-      {/* Protected Teacher Routes */}
-      <Route path="/teacher/dashboard" element={<ProtectedRoute>{(user) => <TeacherDashboard user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/questions" element={<ProtectedRoute>{(user) => <QuestionsPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/assessments" element={<ProtectedRoute>{(user) => <AssessmentsPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/assessments/create" element={<ProtectedRoute>{(user) => <EnhancedAssessmentBuilderPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/assessments/:assessmentId/edit" element={<ProtectedRoute>{(user) => <EnhancedAssessmentBuilderPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/assessments/:assessmentId" element={<ProtectedRoute>{(user) => <AssessmentDetailPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/assessments/:assessmentId/enhanced" element={<ProtectedRoute>{(user) => <EnhancedAssessmentDetailPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/submissions/:attemptId/enhanced" element={<ProtectedRoute>{(user) => <EnhancedSubmissionDetailPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/assessments/:assessmentId/security-report" element={<ProtectedRoute>{(user) => <SecurityReportPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/classes" element={<ProtectedRoute>{(user) => <ClassesPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/classes/import" element={<ProtectedRoute>{(user) => <CSVImportPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/classes/:classId" element={<ProtectedRoute>{(user) => <ClassDetailPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/classes/:classId/import" element={<ProtectedRoute>{(user) => <CSVImportPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/analytics" element={<ProtectedRoute>{(user) => <AnalyticsPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/submissions/:submissionId" element={<ProtectedRoute>{(user) => <SubmissionDetailPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/profile" element={<ProtectedRoute>{(user) => <ProfilePage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/ocr-upload" element={<ProtectedRoute>{(user) => <OCRUploadPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/ocr-review/:submissionId" element={<ProtectedRoute>{(user) => <OCRReviewPage user={user} />}</ProtectedRoute>} />
-      <Route path="/teacher/ocr-moderate/:submissionId" element={<ProtectedRoute>{(user) => <OCRModerationPage user={user} />}</ProtectedRoute>} />
-      
-      {/* Protected Admin Routes */}
-      <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly={true}>{(user) => <AdminDashboard user={user} />}</ProtectedRoute>} />
-      
-      {/* Catch-all redirect to landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/join" element={<JoinPage />} />
+        <Route path="/attempt/:attemptId" element={<AttemptPage />} />
+        <Route path="/enhanced-attempt/:attemptId" element={<EnhancedAttemptPage />} />
+        
+        <Route path="/teacher/login" element={<Login />} />
+        
+        <Route path="/teacher/dashboard" element={<LazyProtectedRoute>{(user) => <TeacherDashboard user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/questions" element={<LazyProtectedRoute>{(user) => <QuestionsPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments" element={<LazyProtectedRoute>{(user) => <AssessmentsPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments/create" element={<LazyProtectedRoute>{(user) => <EnhancedAssessmentBuilderPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments/:assessmentId/edit" element={<LazyProtectedRoute>{(user) => <EnhancedAssessmentBuilderPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments/:assessmentId" element={<LazyProtectedRoute>{(user) => <AssessmentDetailPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments/:assessmentId/enhanced" element={<LazyProtectedRoute>{(user) => <EnhancedAssessmentDetailPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/submissions/:attemptId/enhanced" element={<LazyProtectedRoute>{(user) => <EnhancedSubmissionDetailPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments/:assessmentId/security-report" element={<LazyProtectedRoute>{(user) => <SecurityReportPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/classes" element={<LazyProtectedRoute>{(user) => <ClassesPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/classes/import" element={<LazyProtectedRoute>{(user) => <CSVImportPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/classes/:classId" element={<LazyProtectedRoute>{(user) => <ClassDetailPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/classes/:classId/import" element={<LazyProtectedRoute>{(user) => <CSVImportPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/analytics" element={<LazyProtectedRoute>{(user) => <AnalyticsPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/submissions/:submissionId" element={<LazyProtectedRoute>{(user) => <SubmissionDetailPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/profile" element={<LazyProtectedRoute>{(user) => <ProfilePage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/ocr-upload" element={<LazyProtectedRoute>{(user) => <OCRUploadPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/ocr-review/:submissionId" element={<LazyProtectedRoute>{(user) => <OCRReviewPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/ocr-moderate/:submissionId" element={<LazyProtectedRoute>{(user) => <OCRModerationPage user={user} />}</LazyProtectedRoute>} />
+        
+        <Route path="/admin/dashboard" element={<LazyProtectedRoute adminOnly={true}>{(user) => <AdminDashboard user={user} />}</LazyProtectedRoute>} />
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 
-// App Wrapper with Router
 export default function AppWrapper() {
   return (
     <BrowserRouter>
