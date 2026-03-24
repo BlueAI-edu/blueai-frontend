@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { useAsync } from '@/hooks/use-async';
 
 const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
-  const [generating, setGenerating] = useState(false);
+  const [runGenerate, generating] = useAsync();
   const [formData, setFormData] = useState({
     subject: 'Mathematics',
     key_stage: 'KS4',
@@ -47,7 +48,7 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
     setFormData({ ...formData, question_types: types });
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!formData.topic.trim()) {
       setError('Please enter a topic');
       return;
@@ -58,20 +59,17 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
       return;
     }
 
-    setGenerating(true);
     setError('');
+    runGenerate(
+      async () => {
+        const response = await axios.post(`${API}/teacher/questions/ai-generate-multi`, formData);
 
-    try {
-      const response = await axios.post(`${API}/teacher/questions/ai-generate-multi`, formData);
-      
-      if (response.data.success) {
-        onQuestionsGenerated(response.data.questions);
-      }
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to generate questions'));
-    } finally {
-      setGenerating(false);
-    }
+        if (response.data.success) {
+          onQuestionsGenerated(response.data.questions);
+        }
+      },
+      (err) => setError(getApiErrorMessage(err, 'Failed to generate questions'))
+    );
   };
 
   return (

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { API } from "@/config";
 import { handleApiError, showSuccess } from "@/lib/handle-error";
+import { useAsync } from "../hooks/use-async";
 
 export const AssessmentsPage = ({ user }) => {
   const [assessments, setAssessments] = useState([]);
@@ -905,13 +906,12 @@ export const AssessmentDetailPage = ({ user }) => {
   };
 
   // Batch Export Functions
-  const [exportingCSV, setExportingCSV] = useState(false);
-  const [exportingZIP, setExportingZIP] = useState(false);
-  const [emailingAll, setEmailingAll] = useState(false);
+  const [runExportCSV, exportingCSV] = useAsync();
+  const [runExportZIP, exportingZIP] = useAsync();
+  const [runEmailAll, emailingAll] = useAsync();
 
-  const handleExportCSV = async () => {
-    setExportingCSV(true);
-    try {
+  const handleExportCSV = () => runExportCSV(
+    async () => {
       const response = await axios.get(
         `${API}/teacher/assessments/${assessmentId}/export-csv`,
         {
@@ -928,15 +928,12 @@ export const AssessmentDetailPage = ({ user }) => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (error) {
-      handleApiError(error, "Failed to export CSV");
-    }
-    setExportingCSV(false);
-  };
+    },
+    (e) => handleApiError(e, "Failed to export CSV"),
+  );
 
-  const handleExportAllPDFs = async () => {
-    setExportingZIP(true);
-    try {
+  const handleExportAllPDFs = () => runExportZIP(
+    async () => {
       const response = await axios.get(
         `${API}/teacher/assessments/${assessmentId}/export-pdfs-zip`,
         {
@@ -953,13 +950,11 @@ export const AssessmentDetailPage = ({ user }) => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (error) {
-      handleApiError(error, "Failed to export PDFs");
-    }
-    setExportingZIP(false);
-  };
+    },
+    (e) => handleApiError(e, "Failed to export PDFs"),
+  );
 
-  const handleEmailAllPDFs = async () => {
+  const handleEmailAllPDFs = () => {
     if (
       !window.confirm(
         "Email PDF reports to all students with email addresses? Only released, marked submissions will be emailed.",
@@ -967,17 +962,16 @@ export const AssessmentDetailPage = ({ user }) => {
     )
       return;
 
-    setEmailingAll(true);
-    try {
-      const response = await axios.post(
-        `${API}/teacher/assessments/${assessmentId}/email-all-pdfs`,
-      );
-      showSuccess(response.data.message);
-      loadData();
-    } catch (error) {
-      handleApiError(error, "Failed to email PDFs");
-    }
-    setEmailingAll(false);
+    return runEmailAll(
+      async () => {
+        const response = await axios.post(
+          `${API}/teacher/assessments/${assessmentId}/email-all-pdfs`,
+        );
+        showSuccess(response.data.message);
+        loadData();
+      },
+      (e) => handleApiError(e, "Failed to email PDFs"),
+    );
   };
 
   // Count unreleased marked submissions
@@ -1287,14 +1281,14 @@ export const SubmissionDetailPage = ({ user }) => {
   const { submissionId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [emailing, setEmailing] = useState(false);
+  const [runDownload, downloading] = useAsync();
+  const [runRegenerate, regenerating] = useAsync();
+  const [runEmail, emailing] = useAsync();
   const [editMode, setEditMode] = useState(false);
   const [editedFeedback, setEditedFeedback] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [showBreakdown, setShowBreakdown] = useState(false);
-  const [convertingToExample, setConvertingToExample] = useState(false);
+  const [runConvertToExample, convertingToExample] = useAsync();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1331,85 +1325,78 @@ export const SubmissionDetailPage = ({ user }) => {
     }
   };
 
-  const handleConvertToExample = async (exampleType) => {
+  const handleConvertToExample = (exampleType) => {
     const explanation = prompt(
       `Why is this a ${exampleType} example? (optional)`,
     );
-    setConvertingToExample(true);
-    try {
-      await axios.post(
-        `${API}/teacher/submissions/${submissionId}/convert-to-example?example_type=${exampleType}&explanation=${encodeURIComponent(explanation || "")}`,
-      );
-      showSuccess(`Converted to ${exampleType} example`);
-    } catch (error) {
-      handleApiError(error, "Failed to convert to example");
-    }
-    setConvertingToExample(false);
-  };
-
-  const handleEmailPDF = async () => {
-    if (emailing) return;
-    setEmailing(true);
-    try {
-      const response = await axios.post(
-        `${API}/teacher/submissions/${submissionId}/email-pdf`,
-      );
-      showSuccess(response.data.message);
-      loadData();
-    } catch (error) {
-      handleApiError(error, "Failed to email PDF");
-    }
-    setEmailing(false);
-  };
-
-  const handleDownloadPDF = async () => {
-    if (downloading) return;
-    setDownloading(true);
-
-    try {
-      const response = await axios.get(
-        `${API}/teacher/submissions/${submissionId}/download-pdf`,
-        { responseType: "blob" },
-      );
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      const filename =
-        `${data.submission.student_name}_${data.question.subject}_Feedback.pdf`.replace(
-          / /g,
-          "_",
+    return runConvertToExample(
+      async () => {
+        await axios.post(
+          `${API}/teacher/submissions/${submissionId}/convert-to-example?example_type=${exampleType}&explanation=${encodeURIComponent(explanation || "")}`,
         );
-      link.setAttribute("download", filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      setDownloading(false);
-    } catch (error) {
-      handleApiError(error, "PDF generation failed. Please retry.");
-      setDownloading(false);
-    }
+        showSuccess(`Converted to ${exampleType} example`);
+      },
+      (e) => handleApiError(e, "Failed to convert to example"),
+    );
   };
 
-  const handleRegeneratePDF = async () => {
+  const handleEmailPDF = () => {
+    if (emailing) return;
+    return runEmail(
+      async () => {
+        const response = await axios.post(
+          `${API}/teacher/submissions/${submissionId}/email-pdf`,
+        );
+        showSuccess(response.data.message);
+        loadData();
+      },
+      (e) => handleApiError(e, "Failed to email PDF"),
+    );
+  };
+
+  const handleDownloadPDF = () => {
+    if (downloading) return;
+    return runDownload(
+      async () => {
+        const response = await axios.get(
+          `${API}/teacher/submissions/${submissionId}/download-pdf`,
+          { responseType: "blob" },
+        );
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        const filename =
+          `${data.submission.student_name}_${data.question.subject}_Feedback.pdf`.replace(
+            / /g,
+            "_",
+          );
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      },
+      (e) => handleApiError(e, "PDF generation failed. Please retry."),
+    );
+  };
+
+  const handleRegeneratePDF = () => {
     if (regenerating) return;
-    setRegenerating(true);
-    try {
-      await axios.post(
-        `${API}/teacher/submissions/${submissionId}/regenerate-pdf`,
-      );
-      showSuccess("PDF regenerated successfully!");
-      loadData();
-    } catch (error) {
-      handleApiError(error, "Failed to regenerate PDF");
-    }
-    setRegenerating(false);
+    return runRegenerate(
+      async () => {
+        await axios.post(
+          `${API}/teacher/submissions/${submissionId}/regenerate-pdf`,
+        );
+        showSuccess("PDF regenerated successfully!");
+        loadData();
+      },
+      (e) => handleApiError(e, "Failed to regenerate PDF"),
+    );
   };
 
-  const handleSaveFeedback = async () => {
-    setSaving(true);
-    try {
+  const handleSaveFeedback = () => runSave(
+    async () => {
       await axios.put(
         `${API}/teacher/submissions/${submissionId}/moderate-feedback`,
         editedFeedback,
@@ -1417,11 +1404,9 @@ export const SubmissionDetailPage = ({ user }) => {
       showSuccess("Feedback saved successfully!");
       setEditMode(false);
       loadData();
-    } catch (error) {
-      handleApiError(error, "Failed to save feedback");
-    }
-    setSaving(false);
-  };
+    },
+    (e) => handleApiError(e, "Failed to save feedback"),
+  );
 
   if (loading) {
     return (
@@ -2125,7 +2110,7 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
     school_name: user.school_name || "",
     department: user.department || "",
   });
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [stats, setStats] = useState(null);
   const navigate = useNavigate();
 
@@ -2160,19 +2145,18 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
     }
   };
 
-  const handleSave = async (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
-    setSaving(true);
-    try {
-      await axios.put(`${API}/auth/profile`, profile);
-      showSuccess("Profile updated successfully!");
-      if (onProfileUpdate) {
-        onProfileUpdate({ ...user, ...profile });
-      }
-    } catch (error) {
-      handleApiError(error, "Failed to update profile");
-    }
-    setSaving(false);
+    return runSave(
+      async () => {
+        await axios.put(`${API}/auth/profile`, profile);
+        showSuccess("Profile updated successfully!");
+        if (onProfileUpdate) {
+          onProfileUpdate({ ...user, ...profile });
+        }
+      },
+      (e) => handleApiError(e, "Failed to update profile"),
+    );
   };
 
   return (

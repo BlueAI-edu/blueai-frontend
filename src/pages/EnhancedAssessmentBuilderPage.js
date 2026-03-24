@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { useAsync } from '@/hooks/use-async';
 
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
@@ -14,7 +15,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const isEdit = !!assessmentId;
 
   const [loading, setLoading] = useState(isEdit);
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [currentStep, setCurrentStep] = useState(1);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   
@@ -171,39 +172,38 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     return true;
   };
 
-  const saveDraft = async () => {
+  const saveDraft = () => {
     console.log('🔵 Save Draft clicked');
-    
+
     if (!validateAssessment()) {
       console.log('❌ Validation failed');
       return;
     }
 
     console.log('✅ Validation passed, saving...');
-    setSaving(true);
-    
-    try {
-      console.log('📤 Sending request to backend...');
-      console.log('Assessment data:', assessmentData);
-      
-      if (isEdit) {
-        console.log('Updating existing assessment:', assessmentId);
-        await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
-        showNotification('Draft saved successfully!', 'success');
-      } else {
-        console.log('Creating new assessment');
-        const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
-        console.log('✅ Response received:', response.data);
-        showNotification('Assessment created as draft!', 'success');
-        navigate(`/teacher/assessments/${response.data.assessment.id}/edit`);
+    runSave(
+      async () => {
+        console.log('📤 Sending request to backend...');
+        console.log('Assessment data:', assessmentData);
+
+        if (isEdit) {
+          console.log('Updating existing assessment:', assessmentId);
+          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+          showNotification('Draft saved successfully!', 'success');
+        } else {
+          console.log('Creating new assessment');
+          const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
+          console.log('✅ Response received:', response.data);
+          showNotification('Assessment created as draft!', 'success');
+          navigate(`/teacher/assessments/${response.data.assessment.id}/edit`);
+        }
+        console.log('🔵 Save Draft completed');
+      },
+      (error) => {
+        console.error('Error saving draft:', error);
+        showNotification(getApiErrorMessage(error, 'Failed to save'), 'error');
       }
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      showNotification(getApiErrorMessage(error, 'Failed to save'), 'error');
-    } finally {
-      setSaving(false);
-      console.log('🔵 Save Draft completed');
-    }
+    );
   };
 
   const handlePublishClick = () => {
@@ -218,36 +218,35 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setShowPublishConfirm(true);
   };
 
-  const confirmPublish = async () => {
+  const confirmPublish = () => {
     console.log('✅ User confirmed publish');
     setShowPublishConfirm(false);
-    setSaving(true);
-    
-    try {
-      let finalAssessmentId = assessmentId;
+    runSave(
+      async () => {
+        let finalAssessmentId = assessmentId;
 
-      if (!isEdit) {
-        console.log('Creating assessment before publishing');
-        const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
-        finalAssessmentId = response.data.assessment.id;
-        console.log('✅ Assessment created:', finalAssessmentId);
-      } else {
-        console.log('Updating existing assessment:', assessmentId);
-        await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+        if (!isEdit) {
+          console.log('Creating assessment before publishing');
+          const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
+          finalAssessmentId = response.data.assessment.id;
+          console.log('✅ Assessment created:', finalAssessmentId);
+        } else {
+          console.log('Updating existing assessment:', assessmentId);
+          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+        }
+
+        console.log('📤 Publishing assessment:', finalAssessmentId);
+        await axios.post(`${API}/teacher/assessments/${finalAssessmentId}/publish`);
+        console.log('✅ Assessment published successfully');
+        showNotification('Assessment published successfully!', 'success');
+        setTimeout(() => navigate('/teacher/assessments'), 1500);
+        console.log('🟢 Publish Assessment completed');
+      },
+      (error) => {
+        console.error('Error publishing:', error);
+        showNotification(getApiErrorMessage(error, 'Failed to publish'), 'error');
       }
-
-      console.log('📤 Publishing assessment:', finalAssessmentId);
-      await axios.post(`${API}/teacher/assessments/${finalAssessmentId}/publish`);
-      console.log('✅ Assessment published successfully');
-      showNotification('Assessment published successfully!', 'success');
-      setTimeout(() => navigate('/teacher/assessments'), 1500);
-    } catch (error) {
-      console.error('Error publishing:', error);
-      showNotification(getApiErrorMessage(error, 'Failed to publish'), 'error');
-    } finally {
-      setSaving(false);
-      console.log('🟢 Publish Assessment completed');
-    }
+    );
   };
 
   const cancelPublish = () => {

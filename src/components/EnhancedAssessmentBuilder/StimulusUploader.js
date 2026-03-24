@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { useAsync } from '@/hooks/use-async';
 
 const StimulusUploader = ({ assessmentId, questionNumber, currentStimulus, onStimulusUploaded }) => {
-  const [uploading, setUploading] = useState(false);
+  const [runUpload, uploading] = useAsync();
   const [error, setError] = useState('');
   const [stimulusType, setStimulusType] = useState('image');
   const [textContent, setTextContent] = useState(currentStimulus?.type === 'text' ? currentStimulus.content : '');
   const [caption, setCaption] = useState(currentStimulus?.caption || '');
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -26,29 +27,26 @@ const StimulusUploader = ({ assessmentId, questionNumber, currentStimulus, onSti
       return;
     }
 
-    setUploading(true);
     setError('');
+    runUpload(
+      async () => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('question_number', questionNumber);
+        formData.append('caption', caption);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('question_number', questionNumber);
-      formData.append('caption', caption);
+        const response = await axios.post(
+          `${API}/teacher/assessments/${assessmentId}/upload-stimulus`,
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
 
-      const response = await axios.post(
-        `${API}/teacher/assessments/${assessmentId}/upload-stimulus`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
-
-      if (response.data.success) {
-        onStimulusUploaded(response.data.stimulusBlock);
-      }
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to upload image'));
-    } finally {
-      setUploading(false);
-    }
+        if (response.data.success) {
+          onStimulusUploaded(response.data.stimulusBlock);
+        }
+      },
+      (err) => setError(getApiErrorMessage(err, 'Failed to upload image'))
+    );
   };
 
   const handleTextStimulusSubmit = () => {

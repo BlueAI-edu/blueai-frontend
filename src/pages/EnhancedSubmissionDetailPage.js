@@ -4,12 +4,13 @@ import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
+import { useAsync } from '@/hooks/use-async';
 
 export const EnhancedSubmissionDetailPage = ({ user }) => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [data, setData] = useState(null);
   
   // Feedback state
@@ -57,12 +58,10 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
     return Object.values(questionScores).reduce((sum, score) => sum + (score || 0), 0);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    
-    try {
+  const handleSave = () => runSave(
+    async () => {
       const totalScore = calculateTotalScore();
-      
+
       await axios.post(`${API}/teacher/submissions/${attemptId}/mark-enhanced`, {
         questionScores,
         totalScore,
@@ -70,15 +69,12 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         next_steps: ebi,
         overall_feedback: overallFeedback
       });
-      
+
       showSuccess('Feedback saved successfully!');
       loadData();
-    } catch (error) {
-      handleApiError(error, 'Failed to save feedback');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+    (error) => handleApiError(error, 'Failed to save feedback')
+  );
 
   if (loading) {
     return (

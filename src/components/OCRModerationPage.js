@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '@/config';
+import { useAsync } from '../hooks/use-async';
 
 export default function OCRModerationPage({ user }) {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export default function OCRModerationPage({ user }) {
   const [assessment, setAssessment] = useState(null);
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   
@@ -80,12 +81,11 @@ export default function OCRModerationPage({ user }) {
     }
   };
 
-  const handleSaveChanges = async () => {
-    setSaving(true);
+  const handleSaveChanges = () => {
     setError('');
     setSuccessMessage('');
 
-    try {
+    return runSave(async () => {
       const response = await fetch(
         `${API_URL}/api/ocr/submissions/${submissionId}/moderate`,
         {
@@ -107,18 +107,15 @@ export default function OCRModerationPage({ user }) {
 
       setSuccessMessage('Changes saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
+    }, (err) => {
       setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleFinalize = async () => {
-    setSaving(true);
+  const handleFinalize = () => {
     setError('');
 
-    try {
+    return runSave(async () => {
       // Save changes first
       await handleSaveChanges();
 
@@ -137,30 +134,32 @@ export default function OCRModerationPage({ user }) {
       }
 
       const data = await response.json();
-      
+
       // Fetch the generated PDF
       setPdfLoading(true);
-      const pdfResponse = await fetch(
-        `${API_URL}/api/ocr/submissions/${submissionId}/download-pdf`,
-        {
-          credentials: 'include'
+      try {
+        const pdfResponse = await fetch(
+          `${API_URL}/api/ocr/submissions/${submissionId}/download-pdf`,
+          {
+            credentials: 'include'
+          }
+        );
+
+        if (!pdfResponse.ok) {
+          throw new Error('Failed to fetch PDF');
         }
-      );
 
-      if (!pdfResponse.ok) {
-        throw new Error('Failed to fetch PDF');
+        const blob = await pdfResponse.blob();
+        const url = URL.createObjectURL(blob);
+        setPdfBlobUrl(url);
+        setShowPdfModal(true);
+      } finally {
+        setPdfLoading(false);
       }
-
-      const blob = await pdfResponse.blob();
-      const url = URL.createObjectURL(blob);
-      setPdfBlobUrl(url);
-      setShowPdfModal(true);
-    } catch (err) {
+    }, (err) => {
       setError(err.message);
-    } finally {
-      setSaving(false);
       setPdfLoading(false);
-    }
+    });
   };
 
   const handleDownloadPDF = () => {

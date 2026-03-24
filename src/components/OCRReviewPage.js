@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_URL } from "@/config";
+import { useAsync } from "../hooks/use-async";
 
 export default function OCRReviewPage({ user }) {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export default function OCRReviewPage({ user }) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [editedText, setEditedText] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -50,12 +51,11 @@ export default function OCRReviewPage({ user }) {
     }
   };
 
-  const handleSavePage = async () => {
-    setSaving(true);
+  const handleSavePage = () => {
     setError("");
     setSuccessMessage("");
 
-    try {
+    return runSave(async () => {
       const currentPage = pages[currentPageIndex];
       const response = await fetch(
         `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
@@ -84,18 +84,15 @@ export default function OCRReviewPage({ user }) {
       setPages(updatedPages);
       setSuccessMessage("Page saved successfully!");
       setTimeout(() => setSuccessMessage(""), 3000);
-    } catch (err) {
+    }, (err) => {
       setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleApproveAll = async () => {
-    setSaving(true);
+  const handleApproveAll = () => {
     setError("");
 
-    try {
+    return runSave(async () => {
       // Save current page first
       await handleSavePage();
 
@@ -129,18 +126,15 @@ export default function OCRReviewPage({ user }) {
 
       // Navigate to moderation page
       navigate(`/teacher/ocr-moderate/${submissionId}`);
-    } catch (err) {
+    }, (err) => {
       setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
-  const handleRerunOCR = async () => {
-    setSaving(true);
+  const handleRerunOCR = () => {
     setError("");
 
-    try {
+    return runSave(async () => {
       const response = await fetch(
         `${API_URL}/api/ocr/submissions/${submissionId}/process`,
         {
@@ -158,11 +152,9 @@ export default function OCRReviewPage({ user }) {
       await fetchSubmission();
       setSuccessMessage("OCR re-processed successfully!");
       setTimeout(() => setSuccessMessage(""), 3000);
-    } catch (err) {
+    }, (err) => {
       setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   if (loading) {

@@ -4,6 +4,7 @@ import MathKeyboard from './MathKeyboard';
 import LaTeXRenderer from './LaTeXRenderer';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { useAsync } from '@/hooks/use-async';
 
 const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
     question_context: 'mock exam'
   });
 
-  const [generating, setGenerating] = useState(false);
+  const [runGenerate, generating] = useAsync();
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState(new Set());
   const [error, setError] = useState('');
@@ -66,25 +67,22 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!formData.topic.trim()) {
       setError('Please enter a topic');
       return;
     }
 
-    setGenerating(true);
     setError('');
-
-    try {
-      const response = await axios.post(`${API}/teacher/questions/ai-generate`, formData);
-      const questionsData = response.data.questions || [];
-      setGeneratedQuestions(questionsData);
-      setSelectedQuestions(new Set());
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to generate questions. Please try again.'));
-    } finally {
-      setGenerating(false);
-    }
+    runGenerate(
+      async () => {
+        const response = await axios.post(`${API}/teacher/questions/ai-generate`, formData);
+        const questionsData = response.data.questions || [];
+        setGeneratedQuestions(questionsData);
+        setSelectedQuestions(new Set());
+      },
+      (err) => setError(getApiErrorMessage(err, 'Failed to generate questions. Please try again.'))
+    );
   };
 
   const toggleQuestionSelection = (index) => {

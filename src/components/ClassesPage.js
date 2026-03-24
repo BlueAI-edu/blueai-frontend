@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { handleApiError, getApiErrorMessage } from '@/lib/handle-error';
+import { useAsync } from '../hooks/use-async';
 
 // Classes Overview Page
 export const ClassesPage = ({ user }) => {
@@ -164,26 +165,23 @@ const CreateClassModal = ({ onClose, onCreated }) => {
     subject: '',
     year_group: ''
   });
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.class_name.trim()) {
       setError('Class name is required');
       return;
     }
 
-    setSaving(true);
     setError('');
-
-    try {
+    runSave(async () => {
       await axios.post(`${API}/teacher/classes`, formData);
       onCreated();
-    } catch (error) {
+    }, (error) => {
       setError(getApiErrorMessage(error, 'Failed to create class'));
-    }
-    setSaving(false);
+    });
   };
 
   return (
@@ -601,8 +599,8 @@ const ClassAnalyticsTab = ({ classId, className }) => {
   const [heatmap, setHeatmap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [exportingCSV, setExportingCSV] = useState(false);
-  const [exportingPDF, setExportingPDF] = useState(false);
+  const [runExportCSV, exportingCSV] = useAsync();
+  const [runExportPDF, exportingPDF] = useAsync();
   const [activeView, setActiveView] = useState('overview'); // overview, heatmap
 
   useEffect(() => {
@@ -625,43 +623,31 @@ const ClassAnalyticsTab = ({ classId, className }) => {
     setLoading(false);
   };
 
-  const handleExportCSV = async () => {
-    setExportingCSV(true);
-    try {
-      const response = await axios.get(`${API}/teacher/classes/${classId}/analytics/export-csv`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Class_Analytics_${className.replace(/\s+/g, '_')}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      handleApiError(error, 'Failed to export CSV');
-    }
-    setExportingCSV(false);
-  };
+  const handleExportCSV = () => runExportCSV(async () => {
+    const response = await axios.get(`${API}/teacher/classes/${classId}/analytics/export-csv`, {
+      responseType: 'blob'
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Class_Analytics_${className.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }, (error) => handleApiError(error, 'Failed to export CSV'));
 
-  const handleExportPDF = async () => {
-    setExportingPDF(true);
-    try {
-      const response = await axios.get(`${API}/teacher/classes/${classId}/analytics/export-pdf`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Class_Analytics_${className.replace(/\s+/g, '_')}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      handleApiError(error, 'Failed to export PDF');
-    }
-    setExportingPDF(false);
-  };
+  const handleExportPDF = () => runExportPDF(async () => {
+    const response = await axios.get(`${API}/teacher/classes/${classId}/analytics/export-pdf`, {
+      responseType: 'blob'
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Class_Analytics_${className.replace(/\s+/g, '_')}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }, (error) => handleApiError(error, 'Failed to export PDF'));
 
   // Helper function to get color based on percentage
   const getScoreColor = (percentage) => {
@@ -1080,26 +1066,23 @@ const AddStudentModal = ({ classId, onClose, onAdded }) => {
     eal_flag: false,
     notes: ''
   });
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.first_name.trim() || !formData.last_name.trim()) {
       setError('First name and last name are required');
       return;
     }
 
-    setSaving(true);
     setError('');
-
-    try {
+    runSave(async () => {
       await axios.post(`${API}/teacher/students`, formData);
       onAdded();
-    } catch (error) {
+    }, (error) => {
       setError(getApiErrorMessage(error, 'Failed to add student'));
-    }
-    setSaving(false);
+    });
   };
 
   return (
@@ -1258,26 +1241,23 @@ const EditClassModal = ({ classData, onClose, onUpdated }) => {
     subject: classData.subject || '',
     year_group: classData.year_group || ''
   });
-  const [saving, setSaving] = useState(false);
+  const [runSave, saving] = useAsync();
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.class_name.trim()) {
       setError('Class name is required');
       return;
     }
 
-    setSaving(true);
     setError('');
-
-    try {
+    runSave(async () => {
       await axios.put(`${API}/teacher/classes/${classData.id}`, formData);
       onUpdated();
-    } catch (error) {
+    }, (error) => {
       setError(getApiErrorMessage(error, 'Failed to update class'));
-    }
-    setSaving(false);
+    });
   };
 
   return (
