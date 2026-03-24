@@ -13,6 +13,7 @@ import { useTimer } from '../hooks/use-timer';
 import { useAutosave } from '../hooks/use-autosave';
 import { useFullscreenSecurity } from '../hooks/use-fullscreen-security';
 import { API } from '@/config';
+import { handleApiError } from '@/lib/handle-error';
 
 export const AttemptPage = () => {
   const { attemptId } = useParams();
@@ -107,7 +108,7 @@ export const AttemptPage = () => {
       setAttempt(response.data.attempt);
       setShowFeedback(true);
     } catch (error) {
-      alert(error.response?.data?.detail || 'Failed to submit');
+      handleApiError(error, 'Failed to submit');
       setSubmitting(false);
     }
   };

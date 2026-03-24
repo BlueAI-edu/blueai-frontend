@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 
 export const CSVImportPage = ({ user }) => {
   const { classId } = useParams();
@@ -77,7 +78,7 @@ export const CSVImportPage = ({ user }) => {
       setPreview(response.data);
       setStep('preview');
     } catch (error) {
-      setError(error.response?.data?.detail || 'Failed to preview CSV');
+      setError(getApiErrorMessage(error, 'Failed to preview CSV'));
     }
     setLoading(false);
   };
@@ -96,7 +97,7 @@ export const CSVImportPage = ({ user }) => {
       setImportResult(response.data);
       setStep('complete');
     } catch (error) {
-      setError(error.response?.data?.detail || 'Import failed');
+      setError(getApiErrorMessage(error, 'Import failed'));
       setStep('preview');
     }
     setLoading(false);

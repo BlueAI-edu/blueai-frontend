@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import { API } from '@/config';
+import { handleApiError, showSuccess } from '@/lib/handle-error';
 
 export const EnhancedAssessmentDetailPage = ({ user }) => {
   const { assessmentId } = useParams();
@@ -35,8 +36,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
       await axios.post(`${API}/teacher/submissions/${attemptId}/release-feedback`);
       loadData();
     } catch (error) {
-      console.error('Release feedback error:', error);
-      alert(error.response?.data?.detail || 'Failed to release feedback');
+      handleApiError(error, 'Failed to release feedback');
     } finally {
       setReleasingIds(prev => {
         const newSet = new Set(prev);
@@ -57,11 +57,10 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
 
     try {
       const response = await axios.post(`${API}/teacher/submissions/${attemptId}/auto-mark`);
-      alert('Submission auto-marked successfully! Review the feedback before releasing.');
+      showSuccess('Submission auto-marked successfully! Review the feedback before releasing.');
       loadData();
     } catch (error) {
-      console.error('Auto-mark error:', error);
-      alert(error.response?.data?.detail || 'Failed to auto-mark submission');
+      handleApiError(error, 'Failed to auto-mark submission');
     } finally {
       setReleasingIds(prev => {
         const newSet = new Set(prev);
@@ -76,11 +75,10 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
     
     try {
       const response = await axios.post(`${API}/teacher/assessments/${assessmentId}/release-all-feedback`);
-      alert(response.data.message);
+      showSuccess(response.data.message);
       loadData();
     } catch (error) {
-      console.error('Bulk release feedback error:', error);
-      alert(error.response?.data?.detail || 'Failed to release feedback');
+      handleApiError(error, 'Failed to release feedback');
     }
   };
 

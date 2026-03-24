@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import LaTeXRenderer from './LaTeXRenderer';
 import { API } from '@/config';
+import { handleApiError } from '@/lib/handle-error';
 
 const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
   const [filteredQuestions, setFilteredQuestions] = useState(questions);
@@ -135,7 +136,7 @@ const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
       setSelectedQuestions(new Set());
       onRefresh();
     } catch (error) {
-      alert('Failed to delete some questions');
+      handleApiError(error, 'Failed to delete some questions');
     }
   };
 
@@ -168,7 +169,7 @@ const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
       await axios.post(`${API}/teacher/questions`, clonedQuestion);
       onRefresh();
     } catch (error) {
-      alert('Failed to clone question');
+      handleApiError(error, 'Failed to clone question');
     }
   };
 

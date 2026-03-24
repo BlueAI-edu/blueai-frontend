@@ -3,6 +3,7 @@ import axios from 'axios';
 import MathKeyboard from './MathKeyboard';
 import LaTeXRenderer from './LaTeXRenderer';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 
 const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [formData, setFormData] = useState({
@@ -80,7 +81,7 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
       setGeneratedQuestions(questionsData);
       setSelectedQuestions(new Set());
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to generate questions. Please try again.');
+      setError(getApiErrorMessage(err, 'Failed to generate questions. Please try again.'));
     } finally {
       setGenerating(false);
     }

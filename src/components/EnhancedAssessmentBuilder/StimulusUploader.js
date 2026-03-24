@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 
 const StimulusUploader = ({ assessmentId, questionNumber, currentStimulus, onStimulusUploaded }) => {
   const [uploading, setUploading] = useState(false);
@@ -44,7 +45,7 @@ const StimulusUploader = ({ assessmentId, questionNumber, currentStimulus, onSti
         onStimulusUploaded(response.data.stimulusBlock);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to upload image');
+      setError(getApiErrorMessage(err, 'Failed to upload image'));
     } finally {
       setUploading(false);
     }

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import { API } from '@/config';
+import { handleApiError, showSuccess } from '@/lib/handle-error';
 
 export const EnhancedSubmissionDetailPage = ({ user }) => {
   const { attemptId } = useParams();
@@ -40,8 +41,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
       
       setLoading(false);
     } catch (error) {
-      console.error('Error loading submission:', error);
-      alert('Failed to load submission');
+      handleApiError(error, 'Failed to load submission');
       setLoading(false);
     }
   };
@@ -71,11 +71,10 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         overall_feedback: overallFeedback
       });
       
-      alert('Feedback saved successfully!');
+      showSuccess('Feedback saved successfully!');
       loadData();
     } catch (error) {
-      console.error('Error saving feedback:', error);
-      alert(error.response?.data?.detail || 'Failed to save feedback');
+      handleApiError(error, 'Failed to save feedback');
     } finally {
       setSaving(false);
     }

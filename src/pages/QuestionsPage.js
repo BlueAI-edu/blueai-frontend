@@ -6,6 +6,7 @@ import MathKeyboard from '../components/MathKeyboard';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import QuestionBank from '../components/QuestionBank';
 import { API } from '@/config';
+import { handleApiError } from '@/lib/handle-error';
 
 export const QuestionsPage = ({ user }) => {
   const [questions, setQuestions] = useState([]);
@@ -61,7 +62,7 @@ export const QuestionsPage = ({ user }) => {
       setFormData({ subject: '', exam_type: '', topic: '', question_text: '', max_marks: '', mark_scheme: '' });
       loadQuestions();
     } catch (error) {
-      alert('Failed to save question');
+      handleApiError(error, 'Failed to save question');
     }
   };
 
@@ -86,7 +87,7 @@ export const QuestionsPage = ({ user }) => {
       await axios.delete(`${API}/teacher/questions/${id}`);
       loadQuestions();
     } catch (error) {
-      alert('Failed to delete question');
+      handleApiError(error, 'Failed to delete question');
     }
   };
 

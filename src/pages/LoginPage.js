@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 import { GoogleLogin } from '@react-oauth/google';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/msalConfig';
@@ -42,7 +43,7 @@ export const Login = () => {
 
       await axios.post(`${API}${endpoint}`, payload);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Authentication failed');
+      setError(getApiErrorMessage(err, 'Authentication failed'));
       setLoading(false);
       return;
     }
@@ -57,7 +58,7 @@ export const Login = () => {
         headers: { 'Authorization': `Bearer ${credentialResponse.credential}` }
       });
     } catch (err) {
-      setError(err.response?.data?.detail || 'Google authentication failed');
+      setError(getApiErrorMessage(err, 'Google authentication failed'));
       setLoading(false);
       return;
     }
@@ -79,7 +80,7 @@ export const Login = () => {
         setLoading(false);
         return;
       }
-      setError(err.response?.data?.detail || 'Microsoft authentication failed');
+      setError(getApiErrorMessage(err, 'Microsoft authentication failed'));
       setLoading(false);
       return;
     }

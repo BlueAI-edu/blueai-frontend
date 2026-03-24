@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
@@ -51,7 +52,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setCurrentStep(3);
       setLoading(false);
     } catch (error) {
-      alert('Failed to load assessment');
+      showNotification(getApiErrorMessage(error, 'Failed to load assessment'), 'error');
       navigate('/teacher/assessments');
     }
   };
@@ -197,24 +198,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         navigate(`/teacher/assessments/${response.data.assessment.id}/edit`);
       }
     } catch (error) {
-      console.error('❌ Error saving draft:', error);
-      console.error('Error response:', error.response);
-      console.error('Error details:', error.response?.data);
-      
-      let errorMessage = 'Failed to save';
-      if (error.response?.data?.detail) {
-        const detail = error.response.data.detail;
-        if (Array.isArray(detail)) {
-          // Pydantic validation errors
-          errorMessage = detail.map(err => err.msg || 'Validation error').join(', ');
-        } else if (typeof detail === 'string') {
-          errorMessage = detail;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      showNotification(errorMessage, 'error');
+      console.error('Error saving draft:', error);
+      showNotification(getApiErrorMessage(error, 'Failed to save'), 'error');
     } finally {
       setSaving(false);
       console.log('🔵 Save Draft completed');
@@ -257,24 +242,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       showNotification('Assessment published successfully!', 'success');
       setTimeout(() => navigate('/teacher/assessments'), 1500);
     } catch (error) {
-      console.error('❌ Error publishing:', error);
-      console.error('Error response:', error.response);
-      console.error('Error details:', error.response?.data);
-      
-      let errorMessage = 'Failed to publish';
-      if (error.response?.data?.detail) {
-        const detail = error.response.data.detail;
-        if (Array.isArray(detail)) {
-          // Pydantic validation errors
-          errorMessage = detail.map(err => err.msg || 'Validation error').join(', ');
-        } else if (typeof detail === 'string') {
-          errorMessage = detail;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      showNotification(errorMessage, 'error');
+      console.error('Error publishing:', error);
+      showNotification(getApiErrorMessage(error, 'Failed to publish'), 'error');
     } finally {
       setSaving(false);
       console.log('🟢 Publish Assessment completed');

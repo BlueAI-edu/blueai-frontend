@@ -8,6 +8,7 @@ import QuestionSidebar from '../components/QuestionSidebar';
 import { useTimer } from '../hooks/use-timer';
 import { useAutosave } from '../hooks/use-autosave';
 import { API } from '@/config';
+import { handleApiError } from '@/lib/handle-error';
 
 export const EnhancedAttemptPage = () => {
   const { attemptId } = useParams();
@@ -53,8 +54,7 @@ export const EnhancedAttemptPage = () => {
       }
       setLoading(false);
     } catch (error) {
-      console.error('Error loading attempt:', error);
-      alert('Failed to load assessment. Please check your link.');
+      handleApiError(error, 'Failed to load assessment');
       setLoading(false);
     }
   };
@@ -86,8 +86,7 @@ export const EnhancedAttemptPage = () => {
       }
       setShowFeedback(true);
     } catch (error) {
-      console.error('Submit error:', error);
-      alert(error.response?.data?.detail || 'Failed to submit assessment');
+      handleApiError(error, 'Failed to submit assessment');
       setSubmitting(false);
     }
   };

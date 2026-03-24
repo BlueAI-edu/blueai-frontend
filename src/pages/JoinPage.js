@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 
 export const JoinPage = () => {
   const [joinCode, setJoinCode] = useState('');
@@ -70,7 +71,7 @@ export const JoinPage = () => {
         navigate(`/attempt/${attemptId}`);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to join assessment');
+      setError(getApiErrorMessage(err, 'Failed to join assessment'));
       setLoading(false);
     }
   };

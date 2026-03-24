@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { handleApiError } from '@/lib/handle-error';
 
 export const AdminDashboard = ({ user }) => {
   const [teachers, setTeachers] = useState([]);
@@ -33,7 +34,7 @@ export const AdminDashboard = ({ user }) => {
       await axios.put(`${API}/admin/teachers/${teacherId}/role?role=${newRole}`);
       loadData();
     } catch (error) {
-      alert('Failed to update role');
+      handleApiError(error, 'Failed to update role');
     }
   };
 

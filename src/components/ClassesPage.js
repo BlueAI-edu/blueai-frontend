@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { handleApiError, getApiErrorMessage } from '@/lib/handle-error';
 
 // Classes Overview Page
 export const ClassesPage = ({ user }) => {
@@ -180,7 +181,7 @@ const CreateClassModal = ({ onClose, onCreated }) => {
       await axios.post(`${API}/teacher/classes`, formData);
       onCreated();
     } catch (error) {
-      setError(error.response?.data?.detail || 'Failed to create class');
+      setError(getApiErrorMessage(error, 'Failed to create class'));
     }
     setSaving(false);
   };
@@ -294,7 +295,7 @@ export const ClassDetailPage = ({ user }) => {
       await axios.delete(`${API}/teacher/classes/${classId}`);
       navigate('/teacher/classes');
     } catch (error) {
-      alert(error.response?.data?.detail || 'Failed to delete class');
+      handleApiError(error, 'Failed to delete class');
     }
   };
 
@@ -305,7 +306,7 @@ export const ClassDetailPage = ({ user }) => {
       await axios.delete(`${API}/teacher/students/${studentId}`);
       loadClassData();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Failed to remove student');
+      handleApiError(error, 'Failed to remove student');
     }
   };
 
@@ -638,8 +639,7 @@ const ClassAnalyticsTab = ({ classId, className }) => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Error exporting CSV:', error);
-      alert('Failed to export CSV');
+      handleApiError(error, 'Failed to export CSV');
     }
     setExportingCSV(false);
   };
@@ -658,8 +658,7 @@ const ClassAnalyticsTab = ({ classId, className }) => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Error exporting PDF:', error);
-      alert('Failed to export PDF');
+      handleApiError(error, 'Failed to export PDF');
     }
     setExportingPDF(false);
   };
@@ -1098,7 +1097,7 @@ const AddStudentModal = ({ classId, onClose, onAdded }) => {
       await axios.post(`${API}/teacher/students`, formData);
       onAdded();
     } catch (error) {
-      setError(error.response?.data?.detail || 'Failed to add student');
+      setError(getApiErrorMessage(error, 'Failed to add student'));
     }
     setSaving(false);
   };
@@ -1276,7 +1275,7 @@ const EditClassModal = ({ classData, onClose, onUpdated }) => {
       await axios.put(`${API}/teacher/classes/${classData.id}`, formData);
       onUpdated();
     } catch (error) {
-      setError(error.response?.data?.detail || 'Failed to update class');
+      setError(getApiErrorMessage(error, 'Failed to update class'));
     }
     setSaving(false);
   };

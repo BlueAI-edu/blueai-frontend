@@ -2,6 +2,7 @@ import '@/App.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import axios from 'axios';
+import { Toaster } from '@/components/ui/toaster';
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const Login = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.Login })));
@@ -94,6 +95,7 @@ export default function AppWrapper() {
   return (
     <BrowserRouter>
       <App />
+      <Toaster />
     </BrowserRouter>
   );
 }

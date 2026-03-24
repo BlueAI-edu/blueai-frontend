@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { API } from '@/config';
+import { getApiErrorMessage } from '@/lib/handle-error';
 
 const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
   const [generating, setGenerating] = useState(false);
@@ -67,7 +68,7 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
         onQuestionsGenerated(response.data.questions);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to generate questions');
+      setError(getApiErrorMessage(err, 'Failed to generate questions'));
     } finally {
       setGenerating(false);
     }
