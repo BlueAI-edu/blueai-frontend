@@ -21,7 +21,6 @@ export const ClassesPage = ({ user }) => {
       const response = await axios.get(`${API}/teacher/classes`);
       setClasses(response.data.classes);
     } catch (error) {
-      console.error('Error loading classes:', error);
     }
     setLoading(false);
   };
@@ -281,7 +280,6 @@ export const ClassDetailPage = ({ user }) => {
       const response = await axios.get(`${API}/teacher/classes/${classId}`);
       setClassData(response.data);
     } catch (error) {
-      console.error('Error loading class:', error);
     }
     setLoading(false);
   };
@@ -617,7 +615,6 @@ const ClassAnalyticsTab = ({ classId, className }) => {
       setAnalytics(analyticsRes.data);
       setHeatmap(heatmapRes.data);
     } catch (error) {
-      console.error('Error loading analytics:', error);
       setError('Failed to load analytics');
     }
     setLoading(false);

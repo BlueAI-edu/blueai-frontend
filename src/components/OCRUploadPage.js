@@ -27,7 +27,6 @@ export default function OCRUploadPage({ user }) {
         setAssessments(data);
       }
     } catch (err) {
-      console.error('Failed to fetch assessments:', err);
     }
   };
 

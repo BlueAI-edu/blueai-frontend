@@ -32,7 +32,6 @@ export const JoinPage = () => {
         }
       } catch (err) {
         // Silently fail - code might be invalid or not class-linked
-        console.log('Not a class-linked assessment or invalid code');
       }
       setCheckingCode(false);
     }

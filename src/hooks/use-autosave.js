@@ -26,7 +26,7 @@ export const useAutosave = ({ attemptId, data, endpoint, enabled = true, mode = 
           setLastSaved(new Date().toLocaleTimeString());
         }
       } catch (error) {
-        console.error('Autosave failed:', error);
+        // Silently ignore autosave failures
       } finally {
         isSavingRef.current = false;
         setIsSaving(false);
@@ -52,7 +52,7 @@ export const useAutosave = ({ attemptId, data, endpoint, enabled = true, mode = 
         await axios.post(`${API}${endpoint}`, dataRef.current);
         setLastSaved(new Date().toLocaleTimeString());
       } catch (error) {
-        console.error('Autosave failed:', error);
+        // Silently ignore autosave failures
       } finally {
         isSavingRef.current = false;
         setIsSaving(false);

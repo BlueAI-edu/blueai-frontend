@@ -666,7 +666,6 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
       const response = await axios.get(url);
       setMathData(response.data);
     } catch (error) {
-      console.error('Error loading math analytics:', error);
     }
     setLoading(false);
   };
@@ -950,7 +949,6 @@ export const AnalyticsPage = ({ user }) => {
       setStudentsData(studentsRes.data);
       setAssessmentsData(assessmentsRes.data.assessments);
     } catch (error) {
-      console.error('Error loading analytics:', error);
     }
     setLoading(false);
   };
@@ -960,7 +958,6 @@ export const AnalyticsPage = ({ user }) => {
       const response = await axios.get(`${API}/teacher/classes`);
       setClasses(response.data.classes || []);
     } catch (error) {
-      console.error('Error loading classes:', error);
     }
   };
 
@@ -970,7 +967,6 @@ export const AnalyticsPage = ({ user }) => {
       setStudentProfile(response.data);
       setSelectedStudent(studentName);
     } catch (error) {
-      console.error('Error loading student profile:', error);
     }
   };
 
@@ -980,7 +976,6 @@ export const AnalyticsPage = ({ user }) => {
       const response = await axios.post(`${API}/teacher/analytics/generate-insights`);
       setAiInsights(response.data);
     } catch (error) {
-      console.error('Error generating insights:', error);
     }
     setInsightsLoading(false);
   };
@@ -998,7 +993,6 @@ export const AnalyticsPage = ({ user }) => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Error exporting CSV:', error);
     }
   };
 
@@ -1015,7 +1009,6 @@ export const AnalyticsPage = ({ user }) => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Error exporting PDF:', error);
     }
   };
 
@@ -1032,7 +1025,6 @@ export const AnalyticsPage = ({ user }) => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Error exporting student PDF:', error);
     }
   };
 

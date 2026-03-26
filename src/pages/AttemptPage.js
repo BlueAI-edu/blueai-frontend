@@ -61,7 +61,6 @@ export const AttemptPage = () => {
         });
         navigate('/');
       } catch (error) {
-        console.error('Auto-submit failed:', error);
         navigate('/');
       }
     },
@@ -82,7 +81,6 @@ export const AttemptPage = () => {
       }
       setLoading(false);
     } catch (error) {
-      console.error('Error loading attempt:', error);
       setLoading(false);
     }
   };

@@ -18,7 +18,6 @@ export const TeacherDashboard = ({ user }) => {
       setStats(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Error loading stats:', error);
       setLoading(false);
     }
   };
@@ -28,7 +27,6 @@ export const TeacherDashboard = ({ user }) => {
       await axios.post(`${API}/auth/logout`);
       navigate('/login');
     } catch (error) {
-      console.error('Logout error:', error);
     }
   };
 

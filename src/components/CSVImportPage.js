@@ -30,7 +30,7 @@ export const CSVImportPage = ({ user }) => {
       link.click();
       link.remove();
     } catch (error) {
-      console.error('Error downloading template:', error);
+      // Download failed silently
     }
   };
 

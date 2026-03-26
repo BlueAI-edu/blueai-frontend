@@ -49,7 +49,6 @@ export const AssessmentsPage = ({ user }) => {
       setTemplates(templatesRes.data.templates || []);
       setLoading(false);
     } catch (error) {
-      console.error("Error loading data:", error);
       setLoading(false);
     }
   };
@@ -819,7 +818,6 @@ export const AssessmentDetailPage = ({ user }) => {
       setData(response.data);
       setLoading(false);
     } catch (error) {
-      console.error("Error loading assessment:", error);
       setLoading(false);
     }
   };
@@ -1309,7 +1307,6 @@ export const SubmissionDetailPage = ({ user }) => {
       });
       setLoading(false);
     } catch (error) {
-      console.error("Error loading submission:", error);
       setLoading(false);
     }
   };
@@ -1852,7 +1849,6 @@ export const SecurityReportPage = ({ user }) => {
       setReport(response.data);
       setLoading(false);
     } catch (error) {
-      console.error("Error loading security report:", error);
       setLoading(false);
     }
   };
@@ -2141,7 +2137,6 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
         activeAssessments,
       });
     } catch (error) {
-      console.error("Error loading stats:", error);
     }
   };
 

@@ -22,7 +22,6 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
       setData(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Error loading assessment:', error);
       setLoading(false);
     }
   };

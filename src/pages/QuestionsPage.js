@@ -36,7 +36,6 @@ export const QuestionsPage = ({ user }) => {
       setQuestions(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Error loading questions:', error);
       setLoading(false);
     }
   };

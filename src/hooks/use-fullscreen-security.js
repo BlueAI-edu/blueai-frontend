@@ -59,12 +59,11 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       setIsFullscreen(true);
       setShowFullscreenPrompt(false);
     } catch (error) {
-      console.error('Fullscreen request failed:', error);
       setFullscreenSupported(false);
       setShowFullscreenPrompt(false);
       axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
         event_type: 'fullscreen_not_supported'
-      }).catch(err => console.error('Failed to log security event:', err));
+      }).catch(() => {});
     }
   };
 
@@ -75,7 +74,7 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     await axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
       event_type: 'fullscreen_exit',
       exit_count: newCount
-    }).catch(err => console.error('Failed to log security event:', err));
+    }).catch(() => {});
 
     if (newCount >= 3) {
       setIsLockedOut(true);
@@ -131,14 +130,14 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       if (document.hidden) {
         axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
           event_type: 'tab_hidden'
-        }).catch(err => console.error('Failed to log security event:', err));
+        }).catch(() => {});
       }
     };
 
     const handleBlur = () => {
       axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
         event_type: 'window_blur'
-      }).catch(err => console.error('Failed to log security event:', err));
+      }).catch(() => {});
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);

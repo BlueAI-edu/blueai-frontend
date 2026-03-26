@@ -133,126 +133,85 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   };
 
   const validateAssessment = () => {
-    console.log('🔍 Validating assessment...');
-    console.log('Title:', assessmentData.title);
-    console.log('Questions count:', assessmentData.questions.length);
-    console.log('Assessment mode:', assessmentData.assessmentMode);
-    
     if (!assessmentData.title.trim()) {
-      console.log('❌ Validation failed: No title');
       showNotification('Please enter an assessment title', 'error');
       return false;
     }
 
     if (assessmentData.questions.length === 0) {
-      console.log('❌ Validation failed: No questions');
       showNotification('Please add at least one question', 'error');
       return false;
     }
 
     if (assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length < 1) {
-      console.log('❌ Validation failed: Formative mode needs at least 1 question');
       showNotification('Formative mode requires at least 1 question', 'error');
       return false;
     }
 
     if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 3 || assessmentData.questions.length > 20)) {
-      console.log('❌ Validation failed: Summative mode needs 3-20 questions');
       showNotification('Summative mode requires 3-20 questions', 'error');
       return false;
     }
 
     for (const q of assessmentData.questions) {
       if (!q.questionBody.trim()) {
-        console.log(`❌ Validation failed: Question ${q.questionNumber} has no body`);
         showNotification(`Question ${q.questionNumber} is missing question text`, 'error');
         return false;
       }
     }
 
-    console.log('✅ Validation passed');
     return true;
   };
 
   const saveDraft = () => {
-    console.log('🔵 Save Draft clicked');
+    if (!validateAssessment()) return;
 
-    if (!validateAssessment()) {
-      console.log('❌ Validation failed');
-      return;
-    }
-
-    console.log('✅ Validation passed, saving...');
     runSave(
       async () => {
-        console.log('📤 Sending request to backend...');
-        console.log('Assessment data:', assessmentData);
-
         if (isEdit) {
-          console.log('Updating existing assessment:', assessmentId);
           await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
           showNotification('Draft saved successfully!', 'success');
         } else {
-          console.log('Creating new assessment');
           const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
-          console.log('✅ Response received:', response.data);
           showNotification('Assessment created as draft!', 'success');
           navigate(`/teacher/assessments/${response.data.assessment.id}/edit`);
         }
-        console.log('🔵 Save Draft completed');
       },
       (error) => {
-        console.error('Error saving draft:', error);
         showNotification(getApiErrorMessage(error, 'Failed to save'), 'error');
       }
     );
   };
 
   const handlePublishClick = () => {
-    console.log('🟢 Publish Assessment clicked');
-    
-    if (!validateAssessment()) {
-      console.log('❌ Validation failed');
-      return;
-    }
-
-    console.log('✅ Validation passed, showing confirmation dialog');
+    if (!validateAssessment()) return;
     setShowPublishConfirm(true);
   };
 
   const confirmPublish = () => {
-    console.log('✅ User confirmed publish');
     setShowPublishConfirm(false);
     runSave(
       async () => {
         let finalAssessmentId = assessmentId;
 
         if (!isEdit) {
-          console.log('Creating assessment before publishing');
           const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
           finalAssessmentId = response.data.assessment.id;
-          console.log('✅ Assessment created:', finalAssessmentId);
         } else {
-          console.log('Updating existing assessment:', assessmentId);
           await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
         }
 
-        console.log('📤 Publishing assessment:', finalAssessmentId);
         await axios.post(`${API}/teacher/assessments/${finalAssessmentId}/publish`);
-        console.log('✅ Assessment published successfully');
         showNotification('Assessment published successfully!', 'success');
         setTimeout(() => navigate('/teacher/assessments'), 1500);
-        console.log('🟢 Publish Assessment completed');
       },
       (error) => {
-        console.error('Error publishing:', error);
         showNotification(getApiErrorMessage(error, 'Failed to publish'), 'error');
       }
     );
   };
 
   const cancelPublish = () => {
-    console.log('❌ User cancelled publish');
     setShowPublishConfirm(false);
   };
 
