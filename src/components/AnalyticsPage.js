@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -38,7 +38,7 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
   const [filter, setFilter] = useState({ subject: '', dateRange: 'all' });
   
   // Prepare line chart data (student trends over time)
-  const trendData = heatmapData?.assessments?.map((assessment, idx) => {
+  const trendData = useMemo(() => heatmapData?.assessments?.map((assessment, idx) => {
     const dataPoint = { name: assessment.subject?.substring(0, 10) || `A${idx + 1}` };
     heatmapData.heatmap?.forEach(student => {
       if (student.scores[idx]?.percentage !== null) {
@@ -46,15 +46,15 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
       }
     });
     return dataPoint;
-  }) || [];
+  }) || [], [heatmapData]);
 
   // Bar chart: Average by student
-  const studentAverages = students?.map(s => ({
+  const studentAverages = useMemo(() => students?.map(s => ({
     name: s.student_name?.length > 15 ? s.student_name.substring(0, 15) + '...' : s.student_name,
     fullName: s.student_name,
     average: s.average || 0,
     fill: getStatusColor(s.average || 0)
-  })) || [];
+  })) || [], [students]);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

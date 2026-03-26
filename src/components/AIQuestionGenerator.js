@@ -6,6 +6,26 @@ import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
 
+const subjects = ['Maths', 'Physics', 'Chemistry', 'Biology', 'Combined Science', 'English Lang', 'English Lit', 'Geography', 'History'];
+const keyStages = ['KS3', 'KS4', 'KS5'];
+const examBoards = ['AQA', 'Edexcel', 'OCR', 'WJEC'];
+const tiers = ['Foundation', 'Higher', 'N/A'];
+const difficulties = ['Easy', 'Medium', 'Hard'];
+const questionTypes = [
+  'Short answer',
+  'Structured calculation',
+  'Derivation',
+  'Graph/Diagram-based',
+  'Explain/describe',
+  'Extended response',
+  'Data interpretation'
+];
+const diagramOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'description', label: 'Include description' },
+  { value: 'prompt', label: 'Generate diagram prompt' }
+];
+
 const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [formData, setFormData] = useState({
     subject: 'Maths',
@@ -32,26 +52,6 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [error, setError] = useState('');
   const [showMathKeyboard, setShowMathKeyboard] = useState(false);
   const [activeField, setActiveField] = useState(null);
-
-  const subjects = ['Maths', 'Physics', 'Chemistry', 'Biology', 'Combined Science', 'English Lang', 'English Lit', 'Geography', 'History'];
-  const keyStages = ['KS3', 'KS4', 'KS5'];
-  const examBoards = ['AQA', 'Edexcel', 'OCR', 'WJEC'];
-  const tiers = ['Foundation', 'Higher', 'N/A'];
-  const difficulties = ['Easy', 'Medium', 'Hard'];
-  const questionTypes = [
-    'Short answer',
-    'Structured calculation',
-    'Derivation',
-    'Graph/Diagram-based',
-    'Explain/describe',
-    'Extended response',
-    'Data interpretation'
-  ];
-  const diagramOptions = [
-    { value: 'none', label: 'None' },
-    { value: 'description', label: 'Include description' },
-    { value: 'prompt', label: 'Generate diagram prompt' }
-  ];
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

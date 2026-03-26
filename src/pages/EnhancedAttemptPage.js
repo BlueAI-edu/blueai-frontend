@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import StudentMathInput from '../components/StudentMathInput';
@@ -59,9 +59,9 @@ export const EnhancedAttemptPage = () => {
     }
   };
 
-  const handleAnswerChange = (questionNumber, value) => {
+  const handleAnswerChange = useCallback((questionNumber, value) => {
     setAnswers(prev => ({ ...prev, [questionNumber]: value }));
-  };
+  }, []);
 
   const handleSubmit = async (autoSubmit = false) => {
     if (!autoSubmit && submitting) return;
@@ -91,15 +91,16 @@ export const EnhancedAttemptPage = () => {
     }
   };
 
-  const goToQuestion = (index) => setCurrentQuestionIndex(index);
-  const goToNextQuestion = () => {
-    if (currentQuestionIndex < assessment.questions.length - 1) setCurrentQuestionIndex(currentQuestionIndex + 1);
-  };
-  const goToPreviousQuestion = () => {
-    if (currentQuestionIndex > 0) setCurrentQuestionIndex(currentQuestionIndex - 1);
-  };
+  const goToQuestion = useCallback((index) => setCurrentQuestionIndex(index), []);
+  const goToNextQuestion = useCallback(() => {
+    setCurrentQuestionIndex(prev => prev < (assessment?.questions?.length || 1) - 1 ? prev + 1 : prev);
+  }, [assessment?.questions?.length]);
+  const goToPreviousQuestion = useCallback(() => {
+    setCurrentQuestionIndex(prev => prev > 0 ? prev - 1 : prev);
+  }, []);
 
-  const getAnsweredCount = () => {
+  const answerProgress = useMemo(() => {
+    if (!assessment?.questions) return { answeredCount: 0, totalItems: 0 };
     let answeredCount = 0;
     let totalItems = 0;
     assessment.questions.forEach(q => {
@@ -115,7 +116,7 @@ export const EnhancedAttemptPage = () => {
       }
     });
     return { answeredCount, totalItems };
-  };
+  }, [assessment?.questions, answers]);
 
   if (loading) {
     return (
@@ -179,7 +180,7 @@ export const EnhancedAttemptPage = () => {
         onSubmit={() => handleSubmit(false)}
         submitting={submitting}
         isSaving={isSaving}
-        getAnsweredCount={getAnsweredCount}
+        answerProgress={answerProgress}
       />
 
       {/* Main Content Area */}

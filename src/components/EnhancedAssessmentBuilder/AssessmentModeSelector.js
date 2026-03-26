@@ -87,4 +87,4 @@ const AssessmentModeSelector = ({ selectedMode, onModeChange }) => {
   );
 };
 
-export default AssessmentModeSelector;
+export default React.memo(AssessmentModeSelector);

@@ -1,3 +1,4 @@
+import React from 'react';
 import { formatTime } from '../hooks/use-timer';
 
 const QuestionSidebar = ({
@@ -9,9 +10,9 @@ const QuestionSidebar = ({
   onSubmit,
   submitting,
   isSaving,
-  getAnsweredCount,
+  answerProgress,
 }) => {
-  const { answeredCount, totalItems } = getAnsweredCount();
+  const { answeredCount, totalItems } = answerProgress;
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
@@ -115,4 +116,4 @@ const QuestionSidebar = ({
   );
 };
 
-export default QuestionSidebar;
+export default React.memo(QuestionSidebar);

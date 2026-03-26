@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
@@ -58,59 +58,61 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     }
   };
 
-  const updateField = (field, value) => {
-    setAssessmentData({ ...assessmentData, [field]: value });
-  };
+  const updateField = useCallback((field, value) => {
+    setAssessmentData(prev => ({ ...prev, [field]: value }));
+  }, []);
 
-  const addQuestion = () => {
-    const newQuestion = {
-      questionNumber: assessmentData.questions.length + 1,
-      questionType: '',
-      questionBody: '',
-      stimulusBlock: null,
-      maxMarks: 1,
-      subject: assessmentData.subject,
-      topic: '',
-      difficulty: 'Medium',
-      tags: [],
-      options: [],
-      allowMultiSelect: false,
-      parts: [],
-      answerType: 'TEXT',
-      calculatorAllowed: false,
-      markScheme: '',
-      modelAnswer: '',
-      source: 'manual'
-    };
-    setAssessmentData({
-      ...assessmentData,
-      questions: [...assessmentData.questions, newQuestion]
+  const addQuestion = useCallback(() => {
+    setAssessmentData(prev => {
+      const newQuestion = {
+        questionNumber: prev.questions.length + 1,
+        questionType: '',
+        questionBody: '',
+        stimulusBlock: null,
+        maxMarks: 1,
+        subject: prev.subject,
+        topic: '',
+        difficulty: 'Medium',
+        tags: [],
+        options: [],
+        allowMultiSelect: false,
+        parts: [],
+        answerType: 'TEXT',
+        calculatorAllowed: false,
+        markScheme: '',
+        modelAnswer: '',
+        source: 'manual'
+      };
+      return { ...prev, questions: [...prev.questions, newQuestion] };
     });
-  };
+  }, []);
 
-  const updateQuestion = (index, updatedQuestion) => {
-    const newQuestions = [...assessmentData.questions];
-    newQuestions[index] = updatedQuestion;
-    setAssessmentData({ ...assessmentData, questions: newQuestions });
-  };
+  const updateQuestion = useCallback((index, updatedQuestion) => {
+    setAssessmentData(prev => {
+      const newQuestions = [...prev.questions];
+      newQuestions[index] = updatedQuestion;
+      return { ...prev, questions: newQuestions };
+    });
+  }, []);
 
-  const removeQuestion = (index) => {
-    const newQuestions = assessmentData.questions.filter((_, i) => i !== index);
-    const renumbered = newQuestions.map((q, i) => ({ ...q, questionNumber: i + 1 }));
-    setAssessmentData({ ...assessmentData, questions: renumbered });
-  };
+  const removeQuestion = useCallback((index) => {
+    setAssessmentData(prev => {
+      const newQuestions = prev.questions.filter((_, i) => i !== index);
+      const renumbered = newQuestions.map((q, i) => ({ ...q, questionNumber: i + 1 }));
+      return { ...prev, questions: renumbered };
+    });
+  }, []);
 
-  const handleAIBulkGenerate = (questions) => {
-    const numbered = questions.map((q, i) => ({
-      ...q,
-      questionNumber: assessmentData.questions.length + i + 1
-    }));
-    setAssessmentData({
-      ...assessmentData,
-      questions: [...assessmentData.questions, ...numbered]
+  const handleAIBulkGenerate = useCallback((questions) => {
+    setAssessmentData(prev => {
+      const numbered = questions.map((q, i) => ({
+        ...q,
+        questionNumber: prev.questions.length + i + 1
+      }));
+      return { ...prev, questions: [...prev.questions, ...numbered] };
     });
     setShowAIBulk(false);
-  };
+  }, []);
 
   const showNotification = (message, type = 'info') => {
     // Handle error objects/arrays
@@ -254,12 +256,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setShowPublishConfirm(false);
   };
 
-  const totalMarks = assessmentData.questions.reduce((sum, q) => {
+  const totalMarks = useMemo(() => assessmentData.questions.reduce((sum, q) => {
     if (q.questionType === 'STRUCTURED_WITH_PARTS') {
       return sum + (q.parts || []).reduce((pSum, p) => pSum + (p.maxMarks || 0), 0);
     }
     return sum + (q.maxMarks || 0);
-  }, 0);
+  }, 0), [assessmentData.questions]);
 
   if (loading) {
     return (

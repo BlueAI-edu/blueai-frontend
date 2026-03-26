@@ -89,4 +89,4 @@ const MCQEditor = ({ options, onOptionsChange, allowMultiSelect, onMultiSelectCh
   );
 };
 
-export default MCQEditor;
+export default React.memo(MCQEditor);

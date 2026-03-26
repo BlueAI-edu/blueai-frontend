@@ -76,4 +76,4 @@ const QuestionTypeSelector = ({ selectedType, onTypeChange, mode }) => {
   );
 };
 
-export default QuestionTypeSelector;
+export default React.memo(QuestionTypeSelector);

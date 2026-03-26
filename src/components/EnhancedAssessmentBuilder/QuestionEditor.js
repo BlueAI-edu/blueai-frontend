@@ -261,4 +261,4 @@ const QuestionEditor = ({
   );
 };
 
-export default QuestionEditor;
+export default React.memo(QuestionEditor);
