@@ -1,5 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
 import LaTeXRenderer from '../LaTeXRenderer';
+
+const LaTeXPreview = ({ text, label }) => {
+  if (!text || !text.includes('$')) return null;
+  return (
+    <div className="mt-1 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+      <p className="text-xs text-blue-600 font-medium mb-1">Preview — {label}</p>
+      <div className="text-sm text-gray-900">
+        <LaTeXRenderer text={text} />
+      </div>
+    </div>
+  );
+};
 
 const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => {
   const getNextPartLabel = () => {
@@ -94,16 +106,20 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
                 <div className="flex-1 space-y-3">
                   {/* Part Prompt */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Part ({part.partLabel}) Question
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Part ({part.partLabel}) Question
+                      </label>
+                      <span className="text-xs text-gray-400">Supports LaTeX ($…$)</span>
+                    </div>
                     <textarea
                       value={part.partPrompt}
                       onChange={(e) => updatePart(index, 'partPrompt', e.target.value)}
-                      placeholder="Enter the question for this part..."
+                      placeholder="Enter the question for this part... e.g. Solve $2x^2 - 5x + 3 = 0$"
                       rows={2}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
+                    <LaTeXPreview text={part.partPrompt} label={`part ${part.partLabel}`} />
                   </div>
 
                   {/* Marks and Answer Type */}
@@ -136,7 +152,10 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
 
                   {/* Mark Scheme */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mark Scheme</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-medium text-gray-700">Mark Scheme</label>
+                      <span className="text-xs text-gray-400">Supports LaTeX ($…$)</span>
+                    </div>
                     <textarea
                       value={part.markScheme}
                       onChange={(e) => updatePart(index, 'markScheme', e.target.value)}
@@ -144,6 +163,7 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
                       rows={2}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
+                    <LaTeXPreview text={part.markScheme} label={`part ${part.partLabel} mark scheme`} />
                   </div>
                 </div>
 

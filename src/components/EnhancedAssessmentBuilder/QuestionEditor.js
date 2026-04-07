@@ -4,14 +4,28 @@ import MCQEditor from './MCQEditor';
 import StructuredQuestionBuilder from './StructuredQuestionBuilder';
 import StimulusUploader from './StimulusUploader';
 import AIBulkGenerator from './AIBulkGenerator';
+import LaTeXRenderer from '../LaTeXRenderer';
 
-const QuestionEditor = ({ 
-  question, 
-  questionIndex, 
-  onQuestionChange, 
-  onRemove, 
+// Inline LaTeX preview shown automatically when the field contains $ delimiters
+const LaTeXPreview = ({ text, label }) => {
+  if (!text || !text.includes('$')) return null;
+  return (
+    <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <p className="text-xs text-blue-600 font-medium mb-1">LaTeX preview — {label}</p>
+      <div className="text-sm text-gray-900">
+        <LaTeXRenderer text={text} />
+      </div>
+    </div>
+  );
+};
+
+const QuestionEditor = ({
+  question,
+  questionIndex,
+  onQuestionChange,
+  onRemove,
   assessmentMode,
-  assessmentId 
+  assessmentId
 }) => {
   const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'ai'
 
@@ -21,14 +35,13 @@ const QuestionEditor = ({
 
   const handleAIQuestionsGenerated = (questions) => {
     if (questions && questions.length > 0) {
-      // Take the first question and populate the current question
       const aiQuestion = questions[0];
       onQuestionChange(questionIndex, {
         ...question,
         ...aiQuestion,
-        questionNumber: question.questionNumber // Preserve the question number
+        questionNumber: question.questionNumber
       });
-      setActiveTab('manual'); // Switch to manual to see the result
+      setActiveTab('manual');
     }
   };
 
@@ -51,7 +64,6 @@ const QuestionEditor = ({
     }
   };
 
-  // Auto-initialize based on question type
   React.useEffect(() => {
     if (question.questionType === 'MULTIPLE_CHOICE' || question.questionType === 'MULTI_SELECT') {
       initializeMCQOptions();
@@ -139,16 +151,20 @@ const QuestionEditor = ({
 
                 {/* Question Body */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Question Text
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Question Text
+                    </label>
+                    <span className="text-xs text-gray-400">Use $…$ for inline LaTeX, $$…$$ for display</span>
+                  </div>
                   <textarea
                     value={question.questionBody || ''}
                     onChange={(e) => updateQuestion('questionBody', e.target.value)}
-                    placeholder="Enter your question here..."
+                    placeholder="Enter your question here... Use $x^2$ for inline LaTeX or $$\frac{a}{b}$$ for display math"
                     rows={3}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
+                  <LaTeXPreview text={question.questionBody} label="question" />
                 </div>
 
                 {/* MCQ Options */}
@@ -167,7 +183,6 @@ const QuestionEditor = ({
                     parts={question.parts || []}
                     onPartsChange={(parts) => {
                       updateQuestion('parts', parts);
-                      // Auto-calculate total marks
                       const totalMarks = parts.reduce((sum, p) => sum + (p.maxMarks || 0), 0);
                       updateQuestion('maxMarks', totalMarks);
                     }}
@@ -206,18 +221,25 @@ const QuestionEditor = ({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Mark Scheme</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Mark Scheme</label>
+                        <span className="text-xs text-gray-400">Supports LaTeX ($…$)</span>
+                      </div>
                       <textarea
                         value={question.markScheme || ''}
                         onChange={(e) => updateQuestion('markScheme', e.target.value)}
-                        placeholder="Enter marking criteria..."
+                        placeholder="Enter marking criteria... e.g. Award 1 mark for $x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$"
                         rows={3}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
+                      <LaTeXPreview text={question.markScheme} label="mark scheme" />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Model Answer (Optional)</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Model Answer (Optional)</label>
+                        <span className="text-xs text-gray-400">Supports LaTeX ($…$)</span>
+                      </div>
                       <textarea
                         value={question.modelAnswer || ''}
                         onChange={(e) => updateQuestion('modelAnswer', e.target.value)}
@@ -225,6 +247,7 @@ const QuestionEditor = ({
                         rows={2}
                         className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
+                      <LaTeXPreview text={question.modelAnswer} label="model answer" />
                     </div>
                   </>
                 )}
@@ -252,7 +275,7 @@ const QuestionEditor = ({
               assessmentMode={assessmentMode}
             />
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-              💡 AI will generate a question based on your specifications. You can edit it after generation.
+              AI will generate a question based on your specifications. You can edit it after generation.
             </div>
           </div>
         )}
