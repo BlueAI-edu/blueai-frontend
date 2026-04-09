@@ -67,8 +67,8 @@ export default function OCRBlockCard({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <ConfidenceBadge 
-              confidence={block.confidence} 
+            <ConfidenceBadge
+              confidence={block.confidence}
               size="small"
               showLabel={true}
             />
@@ -120,7 +120,7 @@ export default function OCRBlockCard({
             {block.cleaned_text && (
               <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-md">
                 <div className="text-xs font-medium text-emerald-800 mb-1 flex items-center gap-1">
-                  <span>✓</span>
+                  <span>&#10003;</span>
                   AI Cleaned
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -151,7 +151,7 @@ export default function OCRBlockCard({
               variant="secondary"
               size="sm"
             >
-              ✨ AI Clean Up
+              AI Clean Up
             </Button>
           )}
         </CardFooter>

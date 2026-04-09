@@ -15,149 +15,123 @@ export const mockOCRSubmissionWithBlocks = {
     {
       page_number: 1,
       file_path: "/uploads/ocr/123/page1.png",
-      average_confidence: 0.82,
-      min_confidence: 0.65,
+      page_type: "question",
+      vision_confidence: 0.88,
       is_approved: false,
       approved_ocr_text: null,
-      blocks: [
+      vision_responses: [
         {
-          block_id: "p1b1",
-          text: "Question 1: Solve for x",
-          confidence: 0.95,
-          block_type: "heading",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
-        },
-        {
-          block_id: "p1b2",
-          text: "x =42",
-          confidence: 0.68,
-          block_type: "answer",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
-        },
-        {
-          block_id: "p1b3",
-          text: "Working:\n2x + 5 = 89\n2x = 84\nx = 42",
-          confidence: 0.73,
-          block_type: "working",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
-        },
-        {
-          block_id: "p1b4",
-          text: "Question 2: Calculate the area",
-          confidence: 0.92,
-          block_type: "heading",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
-        },
-        {
-          block_id: "p1b5",
-          text: "Area = length x width",
-          confidence: 0.88,
-          block_type: "answer",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
+          question_ref: "1",
+          question_number: 1,
+          part_label: null,
+          answer_text: "x = 42",
+          working_text: "2x + 5 = 89\n2x = 84\nx = 42",
+          confidence: 0.92
         }
       ]
     },
     {
       page_number: 2,
       file_path: "/uploads/ocr/123/page2.png",
-      average_confidence: 0.79,
-      min_confidence: 0.58,
+      page_type: "question",
+      vision_confidence: 0.82,
       is_approved: false,
       approved_ocr_text: null,
-      blocks: [
+      vision_responses: [
         {
-          block_id: "p2b1",
-          text: "Question 3: Evaluate the expression",
-          confidence: 0.90,
-          block_type: "heading",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
+          question_ref: "2",
+          question_number: 2,
+          part_label: null,
+          answer_text: "Area = length x width",
+          working_text: "",
+          confidence: 0.88
         },
         {
-          block_id: "p2b2",
-          text: "The answr is 56",
-          confidence: 0.72,
-          block_type: "answer",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
-        },
-        {
-          block_id: "p2b3",
-          text: "Work1ng:\nFirst I add 23 and 33\nThen I multiply by 1",
-          confidence: 0.58,
-          block_type: "working",
-          cleaned_text: null,
-          original_text: null,
-          is_cleaned: false
+          question_ref: "3a",
+          question_number: 3,
+          part_label: "a",
+          answer_text: "The answr is 56",
+          working_text: "Work1ng:\nFirst I add 23 and 33\nThen I multiply by 1",
+          confidence: 0.65
         }
       ]
     }
-  ]
-};
-
-export const mockOCRSubmissionLegacy = {
-  submission: {
-    submission_id: 124,
-    assessment_id: 456,
-    student_name: "Jane Doe",
-    batch_label: null,
-    status: "reviewed",
-    total_score: null,
-    www: null,
-    next_steps: null,
-    overall_feedback: null,
-    created_at: "2026-04-07T11:00:00Z"
-  },
-  pages: [
+  ],
+  response_blocks: [
     {
-      page_number: 1,
-      file_path: "/uploads/ocr/124/page1.png",
-      confidence: 0.78,
-      is_approved: false,
-      approved_ocr_text: null,
-      ocr_text: "Question 1: Solve for x\n\nx = 42\n\nWorking:\n2x + 5 = 89\n2x = 84\nx = 42"
+      block_id: "rb_Q1",
+      question_ref: "1",
+      question_number: 1,
+      part_label: null,
+      extracted_text: "x = 42\n\n2x + 5 = 89\n2x = 84\nx = 42",
+      source_pages: [1],
+      source_block_ids: [],
+      is_continuation: false,
+      ocr_confidence: 0.92,
+      segmentation_confidence: 0.90,
+      contamination_flag: false,
+      review_required: false,
+      cleaned_text: null
+    },
+    {
+      block_id: "rb_Q2",
+      question_ref: "2",
+      question_number: 2,
+      part_label: null,
+      extracted_text: "Area = length x width",
+      source_pages: [1],
+      source_block_ids: [],
+      is_continuation: false,
+      ocr_confidence: 0.88,
+      segmentation_confidence: 0.90,
+      contamination_flag: false,
+      review_required: false,
+      cleaned_text: null
+    },
+    {
+      block_id: "rb_Q3a",
+      question_ref: "3a",
+      question_number: 3,
+      part_label: "a",
+      extracted_text: "The answr is 56\n\nWork1ng:\nFirst I add 23 and 33\nThen I multiply by 1",
+      source_pages: [2],
+      source_block_ids: [],
+      is_continuation: false,
+      ocr_confidence: 0.65,
+      segmentation_confidence: 0.90,
+      contamination_flag: false,
+      review_required: true,
+      cleaned_text: null
     }
   ]
 };
 
 export const mockAICleanupResponse = {
-  block_id: "p1b2",
-  original_text: "x =42",
-  cleaned_text: "x = 42",
-  confidence_before: 0.68,
+  block_id: "rb_Q3a",
+  original_text: "The answr is 56",
+  cleaned_text: "The answer is 56",
+  confidence_before: 0.65,
   confidence_after: 0.95,
   certainty: 0.98,
   changes: [
     {
-      type: "spacing",
-      from: "=42",
-      to: "= 42",
+      type: "character",
+      from: "answr",
+      to: "answer",
       certainty: 0.98,
-      reason: "Common OCR error - missing space after equals sign"
+      reason: "Character misrecognition - 'answr' → 'answer'"
     }
   ],
   rules_applied: [
     {
       rule: "preserve_numbers",
       status: "passed",
-      reason: "Number '42' unchanged (100% certain match)"
+      reason: "Number '56' unchanged (100% certain match)"
     },
     {
       rule: "preserve_student_grammar",
       status: "passed",
-      reason: "No grammar modifications - only spacing fix"
+      reason: "No grammar modifications - only character fix"
     },
     {
       rule: "no_invented_claims",
@@ -168,10 +142,10 @@ export const mockAICleanupResponse = {
 };
 
 export const mockAICleanupResponseWithFailures = {
-  block_id: "p2b2",
+  block_id: "rb_Q3a",
   original_text: "The answr is 56",
   cleaned_text: "The answer is 56. Therefore x = 56",
-  confidence_before: 0.72,
+  confidence_before: 0.65,
   confidence_after: 0.88,
   certainty: 0.85,
   changes: [
