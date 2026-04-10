@@ -1,89 +1,9 @@
-export function hasBlockData(page) {
-  return page && page.blocks && Array.isArray(page.blocks) && page.blocks.length > 0;
-}
-
 export function getPageConfidence(page) {
-  if (hasBlockData(page)) {
-    return page.average_confidence || calculateAverageConfidence(page.blocks);
-  }
-  return page.confidence || 0;
-}
-
-export function calculateAverageConfidence(blocks) {
-  if (!blocks || blocks.length === 0) return 0;
-  return blocks.reduce((sum, block) => sum + (block.confidence || 0), 0) / blocks.length;
+  return page?.vision_confidence || page?.confidence || 0;
 }
 
 export function getMinConfidence(page) {
-  if (hasBlockData(page)) {
-    return page.min_confidence || calculateMinConfidence(page.blocks);
-  }
-  return page.confidence || 0;
-}
-
-export function calculateMinConfidence(blocks) {
-  if (!blocks || blocks.length === 0) return 0;
-  return Math.min(...blocks.map(b => b.confidence || 0));
-}
-
-export function getLowConfidenceBlocks(page, threshold = 0.80) {
-  if (!hasBlockData(page)) return [];
-  return page.blocks.filter(block => (block.confidence || 0) < threshold);
-}
-
-export function needsAttention(page, threshold = 0.80) {
-  if (hasBlockData(page)) {
-    return getLowConfidenceBlocks(page, threshold).length > 0;
-  }
-  return (page.confidence || 0) < threshold;
-}
-
-export function transformLegacyPage(page) {
-  const approvedText = page.approved_ocr_text ?? page.raw_ocr_text ?? page.ocr_text ?? "";
-
-  if (hasBlockData(page)) {
-    return {
-      ...page,
-      page_id: page.page_id || `page-${page.page_number}`,
-      approved_ocr_text: approvedText,
-      raw_ocr_text: page.raw_ocr_text ?? approvedText,
-      average_confidence: page.average_confidence || calculateAverageConfidence(page.blocks),
-      min_confidence: page.min_confidence || calculateMinConfidence(page.blocks)
-    };
-  }
-  
-  if (approvedText) {
-    const blockId = `p${page.page_number}b1`;
-    return {
-      ...page,
-      page_id: page.page_id || `page-${page.page_number}`,
-      blocks: [
-        {
-          block_id: blockId,
-          text: approvedText,
-          confidence: page.confidence || 0.5,
-          block_type: "text",
-          original_text: approvedText,
-          cleaned_text: null,
-          is_cleaned: false
-        }
-      ],
-      approved_ocr_text: approvedText,
-      raw_ocr_text: page.raw_ocr_text ?? approvedText,
-      average_confidence: page.confidence || 0.5,
-      min_confidence: page.confidence || 0.5
-    };
-  }
-  
-  return {
-    ...page,
-    page_id: page.page_id || `page-${page.page_number}`
-  };
-}
-
-export function combineBlocksText(blocks) {
-  if (!blocks || blocks.length === 0) return "";
-  return blocks.map(b => b.text || "").join("\n\n");
+  return page?.min_confidence || page?.vision_confidence || page?.confidence || 0;
 }
 
 export function getConfidenceLevel(confidence) {
@@ -139,8 +59,51 @@ export function formatBlockType(blockType) {
     heading: "Question/Title",
     answer: "Answer",
     working: "Working/Steps",
+    diagram: "Diagram/Graph",
     diagram_label: "Diagram Label",
+    table: "Table",
     text: "Text"
   };
   return labels[blockType] || "Text";
+}
+
+// ==================== Page Classification Helpers ====================
+
+export function getPageTypeLabel(pageType) {
+  if (!pageType) return null;
+  const labels = {
+    cover: "Cover Page",
+    instruction: "Instructions",
+    question: "Question Page",
+    continuation: "Continuation",
+    blank: "Blank Page",
+    error: "Error",
+    unknown: "Unknown",
+  };
+  return labels[pageType] || pageType;
+}
+
+export function isPageSkipped(pageType) {
+  return pageType === "cover" || pageType === "instruction" || pageType === "blank" || pageType === "error";
+}
+
+export function getPageTypeColor(pageType) {
+  if (!pageType) return null;
+  const colors = {
+    cover: { bg: "bg-gray-100", text: "text-gray-600", border: "border-gray-300" },
+    instruction: { bg: "bg-gray-100", text: "text-gray-600", border: "border-gray-300" },
+    question: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+    continuation: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+    blank: { bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" },
+    error: { bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
+    unknown: { bg: "bg-gray-50", text: "text-gray-600", border: "border-gray-200" },
+  };
+  return colors[pageType] || colors.unknown;
+}
+
+// ==================== Response Block Helpers ====================
+
+export function getReviewRequiredCount(responseBlocks) {
+  if (!responseBlocks) return 0;
+  return responseBlocks.filter(rb => rb.review_required).length;
 }
