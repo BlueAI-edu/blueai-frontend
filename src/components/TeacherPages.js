@@ -139,12 +139,22 @@ export const AssessmentsPage = ({ user }) => {
   };
 
   const handleClose = async (id) => {
-    if (!window.confirm("Close this assessment?")) return;
+    if (!window.confirm("Close this assessment? Students will no longer be able to join.")) return;
     try {
       await axios.post(`${API}/teacher/assessments/${id}/close`);
       loadData();
     } catch (error) {
       handleApiError(error, "Failed to close assessment");
+    }
+  };
+
+  const handleReopen = async (id) => {
+    if (!window.confirm("Reopen this assessment? It will be set back to Draft so you can edit it.")) return;
+    try {
+      await axios.post(`${API}/teacher/assessments/${id}/reopen`);
+      loadData();
+    } catch (error) {
+      handleApiError(error, "Failed to reopen assessment");
     }
   };
 
@@ -743,8 +753,8 @@ export const AssessmentsPage = ({ user }) => {
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        {a.status === "draft" && (
+                      <div className="flex gap-2 flex-wrap">
+                        {(a.status === "draft" || a.status === "published") && (
                           <button
                             onClick={() => handleStart(a.id)}
                             className="bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700"
@@ -753,13 +763,13 @@ export const AssessmentsPage = ({ user }) => {
                             Start Assessment
                           </button>
                         )}
-                        {a.status === "published" && (
+                        {(a.status === "draft" || a.status === "published") && isEnhanced && (
                           <button
-                            onClick={() => handleStart(a.id)}
-                            className="bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700"
-                            data-testid={`start-assessment-${a.id}`}
+                            onClick={() => navigate(`/teacher/assessments/${a.id}/edit`)}
+                            className="bg-gray-600 text-white py-1 px-3 rounded text-sm hover:bg-gray-700"
+                            data-testid={`edit-assessment-${a.id}`}
                           >
-                            Start Assessment
+                            Edit
                           </button>
                         )}
                         {a.status === "started" && (
@@ -771,9 +781,17 @@ export const AssessmentsPage = ({ user }) => {
                             Close Assessment
                           </button>
                         )}
+                        {a.status === "closed" && (
+                          <button
+                            onClick={() => handleReopen(a.id)}
+                            className="bg-yellow-600 text-white py-1 px-3 rounded text-sm hover:bg-yellow-700"
+                            data-testid={`reopen-assessment-${a.id}`}
+                          >
+                            Reopen
+                          </button>
+                        )}
                         <button
                           onClick={() => {
-                            // Redirect to Enhanced detail page if it's an Enhanced Assessment
                             if (isEnhanced) {
                               navigate(`/teacher/assessments/${a.id}/enhanced`);
                             } else {

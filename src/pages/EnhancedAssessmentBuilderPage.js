@@ -49,7 +49,21 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const loadAssessment = async () => {
     try {
       const response = await axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`);
-      setAssessmentData(response.data.assessment);
+      const assessment = response.data.assessment;
+
+      if (assessment.status === 'closed') {
+        showNotification('This assessment is closed. Reopen it from the Assessments list before editing.', 'error');
+        setTimeout(() => navigate('/teacher/assessments'), 2000);
+        return;
+      }
+
+      if (assessment.status === 'started') {
+        showNotification('This assessment is live and cannot be edited while students are taking it.', 'error');
+        setTimeout(() => navigate('/teacher/assessments'), 2000);
+        return;
+      }
+
+      setAssessmentData(assessment);
       setCurrentStep(3);
       setLoading(false);
     } catch (error) {
