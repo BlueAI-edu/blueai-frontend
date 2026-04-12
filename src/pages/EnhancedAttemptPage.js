@@ -1,17 +1,20 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudentMathInput from '../components/StudentMathInput';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
 import QuestionSidebar from '../components/QuestionSidebar';
+import SecurityOverlays from '../components/SecurityOverlays';
 import { useTimer } from '../hooks/use-timer';
 import { useAutosave } from '../hooks/use-autosave';
+import { useFullscreenSecurity } from '../hooks/use-fullscreen-security';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
 
 export const EnhancedAttemptPage = () => {
   const { attemptId } = useParams();
+  const navigate = useNavigate();
   const [attempt, setAttempt] = useState(null);
   const [assessment, setAssessment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,23 @@ export const EnhancedAttemptPage = () => {
     enabled: !!attempt && !showFeedback,
     mode: 'debounce',
     delay: 3000,
+  });
+
+  const security = useFullscreenSecurity({
+    attemptId,
+    enabled: !showFeedback,
+    onLockout: async () => {
+      try {
+        await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
+          answers,
+          autoSubmitted: true,
+          reason: 'fullscreen_violation',
+        });
+      } catch {
+        // best-effort
+      }
+      navigate('/');
+    },
   });
 
   useEffect(() => {
@@ -155,6 +175,26 @@ export const EnhancedAttemptPage = () => {
     return <EnhancedFeedbackView attempt={attempt} assessment={assessment} />;
   }
 
+  // Security overlays (fullscreen prompt + warning modal) — must be checked after
+  // the feedback guard so overlay doesn't block the results screen
+  const securityOverlay = (
+    <SecurityOverlays
+      showWarningModal={security.showWarningModal}
+      showFullscreenPrompt={security.showFullscreenPrompt}
+      showFeedback={showFeedback}
+      fullscreenSupported={security.fullscreenSupported}
+      fullscreenExitCount={security.fullscreenExitCount}
+      isLockedOut={security.isLockedOut}
+      warningMessage={security.warningMessage}
+      onEnterFullscreen={security.enterFullscreen}
+      onDismissWarning={security.dismissWarning}
+    />
+  );
+
+  if (security.showWarningModal || (security.showFullscreenPrompt && !showFeedback && security.fullscreenSupported)) {
+    return securityOverlay;
+  }
+
   const currentQuestion = assessment.questions[currentQuestionIndex];
   if (!currentQuestion) {
     return (
@@ -170,7 +210,19 @@ export const EnhancedAttemptPage = () => {
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div
+      className="min-h-screen bg-gray-50 flex"
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'p'].includes(e.key.toLowerCase())) {
+          e.preventDefault();
+        }
+        // Note: Escape key cannot truly be blocked from exiting fullscreen at the
+        // browser level; it is intercepted and logged by the security hook instead.
+      }}
+    >
       <QuestionSidebar
         assessment={assessment}
         timeLeft={timeLeft}

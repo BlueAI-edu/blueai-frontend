@@ -72,7 +72,7 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     setFullscreenExitCount(newCount);
 
     await axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
-      event_type: 'fullscreen_exit',
+      event_type: 'fullscreen_exit_security_breach',
       exit_count: newCount
     }).catch(() => {});
 
@@ -82,17 +82,17 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       setShowWarningModal(true);
       setTimeout(() => onLockout?.(), 3000);
     } else if (newCount === 2) {
-      setWarningMessage(`Warning ${newCount}/3: This is your FINAL warning! Exiting fullscreen one more time will automatically submit your assessment and log you out.`);
+      setWarningMessage(`Security breach ${newCount}/3: This is your FINAL warning! Exiting fullscreen one more time will automatically submit your assessment.`);
       setShowWarningModal(true);
       setShowFullscreenPrompt(true);
     } else {
-      setWarningMessage(`Warning ${newCount}/3: You have exited fullscreen mode. This has been logged. You have ${3 - newCount} warning(s) remaining before automatic submission.`);
+      setWarningMessage(`Security breach ${newCount}/3: Exiting fullscreen has been logged. You have ${3 - newCount} warning(s) remaining before your assessment is automatically submitted.`);
       setShowWarningModal(true);
       setShowFullscreenPrompt(true);
     }
   };
 
-  // Monitor fullscreen changes
+  // Monitor fullscreen changes — attempt immediate re-entry on every exit
   useEffect(() => {
     if (!enabled || !fullscreenSupported) return;
 
@@ -107,6 +107,18 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       setIsFullscreen(isCurrentlyFullscreen);
 
       if (wasFullscreen && !isCurrentlyFullscreen && !isLockedOutRef.current) {
+        // Immediately attempt to re-enter fullscreen. The Escape key press is a
+        // user-gesture context in Chromium/Firefox, so this often succeeds without
+        // requiring an additional click. If it fails, the overlay forces the student
+        // to manually click "Return to Fullscreen".
+        const elem = document.documentElement;
+        const reenter = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+        if (reenter) {
+          reenter.call(elem).catch(() => {
+            // Could not re-enter automatically — overlay will prompt the student
+          });
+        }
+        // Always log the breach and show the warning regardless of re-entry outcome
         handleFullscreenExit();
       }
     };
@@ -121,6 +133,26 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
   }, [enabled, fullscreenSupported]);
+
+  // Intercept Escape key in capture phase — fires before the browser exits fullscreen,
+  // giving us the earliest possible chance to log the attempt.
+  useEffect(() => {
+    if (!enabled || !fullscreenSupported) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isFullscreenRef.current && !isLockedOutRef.current) {
+        // Log the attempt immediately — the browser will still exit fullscreen,
+        // but this records the intent before the fullscreenchange event fires.
+        axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
+          event_type: 'escape_key_pressed_in_fullscreen'
+        }).catch(() => {});
+      }
+    };
+
+    // capture: true ensures we receive this before React's synthetic event handlers
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [attemptId, enabled, fullscreenSupported]);
 
   // Focus loss monitoring
   useEffect(() => {
@@ -151,7 +183,10 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
 
   const dismissWarning = () => {
     setShowWarningModal(false);
-    enterFullscreen();
+    // Only request fullscreen if not already in fullscreen (immediate re-entry may have worked)
+    if (!isFullscreenRef.current) {
+      enterFullscreen();
+    }
   };
 
   return {
