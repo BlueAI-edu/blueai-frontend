@@ -254,7 +254,7 @@ export default function OCRReviewPage() {
                   &larr; Previous
                 </Button>
                 <span className="text-sm font-medium text-slate-700">
-                  Page {currentPage?.page_number || currentPageIndex + 1} of {pages.length}
+                  Page {currentPageIndex + 1} of {pages.length}
                 </span>
                 <Button
                   onClick={() =>
@@ -266,29 +266,60 @@ export default function OCRReviewPage() {
                   Next &rarr;
                 </Button>
               </div>
-              <div className="flex items-center gap-2">
-                {pages.map((page, index) => {
-                  const skipped = isPageSkipped(page.page_type);
-                  return (
-                    <button
-                      key={page.page_id || page.page_number || index}
-                      onClick={() => setCurrentPageIndex(index)}
-                      title={getPageTypeLabel(page.page_type) || `Page ${page.page_number || index + 1}`}
-                      className={[
-                        "w-8 h-8 rounded-full text-xs font-medium transition-all",
-                        skipped
-                          ? "bg-gray-200 text-gray-400 line-through"
-                          : index === currentPageIndex
-                            ? "bg-blue-600 text-white ring-2 ring-blue-300"
-                            : page.is_approved
-                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                              : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-                      ].join(" ")}
-                    >
-                      {page.page_number || index + 1}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-1 flex-wrap">
+                {(() => {
+                  const total = pages.length;
+                  const current = currentPageIndex;
+                  const SIBLING_COUNT = 2;
+
+                  // Build the set of page indices to show
+                  const pageIndices = new Set();
+                  // Always show first and last
+                  pageIndices.add(0);
+                  pageIndices.add(total - 1);
+                  // Show window around current
+                  for (let i = current - SIBLING_COUNT; i <= current + SIBLING_COUNT; i++) {
+                    if (i >= 0 && i < total) pageIndices.add(i);
+                  }
+
+                  const sorted = [...pageIndices].sort((a, b) => a - b);
+                  const items = [];
+
+                  sorted.forEach((pageIdx, i) => {
+                    // Insert ellipsis if there's a gap
+                    if (i > 0 && pageIdx - sorted[i - 1] > 1) {
+                      items.push(
+                        <span key={`ellipsis-${pageIdx}`} className="w-6 text-center text-slate-400 text-xs">
+                          &hellip;
+                        </span>
+                      );
+                    }
+
+                    const page = pages[pageIdx];
+                    const skipped = isPageSkipped(page.page_type);
+                    items.push(
+                      <button
+                        key={page.page_id || page.page_number || pageIdx}
+                        onClick={() => setCurrentPageIndex(pageIdx)}
+                        title={getPageTypeLabel(page.page_type) || `Page ${pageIdx + 1}`}
+                        className={[
+                          "w-8 h-8 rounded-full text-xs font-medium transition-all",
+                          skipped
+                            ? "bg-gray-200 text-gray-400 line-through"
+                            : pageIdx === current
+                              ? "bg-blue-600 text-white ring-2 ring-blue-300"
+                              : page.is_approved
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                        ].join(" ")}
+                      >
+                        {pageIdx + 1}
+                      </button>
+                    );
+                  });
+
+                  return items;
+                })()}
               </div>
             </div>
           </CardContent>
