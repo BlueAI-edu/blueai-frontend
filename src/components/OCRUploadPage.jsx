@@ -5,16 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function OCRUploadPage({ user }) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [assessments, setAssessments] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState('');
   const [studentName, setStudentName] = useState('');
   const [batchLabel, setBatchLabel] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
@@ -44,22 +45,21 @@ export default function OCRUploadPage({ user }) {
     const nextFiles = [...files, ...selectedFiles];
 
     if (nextFiles.length > MAX_OCR_FILES) {
-      setError(`Too many files. Maximum ${MAX_OCR_FILES} files allowed.`);
+      toast({ title: 'Too many files', description: `Maximum ${MAX_OCR_FILES} files allowed.`, variant: 'destructive' });
       return;
     }
 
     for (const file of selectedFiles) {
       if (!ALLOWED_OCR_TYPES.includes(file.type)) {
-        setError(`"${file.name}" is not a supported type. Only PDF, JPG, and PNG are accepted.`);
+        toast({ title: 'Unsupported file type', description: `"${file.name}" is not supported. Only PDF, JPG, and PNG are accepted.`, variant: 'destructive' });
         return;
       }
       if (file.size > MAX_OCR_FILE_SIZE) {
-        setError(`"${file.name}" exceeds the 10MB limit.`);
+        toast({ title: 'File too large', description: `"${file.name}" exceeds the 10MB limit.`, variant: 'destructive' });
         return;
       }
     }
 
-    setError('');
     setFiles(nextFiles);
     e.target.value = '';
   };
@@ -68,12 +68,11 @@ export default function OCRUploadPage({ user }) {
     e.preventDefault();
     
     if (!selectedAssessment || !studentName || files.length === 0) {
-      setError('Please fill all required fields and select files');
+      toast({ title: 'Missing fields', description: 'Please fill all required fields and select files.', variant: 'destructive' });
       return;
     }
 
     setLoading(true);
-    setError('');
     setUploadProgress(10);
 
     try {
@@ -134,7 +133,7 @@ export default function OCRUploadPage({ user }) {
       }, 500);
 
     } catch (err) {
-      setError(err.message || 'Upload failed. Please try again.');
+      toast({ title: 'Upload failed', description: err.message || 'Please try again.', variant: 'destructive' });
       setUploadProgress(0);
     } finally {
       setLoading(false);
@@ -203,17 +202,6 @@ export default function OCRUploadPage({ user }) {
           </CardHeader>
           
           <CardContent>
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-red-700 font-medium">{error}</p>
-                </div>
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Assessment Selection */}
               <div>
