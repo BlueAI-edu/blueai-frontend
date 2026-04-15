@@ -23,6 +23,7 @@ export default function OCRReviewPage() {
   const [editedText, setEditedText] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [reExtracting, setReExtracting] = useState(false);
 
   useEffect(() => {
     fetchSubmission();
@@ -161,11 +162,12 @@ export default function OCRReviewPage() {
     }
   };
 
-  const handleRerunOCR = async () => {
-    setSaving(true);
+  const handleReExtractPage = async () => {
+    const currentPage = pages[currentPageIndex];
+    setReExtracting(true);
     try {
       const response = await fetch(
-        `${API_URL}/api/ocr/submissions/${submissionId}/process`,
+        `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}/reextract`,
         {
           method: "POST",
           headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -174,15 +176,36 @@ export default function OCRReviewPage() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to re-run OCR");
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to re-extract page");
       }
 
-      await fetchSubmission();
-      toast({ title: "Re-processed", description: "OCR re-processed successfully." });
+      const data = await response.json();
+
+      // Patch only the current page in state — no full reload needed
+      const updatedPages = [...pages];
+      updatedPages[currentPageIndex] = {
+        ...updatedPages[currentPageIndex],
+        ...data.page,
+        page_type: data.page_type,
+      };
+      setPages(updatedPages);
+      setResponseBlocks(data.response_blocks || []);
+      setEditedText(getPageAnswerText(data.page));
+
+      const found = data.responses_found ?? 0;
+      toast({
+        title: found > 0 ? "Answers extracted" : "No answers found",
+        description:
+          found > 0
+            ? `Found ${found} response${found !== 1 ? "s" : ""} on this page.`
+            : "GPT-4o couldn't find student answers on this page. You can type them in manually.",
+        variant: found > 0 ? "default" : "destructive",
+      });
     } catch (err) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Re-extract failed", description: err.message, variant: "destructive" });
     } finally {
-      setSaving(false);
+      setReExtracting(false);
     }
   };
 
@@ -387,7 +410,7 @@ export default function OCRReviewPage() {
               />
 
               <div className="mt-4 flex gap-3">
-                <Button onClick={handleSavePage} disabled={saving} className="flex-1">
+                <Button onClick={handleSavePage} disabled={saving || reExtracting} className="flex-1">
                   {saving && (
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -396,8 +419,19 @@ export default function OCRReviewPage() {
                   )}
                   {saving ? "Saving..." : "Save & Approve Page"}
                 </Button>
-                <Button onClick={handleRerunOCR} disabled={saving} variant="outline">
-                  {saving ? "Processing..." : "Re-run OCR"}
+                <Button
+                  onClick={handleReExtractPage}
+                  disabled={saving || reExtracting}
+                  variant="outline"
+                  title="Re-run GPT-4o extraction on this page only"
+                >
+                  {reExtracting && (
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {reExtracting ? "Re-extracting..." : "Re-run OCR"}
                 </Button>
               </div>
             </CardContent>
