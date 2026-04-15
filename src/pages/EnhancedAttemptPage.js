@@ -25,8 +25,10 @@ export const EnhancedAttemptPage = () => {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const { timeLeft } = useTimer({
-    startedAt: assessment?.started_at,
-    durationMinutes: assessment?.durationMinutes,
+    // Per-student timing: count down from when the student personally joined.
+    startedAt: attempt?.started_at ?? attempt?.joined_at,
+    // Enhanced assessments store durationMinutes (camelCase); classic fallback to duration_minutes.
+    durationMinutes: assessment?.durationMinutes ?? assessment?.duration_minutes,
     enabled: !showFeedback,
     onExpire: () => handleSubmit(true),
   });
@@ -60,6 +62,25 @@ export const EnhancedAttemptPage = () => {
   useEffect(() => {
     loadAttempt();
   }, [attemptId]);
+
+  // Exit fullscreen automatically when the student has submitted so the
+  // results page is not trapped behind a forced-fullscreen session.
+  // Uses vendor-prefixed variants for cross-browser support (Safari, older Chrome).
+  useEffect(() => {
+    const fullscreenEl =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement;
+    if (showFeedback && fullscreenEl) {
+      const exit =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+      exit?.call(document)?.catch(() => {});
+    }
+  }, [showFeedback]);
 
   const loadAttempt = async () => {
     try {

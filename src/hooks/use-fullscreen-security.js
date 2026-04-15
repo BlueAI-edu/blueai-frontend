@@ -11,16 +11,34 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
   const [warningMessage, setWarningMessage] = useState('');
   const [isLockedOut, setIsLockedOut] = useState(false);
 
+  // Refs used inside event handlers — updated immediately so every callback
+  // sees the correct value regardless of React's async render cycle.
   const isFullscreenRef = useRef(false);
   const isLockedOutRef = useRef(false);
   const exitCountRef = useRef(0);
 
-  // Keep refs in sync
-  useEffect(() => { isFullscreenRef.current = isFullscreen; }, [isFullscreen]);
+  // Guards that prevent false-positive exit detection.
+  //
+  // enteringFullscreenRef: set while requestFullscreen() is in flight and kept
+  // true for POST_ENTRY_GRACE_MS after it resolves.  Browsers (especially
+  // Chrome/Firefox on Windows) fire a spurious fullscreenchange EXIT event
+  // 50-200 ms after a legitimate ENTER during the OS-level window transition.
+  // Without this guard that spurious event increments the violation counter.
+  const enteringFullscreenRef = useRef(false);
+  const enteringTimerRef = useRef(null);
+  const POST_ENTRY_GRACE_MS = 700;
+
+  // lastExitTimeRef: debounces rapid duplicate exit events (some browsers fire
+  // multiple fullscreenchange events per Escape key press).
+  const lastExitTimeRef = useRef(0);
+  const EXIT_DEBOUNCE_MS = 500;
+
+  // Keep secondary refs in sync with state (isFullscreenRef is kept current
+  // synchronously inside the event handler; these two run after render).
   useEffect(() => { isLockedOutRef.current = isLockedOut; }, [isLockedOut]);
   useEffect(() => { exitCountRef.current = fullscreenExitCount; }, [fullscreenExitCount]);
 
-  // Check fullscreen support
+  // ── Fullscreen support check ─────────────────────────────────────────────
   useEffect(() => {
     const supported = !!(
       document.documentElement.requestFullscreen ||
@@ -46,7 +64,12 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     }
   }, []);
 
+  // ── Enter fullscreen ─────────────────────────────────────────────────────
   const enterFullscreen = async () => {
+    // Signal that we are entering — suppress exit events until settled.
+    enteringFullscreenRef.current = true;
+    clearTimeout(enteringTimerRef.current);
+
     try {
       const elem = document.documentElement;
       if (elem.requestFullscreen) {
@@ -64,9 +87,17 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
         event_type: 'fullscreen_not_supported'
       }).catch(() => {});
+    } finally {
+      // Keep the guard up for POST_ENTRY_GRACE_MS after promise settles so any
+      // browser transition events that fire after the promise resolves are
+      // also absorbed.
+      enteringTimerRef.current = setTimeout(() => {
+        enteringFullscreenRef.current = false;
+      }, POST_ENTRY_GRACE_MS);
     }
   };
 
+  // ── Handle a confirmed fullscreen exit breach ────────────────────────────
   const handleFullscreenExit = async () => {
     const newCount = exitCountRef.current + 1;
     setFullscreenExitCount(newCount);
@@ -92,7 +123,7 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     }
   };
 
-  // Monitor fullscreen changes — attempt immediate re-entry on every exit
+  // ── Fullscreen change monitor ────────────────────────────────────────────
   useEffect(() => {
     if (!enabled || !fullscreenSupported) return;
 
@@ -104,21 +135,30 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       );
 
       const wasFullscreen = isFullscreenRef.current;
+      // Update synchronously so the next event in the same task sees the
+      // correct value immediately.
+      isFullscreenRef.current = isCurrentlyFullscreen;
       setIsFullscreen(isCurrentlyFullscreen);
 
       if (wasFullscreen && !isCurrentlyFullscreen && !isLockedOutRef.current) {
-        // Immediately attempt to re-enter fullscreen. The Escape key press is a
-        // user-gesture context in Chromium/Firefox, so this often succeeds without
-        // requiring an additional click. If it fails, the overlay forces the student
-        // to manually click "Return to Fullscreen".
-        const elem = document.documentElement;
-        const reenter = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-        if (reenter) {
-          reenter.call(elem).catch(() => {
-            // Could not re-enter automatically — overlay will prompt the student
-          });
-        }
-        // Always log the breach and show the warning regardless of re-entry outcome
+        // ① Entering guard — absorb browser transition artefacts.
+        //    When requestFullscreen() is called, some browsers fire a brief
+        //    ENTER → EXIT cycle as the OS window transitions.  The
+        //    enteringFullscreenRef flag is held for POST_ENTRY_GRACE_MS after
+        //    the promise resolves so all such artefacts are ignored.
+        if (enteringFullscreenRef.current) return;
+
+        // ② Debounce — absorb duplicate events for the same Escape press.
+        const now = Date.now();
+        if (now - lastExitTimeRef.current < EXIT_DEBOUNCE_MS) return;
+        lastExitTimeRef.current = now;
+
+        // Legitimate exit confirmed — count the breach and show warning/lockout.
+        // We intentionally do NOT attempt automatic re-entry here: doing so fires
+        // additional fullscreenchange events that (with precise timing) could feed
+        // back into this handler and count as further breaches.  The warning
+        // modal's "Return to Fullscreen" button provides reliable, user-gesture-
+        // backed re-entry instead.
         handleFullscreenExit();
       }
     };
@@ -134,27 +174,25 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     };
   }, [enabled, fullscreenSupported]);
 
-  // Intercept Escape key in capture phase — fires before the browser exits fullscreen,
-  // giving us the earliest possible chance to log the attempt.
+  // ── Escape key logger ────────────────────────────────────────────────────
+  // Intercept in capture phase so we can log the intent before the browser
+  // exits fullscreen and fires fullscreenchange.
   useEffect(() => {
     if (!enabled || !fullscreenSupported) return;
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isFullscreenRef.current && !isLockedOutRef.current) {
-        // Log the attempt immediately — the browser will still exit fullscreen,
-        // but this records the intent before the fullscreenchange event fires.
         axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
           event_type: 'escape_key_pressed_in_fullscreen'
         }).catch(() => {});
       }
     };
 
-    // capture: true ensures we receive this before React's synthetic event handlers
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [attemptId, enabled, fullscreenSupported]);
 
-  // Focus loss monitoring
+  // ── Focus / visibility monitor ───────────────────────────────────────────
   useEffect(() => {
     if (!enabled) return;
 
@@ -181,10 +219,17 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     };
   }, [attemptId, enabled]);
 
+  // ── Dismiss warning modal ────────────────────────────────────────────────
   const dismissWarning = () => {
     setShowWarningModal(false);
-    // Only request fullscreen if not already in fullscreen (immediate re-entry may have worked)
-    if (!isFullscreenRef.current) {
+    if (isFullscreenRef.current) {
+      // The student is already in fullscreen (e.g. they re-entered via another
+      // path).  Just clear the prompt overlay — calling enterFullscreen() again
+      // would be a no-op at best and could fire extra fullscreenchange events.
+      setShowFullscreenPrompt(false);
+    } else {
+      // Not in fullscreen — re-enter now.  This is called from a button click
+      // so the user-gesture requirement for requestFullscreen() is met.
       enterFullscreen();
     }
   };

@@ -35,11 +35,32 @@ export const AttemptPage = () => {
   const [stepByStepData, setStepByStepData] = useState(null);
 
   const { timeLeft, formatTime } = useTimer({
-    startedAt: assessment?.started_at,
+    // Per-student timing: count down from when the student personally joined,
+    // not from when the teacher started the assessment.
+    startedAt: attempt?.started_at ?? attempt?.joined_at,
     durationMinutes: assessment?.duration_minutes,
     enabled: !showFeedback,
     onExpire: () => handleSubmit(true),
   });
+
+  // Exit fullscreen automatically when the student has submitted so the
+  // results page is not trapped behind a forced-fullscreen session.
+  // Uses vendor-prefixed variants for cross-browser support (Safari, older Chrome).
+  useEffect(() => {
+    const fullscreenEl =
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement;
+    if (showFeedback && fullscreenEl) {
+      const exit =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+      exit?.call(document)?.catch(() => {});
+    }
+  }, [showFeedback]);
 
   const { lastSaved } = useAutosave({
     attemptId,
@@ -145,6 +166,7 @@ export const AttemptPage = () => {
   return (
     <div
       className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6"
+      // data-fullscreen-root used by Cypress / testing only
       onCopy={(e) => e.preventDefault()}
       onCut={(e) => e.preventDefault()}
       onPaste={(e) => e.preventDefault()}
@@ -158,17 +180,42 @@ export const AttemptPage = () => {
         }
       }}
     >
+      {/* ── Fixed top-right timer ── visible throughout the assessment, sits below
+           the security overlay (z-40 < z-50) so it doesn't obscure warnings */}
+      {timeLeft !== null && (
+        <div
+          data-testid="timer"
+          className={`fixed top-4 right-4 z-40 flex items-center gap-2 rounded-xl shadow-lg px-4 py-2 border-2 select-none
+            ${timeLeft < 60
+              ? 'bg-red-50 border-red-400'
+              : timeLeft < 300
+              ? 'bg-yellow-50 border-yellow-400'
+              : 'bg-white border-blue-300'}`}
+        >
+          <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className={`text-xl font-bold tabular-nums leading-none
+              ${timeLeft < 60 ? 'text-red-600' : timeLeft < 300 ? 'text-yellow-700' : 'text-blue-700'}`}>
+              {formatTime(timeLeft)}
+            </p>
+            {timeLeft < 300 && (
+              <p className={`text-xs font-medium ${timeLeft < 60 ? 'text-red-500' : 'text-yellow-600'}`}>
+                {timeLeft < 60 ? 'Less than 1 min left!' : 'Less than 5 mins left'}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-xl p-8" data-testid="attempt-container">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex items-start mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1" data-testid="attempt-title">{question.subject}</h1>
             <p className="text-gray-600 text-sm">Marks: {question.max_marks}</p>
           </div>
-          {timeLeft !== null && (
-            <div className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`} data-testid="timer">
-              {formatTime(timeLeft)}
-            </div>
-          )}
         </div>
 
         <div className="bg-blue-50 p-4 rounded-lg mb-6">

@@ -833,7 +833,17 @@ export const AssessmentDetailPage = ({ user }) => {
       const response = await axios.get(
         `${API}/teacher/assessments/${assessmentId}`,
       );
-      setData(response.data);
+      const payload = response.data;
+      // If this is an enhanced assessment (has assessmentMode and no classic question),
+      // redirect to the enhanced detail page which knows how to render it.
+      const isEnhanced =
+        payload?.assessment?.assessmentMode &&
+        payload.assessment.assessmentMode !== "CLASSIC";
+      if (isEnhanced) {
+        navigate(`/teacher/assessments/${assessmentId}/enhanced`, { replace: true });
+        return;
+      }
+      setData(payload);
       setLoading(false);
     } catch (error) {
       setLoading(false);
