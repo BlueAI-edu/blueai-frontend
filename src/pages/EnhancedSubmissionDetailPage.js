@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
+import { Navbar } from '../components/Navbar';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
@@ -101,21 +102,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button 
-              onClick={() => navigate(`/teacher/assessments/${assessment.id}`)} 
-              className="text-gray-700 hover:text-blue-600"
-            >
-              ← Back to Submissions
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Header */}
