@@ -7,6 +7,7 @@ import {
   AreaChart, Area
 } from 'recharts';
 import { API } from '@/config';
+import { Navbar } from './Navbar';
 
 // Color constants
 const COLORS = {
@@ -1041,23 +1042,7 @@ export const AnalyticsPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <div className="flex gap-4">
-              <button onClick={() => navigate('/teacher/dashboard')} className="text-gray-700 hover:text-blue-600">Dashboard</button>
-              <button onClick={() => navigate('/teacher/questions')} className="text-gray-700 hover:text-blue-600">Questions</button>
-              <button onClick={() => navigate('/teacher/assessments')} className="text-gray-700 hover:text-blue-600">Assessments</button>
-              <button className="text-blue-600 font-medium">Analytics</button>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-700">{user.name}</span>
-          </div>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">

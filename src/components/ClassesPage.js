@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { handleApiError, getApiErrorMessage } from '@/lib/handle-error';
+import { Navbar } from './Navbar';
 import { useAsync } from '../hooks/use-async';
 
 // Classes Overview Page
@@ -31,21 +32,7 @@ export const ClassesPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <div className="flex gap-4">
-              <button onClick={() => navigate('/teacher/dashboard')} className="text-gray-700 hover:text-blue-600">Dashboard</button>
-              <button onClick={() => navigate('/teacher/questions')} className="text-gray-700 hover:text-blue-600">Questions</button>
-              <button onClick={() => navigate('/teacher/assessments')} className="text-gray-700 hover:text-blue-600">Assessments</button>
-              <button className="text-blue-600 font-medium">Classes</button>
-              <button onClick={() => navigate('/teacher/analytics')} className="text-gray-700 hover:text-blue-600">Analytics</button>
-            </div>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-8">
@@ -316,17 +303,7 @@ export const ClassDetailPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button onClick={() => navigate('/teacher/classes')} className="text-gray-700 hover:text-blue-600">
-              ← Back to Classes
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Class Header */}

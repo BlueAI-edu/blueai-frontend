@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
+import { Navbar } from './Navbar';
 
 export const AdminDashboard = ({ user }) => {
   const [teachers, setTeachers] = useState([]);
@@ -39,20 +40,7 @@ export const AdminDashboard = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <div className="flex gap-4">
-              <button onClick={() => navigate('/teacher/dashboard')} className="text-gray-700 hover:text-blue-600">Dashboard</button>
-              <button onClick={() => navigate('/teacher/questions')} className="text-gray-700 hover:text-blue-600">Questions</button>
-              <button onClick={() => navigate('/teacher/assessments')} className="text-gray-700 hover:text-blue-600">Assessments</button>
-              <button onClick={() => navigate('/admin/dashboard')} className="text-blue-600 font-medium">Admin</button>
-            </div>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-8" data-testid="admin-title">Admin Dashboard</h2>

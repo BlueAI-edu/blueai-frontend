@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { Navbar } from './Navbar';
 
 export const CSVImportPage = ({ user }) => {
   const { classId } = useParams();
@@ -121,20 +122,7 @@ export const CSVImportPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button 
-              onClick={() => navigate(classId ? `/teacher/classes/${classId}` : '/teacher/classes')} 
-              className="text-gray-700 hover:text-blue-600"
-            >
-              ← Back to {classId ? 'Class' : 'Classes'}
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">

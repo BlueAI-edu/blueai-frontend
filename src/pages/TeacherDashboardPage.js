@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
+import { Navbar } from '../components/Navbar';
 
 export const TeacherDashboard = ({ user }) => {
   const [stats, setStats] = useState(null);
@@ -36,34 +37,7 @@ export const TeacherDashboard = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600" data-testid="nav-title">BlueAI</h1>
-            <div className="flex gap-4">
-              <button onClick={() => navigate('/teacher/dashboard')} className="text-gray-700 hover:text-blue-600" data-testid="nav-dashboard">Dashboard</button>
-              <button onClick={() => navigate('/teacher/questions')} className="text-gray-700 hover:text-blue-600" data-testid="nav-questions">Questions</button>
-              <button onClick={() => navigate('/teacher/assessments')} className="text-gray-700 hover:text-blue-600" data-testid="nav-assessments">Assessments</button>
-              <button onClick={() => navigate('/teacher/classes')} className="text-gray-700 hover:text-blue-600" data-testid="nav-classes">Classes</button>
-              <button onClick={() => navigate('/teacher/analytics')} className="text-gray-700 hover:text-blue-600" data-testid="nav-analytics">Analytics</button>
-              {user.role === 'admin' && (
-                <button onClick={() => navigate('/admin/dashboard')} className="text-gray-700 hover:text-blue-600" data-testid="nav-admin">Admin</button>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/teacher/profile')} className="text-gray-700 hover:text-blue-600" data-testid="nav-profile">
-              <span className="flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                {user.name}
-              </span>
-            </button>
-            <button onClick={handleLogout} className="text-red-600 hover:text-red-700" data-testid="logout-btn">Logout</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-8" data-testid="dashboard-title">Dashboard</h2>
