@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import MathKeyboard from './MathKeyboard';
+import MixedMathEditor from './MixedMathEditor';
 import LaTeXRenderer from './LaTeXRenderer';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
@@ -50,8 +50,6 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState(new Set());
   const [error, setError] = useState('');
-  const [showMathKeyboard, setShowMathKeyboard] = useState(false);
-  const [activeField, setActiveField] = useState(null);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -139,17 +137,6 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
       setSelectedQuestions(new Set());
     } catch (err) {
       setError('Failed to save questions');
-    }
-  };
-
-  const openMathKeyboard = (field) => {
-    setActiveField(field);
-    setShowMathKeyboard(true);
-  };
-
-  const insertMath = (latex) => {
-    if (activeField) {
-      handleChange(activeField, formData[activeField] + latex);
     }
   };
 
@@ -244,23 +231,13 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
           {/* Topic */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Topic *</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={formData.topic}
-                onChange={(e) => handleChange('topic', e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                placeholder="e.g., Quadratic equations"
-                data-testid="ai-topic"
-              />
-              <button
-                onClick={() => openMathKeyboard('topic')}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                title="Math Keyboard"
-              >
-                𝑓(𝑥)
-              </button>
-            </div>
+            <MixedMathEditor
+              value={formData.topic}
+              onChange={(v) => handleChange('topic', v)}
+              placeholder="e.g., Quadratic equations"
+              rows={1}
+              data-testid="ai-topic"
+            />
           </div>
 
           {/* Subtopic */}
@@ -531,13 +508,6 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
         </div>
       )}
 
-      {/* Math Keyboard Modal */}
-      {showMathKeyboard && (
-        <MathKeyboard
-          onInsert={insertMath}
-          onClose={() => setShowMathKeyboard(false)}
-        />
-      )}
     </div>
   );
 };

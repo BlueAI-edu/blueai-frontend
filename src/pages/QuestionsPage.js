@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AIQuestionGenerator from '../components/AIQuestionGenerator';
-import MathKeyboard from '../components/MathKeyboard';
-import LaTeXRenderer from '../components/LaTeXRenderer';
+import MixedMathEditor from '../components/MixedMathEditor';
 import QuestionBank from '../components/QuestionBank';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
@@ -14,8 +13,6 @@ export const QuestionsPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState('manual'); // manual, ai, bank
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [showMathKeyboard, setShowMathKeyboard] = useState(false);
-  const [activeField, setActiveField] = useState(null);
   const [formData, setFormData] = useState({
     subject: '',
     exam_type: '',
@@ -87,20 +84,6 @@ export const QuestionsPage = ({ user }) => {
       loadQuestions();
     } catch (error) {
       handleApiError(error, 'Failed to delete question');
-    }
-  };
-
-  const openMathKeyboard = (field) => {
-    setActiveField(field);
-    setShowMathKeyboard(true);
-  };
-
-  const insertMath = (latex) => {
-    if (activeField) {
-      setFormData(prev => ({
-        ...prev,
-        [activeField]: prev[activeField] + latex
-      }));
     }
   };
 
@@ -213,67 +196,36 @@ export const QuestionsPage = ({ user }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                        value={formData.topic}
-                        onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                        required
-                        data-testid="topic-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => openMathKeyboard('topic')}
-                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                        title="Math Keyboard"
-                      >
-                        𝑓(𝑥)
-                      </button>
-                    </div>
+                    <MixedMathEditor
+                      value={formData.topic}
+                      onChange={(v) => setFormData({ ...formData, topic: v })}
+                      placeholder="e.g., Quadratic equations"
+                      rows={1}
+                      required
+                      data-testid="topic-input"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
-                    <div className="relative">
-                      <textarea
-                        className="w-full px-3 py-2 border rounded-lg"
-                        rows="4"
-                        value={formData.question_text}
-                        onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                        required
-                        data-testid="question-text-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => openMathKeyboard('question_text')}
-                        className="absolute top-2 right-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-                        title="Math Keyboard"
-                      >
-                        𝑓(𝑥)
-                      </button>
-                    </div>
+                    <MixedMathEditor
+                      value={formData.question_text}
+                      onChange={(v) => setFormData({ ...formData, question_text: v })}
+                      placeholder="Enter your question here..."
+                      rows={4}
+                      required
+                      data-testid="question-text-input"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mark Scheme</label>
-                    <div className="relative">
-                      <textarea
-                        className="w-full px-3 py-2 border rounded-lg"
-                        rows="6"
-                        value={formData.mark_scheme}
-                        onChange={(e) => setFormData({ ...formData, mark_scheme: e.target.value })}
-                        placeholder="Enter marking criteria"
-                        required
-                        data-testid="mark-scheme-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => openMathKeyboard('mark_scheme')}
-                        className="absolute top-2 right-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-                        title="Math Keyboard"
-                      >
-                        𝑓(𝑥)
-                      </button>
-                    </div>
+                    <MixedMathEditor
+                      value={formData.mark_scheme}
+                      onChange={(v) => setFormData({ ...formData, mark_scheme: v })}
+                      placeholder="Enter marking criteria..."
+                      rows={5}
+                      required
+                      data-testid="mark-scheme-input"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Max Marks</label>
@@ -302,7 +254,7 @@ export const QuestionsPage = ({ user }) => {
             {!showForm && (
               <div className="bg-white p-8 rounded-lg shadow text-center">
                 <p className="text-gray-600 mb-4">Click "New Question" to create a question manually with full control over content and formatting.</p>
-                <p className="text-sm text-gray-500">Math keyboard available for LaTeX support in all text fields.</p>
+                <p className="text-sm text-gray-500">Click "∑ Equation" in any field to insert visual equations — no LaTeX knowledge needed.</p>
               </div>
             )}
           </div>
@@ -324,13 +276,6 @@ export const QuestionsPage = ({ user }) => {
         )}
       </div>
 
-      {/* Math Keyboard Modal */}
-      {showMathKeyboard && (
-        <MathKeyboard
-          onInsert={insertMath}
-          onClose={() => setShowMathKeyboard(false)}
-        />
-      )}
     </div>
   );
 };
