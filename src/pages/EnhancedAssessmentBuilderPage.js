@@ -162,14 +162,18 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       return false;
     }
 
-    if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 3 || assessmentData.questions.length > 20)) {
-      showNotification('Summative mode requires 3-20 questions', 'error');
+    if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 5 || assessmentData.questions.length > 20)) {
+      showNotification('Summative mode requires 5-20 questions', 'error');
       return false;
     }
 
     for (const q of assessmentData.questions) {
       if (!q.questionBody.trim()) {
         showNotification(`Question ${q.questionNumber} is missing question text`, 'error');
+        return false;
+      }
+      if (q.questionType === 'LONG_RESPONSE' && (q.maxMarks < 6 || q.maxMarks > 15)) {
+        showNotification(`Question ${q.questionNumber} is a Long Response question and must be between 6 and 15 marks`, 'error');
         return false;
       }
     }

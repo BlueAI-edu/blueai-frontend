@@ -4,20 +4,10 @@ import MCQEditor from './MCQEditor';
 import StructuredQuestionBuilder from './StructuredQuestionBuilder';
 import StimulusUploader from './StimulusUploader';
 import AIBulkGenerator from './AIBulkGenerator';
-import LaTeXRenderer from '../LaTeXRenderer';
+import MixedMathEditor from '../MixedMathEditor';
 
-// Inline LaTeX preview shown automatically when the field contains $ delimiters
-const LaTeXPreview = ({ text, label }) => {
-  if (!text || !text.includes('$')) return null;
-  return (
-    <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-      <p className="text-xs text-blue-600 font-medium mb-1">LaTeX preview — {label}</p>
-      <div className="text-sm text-gray-900">
-        <LaTeXRenderer text={text} />
-      </div>
-    </div>
-  );
-};
+const LONG_RESPONSE_MIN_MARKS = 6;
+const LONG_RESPONSE_MAX_MARKS = 15;
 
 const QuestionEditor = ({
   question,
@@ -55,6 +45,21 @@ const QuestionEditor = ({
       ]);
     }
   };
+
+  const getMarksConfig = () => {
+    if (question.questionType === 'LONG_RESPONSE') {
+      return { min: LONG_RESPONSE_MIN_MARKS, max: LONG_RESPONSE_MAX_MARKS };
+    }
+    return { min: 1, max: 20 };
+  };
+
+  const handleMarksChange = (val) => {
+    updateQuestion('maxMarks', parseInt(val) || 1);
+  };
+
+  const marksOutOfRange =
+    question.questionType === 'LONG_RESPONSE' &&
+    (question.maxMarks < LONG_RESPONSE_MIN_MARKS || question.maxMarks > LONG_RESPONSE_MAX_MARKS);
 
   const initializeStructuredParts = () => {
     if (!question.parts || question.parts.length === 0) {
@@ -131,7 +136,13 @@ const QuestionEditor = ({
                 <h4 className="font-medium text-gray-900 mb-3">Select Question Type</h4>
                 <QuestionTypeSelector
                   selectedType={question.questionType}
-                  onTypeChange={(type) => updateQuestion('questionType', type)}
+                  onTypeChange={(type) => {
+                    onQuestionChange(questionIndex, {
+                      ...question,
+                      questionType: type,
+                      maxMarks: type === 'LONG_RESPONSE' ? LONG_RESPONSE_MIN_MARKS : question.maxMarks
+                    });
+                  }}
                   mode={assessmentMode}
                 />
               </div>
@@ -151,20 +162,13 @@ const QuestionEditor = ({
 
                 {/* Question Body */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Question Text
-                    </label>
-                    <span className="text-xs text-gray-400">Use $…$ for inline LaTeX, $$…$$ for display</span>
-                  </div>
-                  <textarea
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+                  <MixedMathEditor
                     value={question.questionBody || ''}
-                    onChange={(e) => updateQuestion('questionBody', e.target.value)}
-                    placeholder="Enter your question here... Use $x^2$ for inline LaTeX or $$\frac{a}{b}$$ for display math"
+                    onChange={(v) => updateQuestion('questionBody', v)}
+                    placeholder="Enter your question here..."
                     rows={3}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
-                  <LaTeXPreview text={question.questionBody} label="question" />
                 </div>
 
                 {/* MCQ Options */}
@@ -195,15 +199,27 @@ const QuestionEditor = ({
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Marks
+                          {question.questionType === 'LONG_RESPONSE' && (
+                            <span className="ml-1 text-xs text-blue-600 font-normal">(6–15 required)</span>
+                          )}
+                        </label>
                         <input
                           type="number"
-                          min="1"
-                          max="20"
+                          min={getMarksConfig().min}
+                          max={getMarksConfig().max}
                           value={question.maxMarks || 1}
-                          onChange={(e) => updateQuestion('maxMarks', parseInt(e.target.value) || 1)}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          onChange={(e) => handleMarksChange(e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                            marksOutOfRange ? 'border-red-400 bg-red-50' : ''
+                          }`}
                         />
+                        {marksOutOfRange && (
+                          <p className="mt-1 text-xs text-red-600">
+                            Long response questions must be {LONG_RESPONSE_MIN_MARKS}–{LONG_RESPONSE_MAX_MARKS} marks.
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Answer Type</label>
@@ -221,33 +237,23 @@ const QuestionEditor = ({
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700">Mark Scheme</label>
-                        <span className="text-xs text-gray-400">Supports LaTeX ($…$)</span>
-                      </div>
-                      <textarea
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Mark Scheme</label>
+                      <MixedMathEditor
                         value={question.markScheme || ''}
-                        onChange={(e) => updateQuestion('markScheme', e.target.value)}
-                        placeholder="Enter marking criteria... e.g. Award 1 mark for $x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$"
+                        onChange={(v) => updateQuestion('markScheme', v)}
+                        placeholder="Enter marking criteria..."
                         rows={3}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
-                      <LaTeXPreview text={question.markScheme} label="mark scheme" />
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-gray-700">Model Answer (Optional)</label>
-                        <span className="text-xs text-gray-400">Supports LaTeX ($…$)</span>
-                      </div>
-                      <textarea
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Model Answer (Optional)</label>
+                      <MixedMathEditor
                         value={question.modelAnswer || ''}
-                        onChange={(e) => updateQuestion('modelAnswer', e.target.value)}
+                        onChange={(v) => updateQuestion('modelAnswer', v)}
                         placeholder="Enter model answer for reference..."
                         rows={2}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
-                      <LaTeXPreview text={question.modelAnswer} label="model answer" />
                     </div>
                   </>
                 )}
@@ -280,6 +286,7 @@ const QuestionEditor = ({
           </div>
         )}
       </div>
+
     </div>
   );
 };
