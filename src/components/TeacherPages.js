@@ -160,6 +160,12 @@ export const AssessmentsPage = ({ user }) => {
   };
 
   const getStatusBadge = (status) => {
+    const labels = {
+      draft: 'Draft',
+      published: 'Published',
+      started: 'In Progress',
+      closed: 'Closed',
+    };
     const colors = {
       draft: "bg-gray-100 text-gray-700",
       published: "bg-blue-100 text-blue-700",
@@ -170,7 +176,7 @@ export const AssessmentsPage = ({ user }) => {
       <span
         className={`px-3 py-1 rounded-full text-xs font-medium ${colors[status] || colors.draft}`}
       >
-        {status.toUpperCase()}
+        {labels[status] || status}
       </span>
     );
   };
@@ -203,14 +209,14 @@ export const AssessmentsPage = ({ user }) => {
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium flex items-center gap-2"
                 >
                   <span>✨</span>
-                  Create Enhanced Assessment
+                  Create Assessment
                 </button>
                 <button
                   onClick={() => setShowForm(true)}
                   className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700"
                   data-testid="new-assessment-btn"
                 >
-                  Classic Mode
+                  Quick Create
                 </button>
               </>
             )}
@@ -645,7 +651,7 @@ export const AssessmentsPage = ({ user }) => {
                 className="bg-white p-12 rounded-lg shadow text-center"
                 data-testid="no-assessments"
               >
-                <p className="text-gray-600 mb-4">No assessments yet</p>
+                <p className="text-gray-600 mb-4">No assessments created yet. Set up your first assessment to start collecting student work.</p>
               </div>
             ) : (
               <div className="space-y-4" data-testid="assessments-list">
@@ -726,7 +732,7 @@ export const AssessmentsPage = ({ user }) => {
                             className="bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700"
                             data-testid={`start-assessment-${a.id}`}
                           >
-                            Start Assessment
+                            Start
                           </button>
                         )}
                         {(a.status === "draft" || a.status === "published") && isEnhanced && (
@@ -744,7 +750,7 @@ export const AssessmentsPage = ({ user }) => {
                             className="bg-red-600 text-white py-1 px-3 rounded text-sm hover:bg-red-700"
                             data-testid={`close-assessment-${a.id}`}
                           >
-                            Close Assessment
+                            Close
                           </button>
                         )}
                         {a.status === "closed" && (
@@ -1184,7 +1190,7 @@ export const AssessmentDetailPage = ({ user }) => {
               className="text-gray-600 text-center py-8"
               data-testid="no-submissions"
             >
-              No submissions yet
+              No submissions yet. Share the join code with students so they can submit their work.
             </p>
           ) : (
             <div className="space-y-4" data-testid="submissions-list">
@@ -1250,11 +1256,11 @@ export const AssessmentDetailPage = ({ user }) => {
                         </>
                       ) : sub.status === "error" ? (
                         <span className="text-red-600 text-sm">
-                          Marking failed
+                          Marking could not be completed
                         </span>
                       ) : (
                         <span className="text-gray-600 text-sm">
-                          Not marked
+                          Awaiting marking
                         </span>
                       )}
                     </div>

@@ -20,7 +20,7 @@ const StatusBadge = ({ status }) => {
     ocr_in_review:    { label: 'OCR in Review',      cls: 'bg-blue-100 text-blue-700' },
     marked:           { label: 'Marked',              cls: 'bg-green-100 text-green-700' },
     low_confidence:   { label: 'Low Confidence',      cls: 'bg-yellow-100 text-yellow-800' },
-    unmarked:         { label: 'Unmarked',             cls: 'bg-gray-100 text-gray-600' },
+    unmarked:         { label: 'Needs Review',        cls: 'bg-orange-100 text-orange-700' },
     needs_review:     { label: 'Needs Review',         cls: 'bg-orange-100 text-orange-700' },
     draft:            { label: 'Draft',               cls: 'bg-gray-100 text-gray-600' },
     ready_to_release: { label: 'Ready to Release',    cls: 'bg-emerald-100 text-emerald-700' },
@@ -50,7 +50,7 @@ const SeverityBadge = ({ severity }) => {
 const SectionError = ({ onRetry }) => (
   <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
     <AlertCircle className="w-8 h-8 text-red-400" />
-    <p className="text-sm text-gray-500">Failed to load this section.</p>
+    <p className="text-sm text-gray-500">Could not load this section.</p>
     {onRetry && (
       <button onClick={onRetry} className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1">
         <RefreshCw className="w-3 h-3" /> Retry
@@ -138,9 +138,9 @@ export const TeacherDashboard = ({ user }) => {
           const s = (a.status || '').toLowerCase().replace(/\s+/g, '_');
           return {
             id:        a.id,
-            title:     s === 'low_confidence' ? 'Low Confidence Extractions'
-                     : s === 'needs_review'   ? 'Awaiting Marking'
-                     : 'OCR Review Required',
+            title:     s === 'low_confidence' ? 'Low confidence extractions'
+                     : s === 'needs_review'   ? 'Submissions awaiting review'
+                     : 'OCR review required',
             subtitle:  a.title,
             scripts:   a.submission_count ?? a.submissions ?? 0,
             severity:  s === 'low_confidence' ? 'Medium' : s === 'needs_review' ? 'Medium' : 'High',
@@ -216,13 +216,13 @@ export const TeacherDashboard = ({ user }) => {
           <div className="relative z-10 flex-1">
             <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-blue-100 text-xs font-medium px-2.5 py-1 rounded-full mb-4">
               <ScanLine className="w-3.5 h-3.5" />
-              <span>OCR-Powered Assessment Platform</span>
+              <span>AI-Powered Marking</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">
               Welcome back, {firstName}!
             </h1>
             <p className="text-blue-100 mb-6 text-sm sm:text-base lg:text-lg max-w-xl">
-              Here's what's happening with your assessments today.
+              Here's an overview of your assessment activity.
               {needsReview > 0 && (
                 <span className="font-medium text-white"> You have {needsReview} submission{needsReview !== 1 ? 's' : ''} awaiting review.</span>
               )}
@@ -322,21 +322,21 @@ export const TeacherDashboard = ({ user }) => {
                 },
                 {
                   label: 'Total Submissions', value: stats?.total_submissions || 0,
-                  sub: 'Awaiting processing', icon: Upload,
+                  sub: 'Submitted by students', icon: Upload,
                   iconBg: 'bg-purple-50 group-hover:bg-purple-100', iconColor: 'text-purple-600',
                   hoverBorder: 'hover:border-purple-200', chevronHover: 'group-hover:text-purple-400',
                   route: '/teacher/assessments', testId: 'stat-submissions',
                 },
                 {
                   label: 'Marked', value: stats?.marked || 0,
-                  sub: 'Completed', icon: CheckCircle2,
+                  sub: 'Fully marked', icon: CheckCircle2,
                   iconBg: 'bg-green-50 group-hover:bg-green-100', iconColor: 'text-green-600',
                   hoverBorder: 'hover:border-green-200', chevronHover: 'group-hover:text-green-400',
                   route: '/teacher/assessments?filter=marked', testId: 'stat-marked',
                 },
                 {
                   label: 'Needs Review', value: needsReview,
-                  sub: 'Needs attention', icon: AlertTriangle,
+                  sub: 'Awaiting your review', icon: AlertTriangle,
                   iconBg: 'bg-orange-50 group-hover:bg-orange-100', iconColor: 'text-orange-500',
                   hoverBorder: 'hover:border-orange-200', chevronHover: 'group-hover:text-orange-400',
                   route: '/teacher/assessments?filter=review', testId: 'stat-needs-review',
@@ -383,25 +383,25 @@ export const TeacherDashboard = ({ user }) => {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   {
-                    title: 'Create Question', desc: 'Build new questions',
+                    title: 'Create Question', desc: 'Create and manage questions',
                     icon: PenLine, bg: 'bg-blue-100 group-hover:bg-blue-200',
                     color: 'text-blue-600', border: 'hover:border-blue-200 hover:bg-blue-50/30',
                     route: '/teacher/questions', testId: 'quick-action-create-question',
                   },
                   {
-                    title: 'Create Assessment', desc: 'Build new assessment',
+                    title: 'Create Assessment', desc: 'Set up a new assessment',
                     icon: ClipboardList, bg: 'bg-green-100 group-hover:bg-green-200',
                     color: 'text-green-600', border: 'hover:border-green-200 hover:bg-green-50/30',
                     route: '/teacher/assessments/create', testId: 'quick-action-create-assessment',
                   },
                   {
-                    title: 'Upload Scripts', desc: 'Extract & review answers',
+                    title: 'Upload Scripts', desc: 'Scan and extract student answers',
                     icon: Upload, bg: 'bg-purple-100 group-hover:bg-purple-200',
                     color: 'text-purple-600', border: 'hover:border-purple-200 hover:bg-purple-50/30',
                     route: '/teacher/ocr-upload', testId: 'quick-action-upload-scripts',
                   },
                   {
-                    title: 'Review OCR Flags', desc: 'Review flagged responses',
+                    title: 'Review OCR Flags', desc: 'Check and correct AI extractions',
                     icon: ScanLine, bg: 'bg-orange-100 group-hover:bg-orange-200',
                     color: 'text-orange-600', border: 'hover:border-orange-200 hover:bg-orange-50/30',
                     route: '/teacher/assessments?filter=review', testId: 'quick-action-review-ocr',
@@ -463,8 +463,8 @@ export const TeacherDashboard = ({ user }) => {
               ) : priorityQueue.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-2">
                   <CheckCircle2 className="w-10 h-10 text-green-400" />
-                  <p className="text-sm font-medium text-gray-700">No flagged OCR items</p>
-                  <p className="text-xs text-gray-400">All submissions are in good shape.</p>
+                  <p className="text-sm font-medium text-gray-700">Nothing to review</p>
+                  <p className="text-xs text-gray-400">All extractions have been processed.</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -529,7 +529,7 @@ export const TeacherDashboard = ({ user }) => {
                       { dot: 'bg-green-500',  label: 'High Confidence',   value: `${ocrHealth.high}%` },
                       { dot: 'bg-purple-500', label: 'Medium Confidence', value: `${ocrHealth.medium}%` },
                       { dot: 'bg-yellow-400', label: 'Low Confidence',    value: `${ocrHealth.low}%` },
-                      { dot: 'bg-gray-300',   label: 'Failed',            value: `${ocrHealth.failed}%` },
+                      { dot: 'bg-gray-300',   label: 'Could Not Process',   value: `${ocrHealth.failed}%` },
                     ].map(({ dot, label, value }) => (
                       <div key={label} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -542,9 +542,9 @@ export const TeacherDashboard = ({ user }) => {
                   </div>
                   <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
                     {[
-                      { label: 'Avg extraction time',    value: ocrHealth.avgTime },
-                      { label: 'Teacher correction rate', value: ocrHealth.correctionRate },
-                      { label: 'Processed today',         value: `${ocrHealth.processedToday} scripts` },
+                      { label: 'Average processing time', value: ocrHealth.avgTime },
+                      { label: 'Your correction rate', value: ocrHealth.correctionRate },
+                      { label: 'Scripts processed today', value: `${ocrHealth.processedToday} scripts` },
                     ].map(({ label, value }) => (
                       <div key={label} className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">{label}</span>
@@ -561,10 +561,10 @@ export const TeacherDashboard = ({ user }) => {
               <h2 className="text-base font-semibold text-gray-900 mb-4">Teacher Workflow</h2>
               <div className="space-y-1">
                 {[
-                  { n: 1, title: 'Upload Scripts',       desc: 'Upload student scripts and let BlueAI extract responses', icon: Upload,        bg: 'bg-blue-100',   color: 'text-blue-600',   route: '/teacher/ocr-upload' },
-                  { n: 2, title: 'Review OCR Results',   desc: 'Check and approve extracted answers',                     icon: Eye,           bg: 'bg-purple-100', color: 'text-purple-600', route: '/teacher/assessments?filter=review' },
-                  { n: 3, title: 'AI Marking',           desc: 'Let BlueAI mark or review flagged items',                 icon: CheckCircle2,  bg: 'bg-green-100',  color: 'text-green-600',  route: '/teacher/assessments' },
-                  { n: 4, title: 'View Analytics',       desc: 'Monitor performance and insights',                        icon: BarChart3,     bg: 'bg-orange-100', color: 'text-orange-600', route: '/teacher/analytics' },
+                  { n: 1, title: 'Upload Scripts',       desc: 'Upload handwritten scripts for AI extraction', icon: Upload,        bg: 'bg-blue-100',   color: 'text-blue-600',   route: '/teacher/ocr-upload' },
+                  { n: 2, title: 'Review OCR Results',   desc: 'Review and correct AI-extracted answers',      icon: Eye,           bg: 'bg-purple-100', color: 'text-purple-600', route: '/teacher/assessments?filter=review' },
+                  { n: 3, title: 'AI Marking',           desc: 'Approve AI marking and release feedback',      icon: CheckCircle2,  bg: 'bg-green-100',  color: 'text-green-600',  route: '/teacher/assessments' },
+                  { n: 4, title: 'View Analytics',       desc: 'Track class and student performance',          icon: BarChart3,     bg: 'bg-orange-100', color: 'text-orange-600', route: '/teacher/analytics' },
                 ].map(({ n, title, desc, icon: Icon, bg, color, route }) => (
                   <button
                     key={n}
@@ -588,7 +588,7 @@ export const TeacherDashboard = ({ user }) => {
                 onClick={() => navigate('/teacher/assessments')}
                 className="w-full text-center text-xs text-blue-600 hover:underline mt-2 pt-3 border-t border-gray-100 block"
               >
-                Learn more about the workflow →
+                Go to Assessments →
               </button>
             </div>
           </div>
@@ -627,7 +627,7 @@ export const TeacherDashboard = ({ user }) => {
             <div className="flex flex-col items-center justify-center py-10 gap-3">
               <ClipboardList className="w-10 h-10 text-gray-300" />
               <p className="text-sm font-medium text-gray-600">No assessments yet</p>
-              <p className="text-xs text-gray-400">Create your first assessment to get started.</p>
+              <p className="text-xs text-gray-400">Create your first assessment to start collecting student work.</p>
               <button
                 onClick={() => navigate('/teacher/assessments/create')}
                 className="mt-1 inline-flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"

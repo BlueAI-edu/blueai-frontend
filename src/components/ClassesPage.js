@@ -38,7 +38,7 @@ export const ClassesPage = ({ user }) => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900" data-testid="classes-title">Classes</h2>
-            <p className="text-gray-600">Manage your classes and students</p>
+            <p className="text-gray-600">Organise students and track their progress</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -72,7 +72,7 @@ export const ClassesPage = ({ user }) => {
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No classes yet</h3>
-            <p className="text-gray-600 mb-6">Create your first class to start managing students and assessments.</p>
+            <p className="text-gray-600 mb-6">Create your first class to organise students and link them to assessments.</p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
@@ -497,7 +497,7 @@ export const ClassDetailPage = ({ user }) => {
 
             {classData.assessments.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                <p>No assessments for this class yet.</p>
+                <p>No assessments linked to this class yet.</p>
               </div>
             ) : (
               <div className="divide-y">

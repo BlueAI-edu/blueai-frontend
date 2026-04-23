@@ -192,7 +192,7 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
 
       {students?.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No student data available yet. Students will appear here after completing assessments.
+          No student data available yet. Students will appear here after they submit assessments.
         </div>
       )}
     </div>
@@ -311,7 +311,7 @@ const AssessmentInsightsPanel = ({ assessments }) => {
         </>
       ) : (
         <div className="text-center py-8 text-gray-500">
-          No assessment data available yet.
+          No assessment insights available yet. Data will appear here once students have submitted work.
         </div>
       )}
     </div>
@@ -324,7 +324,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-semibold text-gray-900" data-testid="class-support-title">
-          Class Support Indicators
+          Intervention Indicators
         </h3>
         <button
           onClick={onGenerateInsights}
@@ -345,7 +345,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              Generate AI Insights
+              Generate Insights
             </>
           )}
         </button>
@@ -359,7 +359,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
         </div>
         <div className="bg-red-50 rounded-lg p-4 text-center">
           <p className="text-3xl font-bold text-red-600">{overview?.underperforming_count || 0}</p>
-          <p className="text-sm text-red-600">Underperforming</p>
+          <p className="text-sm text-red-600">Need Support</p>
         </div>
         <div className="bg-green-50 rounded-lg p-4 text-center">
           <p className="text-3xl font-bold text-green-600">{overview?.improving_count || 0}</p>
@@ -378,7 +378,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
-            AI Intervention Recommendation
+            AI Recommendation
           </h4>
           <p className="text-purple-700" data-testid="ai-summary">{aiInsights.ai_summary}</p>
         </div>
@@ -402,7 +402,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">No underperforming students</p>
+            <p className="text-gray-500 text-sm">All students are on track</p>
           )}
         </div>
 
@@ -422,7 +422,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">No declining students</p>
+            <p className="text-gray-500 text-sm">No declining trends detected</p>
           )}
         </div>
       </div>
@@ -444,7 +444,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm">No weak topics</p>
+              <p className="text-gray-500 text-sm">All topics are performing well</p>
             )}
           </div>
 
@@ -461,7 +461,7 @@ const ClassSupportPanel = ({ overview, aiInsights, onGenerateInsights, loading }
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm">No strong topics yet</p>
+              <p className="text-gray-500 text-sm">No strong topics identified yet</p>
             )}
           </div>
         </div>
@@ -1050,7 +1050,7 @@ export const AnalyticsPage = ({ user }) => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900" data-testid="analytics-title">Analytics Dashboard</h2>
-            <p className="text-gray-600">Track student performance, identify trends, and get AI-powered insights</p>
+            <p className="text-gray-600">Track student performance and identify areas for intervention</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -1096,7 +1096,7 @@ export const AnalyticsPage = ({ user }) => {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            Assessment Insights
+            Assessment Analysis
           </button>
           <button
             onClick={() => setActiveTab('math')}
@@ -1116,7 +1116,7 @@ export const AnalyticsPage = ({ user }) => {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            Class Support
+            Intervention Support
           </button>
         </div>
 
