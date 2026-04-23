@@ -193,50 +193,105 @@ export const TeacherDashboard = ({ user }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
         {/* ── Hero panel ── */}
-        <div className="relative overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm px-6 sm:px-8 py-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="relative z-10">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-              Welcome back, {firstName}! 👋
+        <div className="relative overflow-hidden rounded-2xl shadow-sm px-6 sm:px-8 py-8 sm:py-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-10"
+          style={{
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%)',
+          }}
+        >
+          {/* Background pattern */}
+          <div className="absolute inset-0 opacity-10" aria-hidden="true">
+            <div className="absolute top-0 left-0 w-72 h-72 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-white rounded-full translate-y-1/2" />
+            <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-white rounded-full -translate-y-1/2" />
+          </div>
+
+          {/* Grid dots pattern */}
+          <div className="absolute inset-0 opacity-5" aria-hidden="true"
+            style={{
+              backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          />
+
+          <div className="relative z-10 flex-1">
+            <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-blue-100 text-xs font-medium px-2.5 py-1 rounded-full mb-4">
+              <ScanLine className="w-3.5 h-3.5" />
+              <span>OCR-Powered Assessment Platform</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">
+              Welcome back, {firstName}!
             </h1>
-            <p className="text-gray-500 mb-5 text-sm sm:text-base">
-              Here's what's happening with your assessments.
+            <p className="text-blue-100 mb-6 text-sm sm:text-base lg:text-lg max-w-xl">
+              Here's what's happening with your assessments today.
+              {needsReview > 0 && (
+                <span className="font-medium text-white"> You have {needsReview} submission{needsReview !== 1 ? 's' : ''} awaiting review.</span>
+              )}
             </p>
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => navigate('/teacher/assessments/create')}
-                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 bg-white text-blue-700 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-all shadow-lg shadow-blue-900/20 hover:shadow-xl hover:shadow-blue-900/30 hover:-translate-y-0.5 active:translate-y-0"
                 data-testid="hero-create-assessment"
               >
                 <Plus className="w-4 h-4" /> Create Assessment
               </button>
               <button
                 onClick={() => navigate('/teacher/ocr-upload')}
-                className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
                 data-testid="hero-upload-scripts"
               >
-                <Upload className="w-4 h-4 text-purple-500" /> Upload Scripts
+                <Upload className="w-4 h-4" /> Upload Scripts
               </button>
               <button
                 onClick={() => navigate('/teacher/assessments?filter=review')}
-                className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/20 transition-all hover:-translate-y-0.5 active:translate-y-0 relative"
                 data-testid="hero-review-queue"
               >
-                <Eye className="w-4 h-4 text-orange-500" /> Open Review Queue
+                <Eye className="w-4 h-4" /> Open Review Queue
+                {needsReview > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                    {needsReview > 9 ? '9+' : needsReview}
+                  </span>
+                )}
               </button>
             </div>
           </div>
-          {/* Decorative illustration */}
-          <div className="hidden lg:flex items-center justify-center shrink-0" aria-hidden="true">
-            <div className="w-44 h-28 relative">
-              <div className="absolute inset-0 bg-blue-50 rounded-2xl opacity-60" />
-              <div className="absolute top-3 left-4 w-22 h-16 bg-white rounded-xl shadow border border-gray-100 flex items-center justify-center w-20 h-14">
-                <BarChart3 className="w-8 h-8 text-blue-400" />
+
+          {/* Decorative illustration - OCR/Assessment themed */}
+          <div className="hidden lg:flex items-center justify-center shrink-0 relative" aria-hidden="true">
+            <div className="w-56 h-40 relative">
+              {/* Main card */}
+              <div className="absolute inset-4 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-2xl" />
+
+              {/* Scan line animation */}
+              <div className="absolute top-8 left-8 right-8 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-60"
+                style={{
+                  animation: 'scan 2s ease-in-out infinite',
+                }}
+              />
+
+              {/* Document icon */}
+              <div className="absolute top-6 left-10 w-12 h-16 bg-white/90 rounded-lg shadow-lg flex flex-col items-center justify-center gap-1">
+                <FileText className="w-6 h-6 text-blue-600" />
+                <div className="w-6 h-0.5 bg-gray-200 rounded" />
+                <div className="w-4 h-0.5 bg-gray-200 rounded" />
               </div>
-              <div className="absolute bottom-3 right-4 w-14 h-10 bg-white rounded-lg shadow border border-gray-100 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-green-400" />
+
+              {/* Checkmark badge */}
+              <div className="absolute bottom-6 right-8 w-10 h-10 bg-green-500 rounded-xl shadow-lg flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-white" />
               </div>
-              <div className="absolute top-2 right-2 w-4 h-4 bg-blue-300 rounded-full opacity-50" />
-              <div className="absolute bottom-2 left-2 w-3 h-3 bg-purple-300 rounded-full opacity-50" />
+
+              {/* Floating elements */}
+              <div className="absolute top-2 right-4 w-3 h-3 bg-blue-300 rounded-full opacity-60"
+                style={{ animation: 'float 3s ease-in-out infinite' }}
+              />
+              <div className="absolute bottom-4 left-4 w-2 h-2 bg-purple-300 rounded-full opacity-60"
+                style={{ animation: 'float 3s ease-in-out infinite 1s' }}
+              />
+              <div className="absolute top-1/2 -right-2 w-2 h-2 bg-green-300 rounded-full opacity-60"
+                style={{ animation: 'float 3s ease-in-out infinite 0.5s' }}
+              />
             </div>
           </div>
         </div>
