@@ -200,7 +200,7 @@ export default function OCRReviewPage() {
         description:
           found > 0
             ? `Found ${found} response${found !== 1 ? "s" : ""} on this page.`
-            : "GPT-4o couldn't find student answers on this page. You can type them in manually.",
+            : "We couldn't find student answers on this page. You can type them in manually.",
         variant: found > 0 ? "default" : "destructive",
       });
     } catch (err) {
@@ -215,7 +215,7 @@ export default function OCRReviewPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading OCR submission...</p>
+          <p className="mt-4 text-slate-600">Loading submission...</p>
         </div>
       </div>
     );
@@ -248,7 +248,7 @@ export default function OCRReviewPage() {
                 &larr; Back
               </Button>
               <div className="h-6 w-px bg-slate-300" />
-              <h1 className="text-2xl font-bold text-slate-900">Review Student Answer</h1>
+                <h1 className="text-2xl font-bold text-slate-900">Review Extracted Answers</h1>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-slate-600">
@@ -375,7 +375,7 @@ export default function OCRReviewPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="overflow-hidden">
             <CardHeader>
-              <CardTitle>Scanned Page</CardTitle>
+              <CardTitle>Original Script</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
@@ -394,7 +394,7 @@ export default function OCRReviewPage() {
           <Card className="overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Student Answer</CardTitle>
+                <CardTitle>Extracted Text</CardTitle>
                 {currentPage?.is_approved && (
                   <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300">
                     &#10003; Approved
@@ -435,11 +435,11 @@ export default function OCRReviewPage() {
                   ) : (
                     <RefreshCw className="h-4 w-4" />
                   )}
-                  {reExtracting ? "Re-extracting..." : "Re-run OCR"}
+                  {reExtracting ? "Re-extracting..." : "Re-extract"}
                 </Button>
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
-                Use <span className="font-medium text-amber-600">Re-run OCR</span> if the extracted text looks incorrect.
+                Use <span className="font-medium text-amber-600">Re-extract</span> if the extracted text looks incorrect.
               </p>
             </CardContent>
           </Card>
@@ -450,7 +450,7 @@ export default function OCRReviewPage() {
           <Card className="mt-6 border-indigo-200 bg-indigo-50/40">
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
-                Question-Level Extraction
+                Question-Level Answers
                 <Badge variant="secondary">{responseBlocks.length} blocks</Badge>
                 {getReviewRequiredCount(responseBlocks) > 0 && (
                   <Badge variant="destructive" className="text-xs">
@@ -507,9 +507,9 @@ export default function OCRReviewPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Ready to Mark?</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Ready to Send to Marking?</h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  Review each page answer, then approve everything and continue to marking.
+                  Review each extracted answer, then approve all and continue to AI marking.
                 </p>
               </div>
               <Button onClick={handleApproveAll} disabled={saving} size="lg">
@@ -519,7 +519,7 @@ export default function OCRReviewPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 )}
-                {saving ? "Processing..." : "Approve All & Mark"}
+                {saving ? "Processing..." : "Approve & Send to Marking"}
               </Button>
             </div>
           </CardContent>
