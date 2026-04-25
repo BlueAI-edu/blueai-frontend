@@ -160,6 +160,12 @@ export const AssessmentsPage = ({ user }) => {
   };
 
   const getStatusBadge = (status) => {
+    const labels = {
+      draft: 'Draft',
+      published: 'Published',
+      started: 'In Progress',
+      closed: 'Closed',
+    };
     const colors = {
       draft: "bg-gray-100 text-gray-700",
       published: "bg-blue-100 text-blue-700",
@@ -170,7 +176,7 @@ export const AssessmentsPage = ({ user }) => {
       <span
         className={`px-3 py-1 rounded-full text-xs font-medium ${colors[status] || colors.draft}`}
       >
-        {status.toUpperCase()}
+        {labels[status] || status}
       </span>
     );
   };
@@ -203,14 +209,14 @@ export const AssessmentsPage = ({ user }) => {
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium flex items-center gap-2"
                 >
                   <span>✨</span>
-                  Create Enhanced Assessment
+                  Create Assessment
                 </button>
                 <button
                   onClick={() => setShowForm(true)}
                   className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700"
                   data-testid="new-assessment-btn"
                 >
-                  Classic Mode
+                  Quick Create
                 </button>
               </>
             )}
@@ -645,7 +651,7 @@ export const AssessmentsPage = ({ user }) => {
                 className="bg-white p-12 rounded-lg shadow text-center"
                 data-testid="no-assessments"
               >
-                <p className="text-gray-600 mb-4">No assessments yet</p>
+                <p className="text-gray-600 mb-4">No assessments created yet. Set up your first assessment to start collecting student work.</p>
               </div>
             ) : (
               <div className="space-y-4" data-testid="assessments-list">
@@ -726,7 +732,7 @@ export const AssessmentsPage = ({ user }) => {
                             className="bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700"
                             data-testid={`start-assessment-${a.id}`}
                           >
-                            Start Assessment
+                            Start
                           </button>
                         )}
                         {(a.status === "draft" || a.status === "published") && isEnhanced && (
@@ -744,7 +750,7 @@ export const AssessmentsPage = ({ user }) => {
                             className="bg-red-600 text-white py-1 px-3 rounded text-sm hover:bg-red-700"
                             data-testid={`close-assessment-${a.id}`}
                           >
-                            Close Assessment
+                            Close
                           </button>
                         )}
                         {a.status === "closed" && (
@@ -1007,22 +1013,16 @@ export const AssessmentDetailPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button
-              onClick={() => navigate("/teacher/assessments")}
-              className="text-gray-700 hover:text-blue-600"
-            >
-              ← Back to Assessments
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Breadcrumb */}
+        <button
+          onClick={() => navigate("/teacher/assessments")}
+          className="text-sm text-gray-600 hover:text-blue-600 mb-4 flex items-center gap-1"
+        >
+          ← Back to Assessments
+        </button>
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="flex justify-between items-start">
             <div>
@@ -1184,7 +1184,7 @@ export const AssessmentDetailPage = ({ user }) => {
               className="text-gray-600 text-center py-8"
               data-testid="no-submissions"
             >
-              No submissions yet
+              No submissions yet. Share the join code with students so they can submit their work.
             </p>
           ) : (
             <div className="space-y-4" data-testid="submissions-list">
@@ -1250,11 +1250,11 @@ export const AssessmentDetailPage = ({ user }) => {
                         </>
                       ) : sub.status === "error" ? (
                         <span className="text-red-600 text-sm">
-                          Marking failed
+                          Marking could not be completed
                         </span>
                       ) : (
                         <span className="text-gray-600 text-sm">
-                          Not marked
+                          Awaiting marking
                         </span>
                       )}
                     </div>
@@ -1417,24 +1417,18 @@ export const SubmissionDetailPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button
-              onClick={() =>
-                navigate(`/teacher/assessments/${data.assessment.id}`)
-              }
-              className="text-gray-700 hover:text-blue-600"
-            >
-              ← Back
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Breadcrumb */}
+        <button
+          onClick={() =>
+            navigate(`/teacher/assessments/${data.assessment.id}`)
+          }
+          className="text-sm text-gray-600 hover:text-blue-600 mb-4 flex items-center gap-1"
+        >
+          ← Back
+        </button>
         {/* Needs Review Banner */}
         {data.submission.needs_review && (
           <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6 flex justify-between items-center">
@@ -1895,22 +1889,17 @@ export const SecurityReportPage = ({ user }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button
-              onClick={() => navigate(`/teacher/assessments/${assessmentId}`)}
-              className="text-gray-700 hover:text-blue-600"
-            >
-              ← Back to Assessment
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Breadcrumb */}
+        <button
+          onClick={() => navigate(`/teacher/assessments/${assessmentId}`)}
+          className="text-sm text-gray-600 hover:text-blue-600 mb-4 flex items-center gap-1"
+        >
+          ← Back to Assessment
+        </button>
+
         <div className="mb-8">
           <h2
             className="text-3xl font-bold text-gray-900 mb-2"
@@ -2150,22 +2139,17 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-blue-600">BlueAI</h1>
-            <button
-              onClick={() => navigate("/teacher")}
-              className="text-gray-700 hover:text-blue-600"
-            >
-              ← Back to Dashboard
-            </button>
-          </div>
-          <span className="text-gray-700">{user.name}</span>
-        </div>
-      </nav>
+      <Navbar user={user} />
 
       <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Breadcrumb */}
+        <button
+          onClick={() => navigate("/teacher/dashboard")}
+          className="text-sm text-gray-600 hover:text-blue-600 mb-4 flex items-center gap-1"
+        >
+          ← Back to Dashboard
+        </button>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Profile Form */}
           <div className="md:col-span-2 bg-white p-6 rounded-lg shadow">

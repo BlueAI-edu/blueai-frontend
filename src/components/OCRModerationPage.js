@@ -195,7 +195,7 @@ export default function OCRModerationPage({ user }) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600">Marking results not found</p>
+          <p className="text-red-600">Marking results not found for this submission.</p>
         </div>
       </div>
     );
@@ -214,7 +214,7 @@ export default function OCRModerationPage({ user }) {
               >
                 ← Back to Dashboard
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Moderate AI Marking</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Review AI Marks</h1>
             </div>
             <div className="text-sm text-gray-500">
               Student: <span className="font-medium text-gray-900">{submission.student_name}</span>
@@ -248,7 +248,7 @@ export default function OCRModerationPage({ user }) {
               Review needed for questions: {markingResult.review_warnings.join(', ')}
             </p>
             <p className="text-xs text-amber-600 mt-1">
-              These questions had low extraction confidence and may need review.
+              These questions had low extraction confidence and may need your attention.
             </p>
           </div>
         )}
@@ -280,22 +280,22 @@ export default function OCRModerationPage({ user }) {
 
         {/* AI Generated Marks - Read Only */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-blue-900 mb-3">AI Generated Marks (Overall)</h2>
+          <h2 className="text-lg font-semibold text-blue-900 mb-3">AI Suggested Marks</h2>
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium text-blue-800">Total Score</p>
               <p className="text-2xl font-bold text-blue-900">{markingResult.total_score} / {markingResult.max_marks || question?.max_marks || '?'}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">What Went Well (AI)</p>
+              <p className="text-sm font-medium text-blue-800">What Went Well (AI Suggested)</p>
               <p className="text-sm text-blue-900 bg-white rounded p-3 mt-1">{markingResult.www}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">Next Steps (AI)</p>
+              <p className="text-sm font-medium text-blue-800">Next Steps (AI Suggested)</p>
               <p className="text-sm text-blue-900 bg-white rounded p-3 mt-1">{markingResult.next_steps}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">Overall Feedback (AI)</p>
+              <p className="text-sm font-medium text-blue-800">Overall Feedback (AI Suggested)</p>
               <p className="text-sm text-blue-900 bg-white rounded p-3 mt-1">{markingResult.overall_feedback}</p>
             </div>
           </div>
@@ -303,8 +303,8 @@ export default function OCRModerationPage({ user }) {
 
         {/* Teacher Moderation - Editable */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Moderation</h2>
-          <p className="text-sm text-gray-600 mb-6">Review and adjust the AI-generated marks and feedback below:</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Adjustments</h2>
+          <p className="text-sm text-gray-600 mb-6">Review and adjust the AI-suggested marks and feedback below:</p>
 
           <div className="space-y-6">
             <div>
@@ -396,7 +396,7 @@ export default function OCRModerationPage({ user }) {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               )}
-              {finalizing ? 'Finalizing...' : 'Finalize & Download PDF'}
+              {finalizing ? 'Finalising...' : 'Finalise & Download'}
             </button>
             <button
               onClick={() => navigate('/teacher/dashboard')}
