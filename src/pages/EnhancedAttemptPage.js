@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudentMathInput from '../components/StudentMathInput';
 import LaTeXRenderer from '../components/LaTeXRenderer';
+import DiagramRenderer from '../components/DiagramRenderer';
 import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
 import QuestionSidebar from '../components/QuestionSidebar';
 import SecurityOverlays from '../components/SecurityOverlays';
@@ -282,6 +283,10 @@ export const EnhancedAttemptPage = () => {
               <LaTeXRenderer text={currentQuestion.questionBody || ''} />
             </div>
 
+            {currentQuestion.stimulusBlock && (
+              <DiagramRenderer diagram={currentQuestion.stimulusBlock} className="mt-2" />
+            )}
+
             {/* Structured Question Parts */}
             {currentQuestion.questionType === 'STRUCTURED_WITH_PARTS' && currentQuestion.parts && currentQuestion.parts.length > 0 && (
               <div className="mt-6 space-y-6">
@@ -300,6 +305,9 @@ export const EnhancedAttemptPage = () => {
                           <div className="prose max-w-none">
                             <LaTeXRenderer text={part.partPrompt || ''} />
                           </div>
+                          {part.partStimulus && (
+                            <DiagramRenderer diagram={part.partStimulus} className="mt-2" />
+                          )}
                         </div>
                       </div>
                       <div className="mt-3">
