@@ -3,13 +3,13 @@ import React from 'react';
 const AssessmentModeSelector = ({ selectedMode, onModeChange }) => {
   const modes = [
     {
-      id: 'CLASSIC',
-      name: '📝 Classic Mode',
-      description: 'Single question assessment (backward compatible)',
-      duration: '30-60 min',
-      questions: '1 question',
-      icon: '📝',
-      color: 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+      id: 'OCR_GENERATED_GCSE_PAST_PAPER',
+      name: 'GCSE Past Paper (OCR Generated)',
+      description: 'Upload a GCSE past paper PDF and AI extracts the questions automatically',
+      duration: '30-120 min',
+      questions: 'AI extracted',
+      icon: '📤',
+      color: 'bg-orange-50 border-orange-300 hover:bg-orange-100'
     },
     {
       id: 'FORMATIVE_SINGLE_LONG_RESPONSE',
