@@ -5,6 +5,7 @@ import StructuredQuestionBuilder from './StructuredQuestionBuilder';
 import StimulusUploader from './StimulusUploader';
 import AIBulkGenerator from './AIBulkGenerator';
 import MixedMathEditor from '../MixedMathEditor';
+import DiagramRenderer from '../DiagramRenderer';
 
 const LONG_RESPONSE_MIN_MARKS = 6;
 const LONG_RESPONSE_MAX_MARKS = 15;
@@ -150,14 +151,30 @@ const QuestionEditor = ({
 
             {question.questionType && (
               <>
-                {/* Stimulus Uploader (for GCSE Structured) */}
-                {question.questionType === 'STRUCTURED_WITH_PARTS' && assessmentId && (
+                {/* Stimulus Uploader (for GCSE Structured — manual upload) */}
+                {question.questionType === 'STRUCTURED_WITH_PARTS' && assessmentId && !question.stimulusBlock && (
                   <StimulusUploader
                     assessmentId={assessmentId}
                     questionNumber={question.questionNumber}
                     currentStimulus={question.stimulusBlock}
                     onStimulusUploaded={(stimulus) => updateQuestion('stimulusBlock', stimulus)}
                   />
+                )}
+
+                {/* OCR-extracted diagram preview (shown for all question types when present) */}
+                {question.stimulusBlock && (
+                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">Extracted Diagram</span>
+                      <button
+                        onClick={() => updateQuestion('stimulusBlock', null)}
+                        className="text-xs text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <DiagramRenderer diagram={question.stimulusBlock} />
+                  </div>
                 )}
 
                 {/* Question Body */}

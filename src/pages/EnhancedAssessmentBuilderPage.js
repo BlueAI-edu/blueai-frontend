@@ -29,7 +29,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     stage: 'KS4',
     examBoard: 'AQA',
     tier: 'Higher',
-    durationMinutes: 45,
+    yearSeries: '',
+    durationMinutes: 90,
     instructions: '',
     shuffleQuestions: false,
     shuffleOptions: false,
@@ -39,6 +40,72 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   });
 
   const [showAIBulk, setShowAIBulk] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState(null);
+  const [questionPaperFile, setQuestionPaperFile] = useState(null);
+  const [markSchemeFile, setMarkSchemeFile] = useState(null);
+  const [questionPaperError, setQuestionPaperError] = useState(null);
+  const [markSchemeError, setMarkSchemeError] = useState(null);
+
+  const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
+
+  const validatePdfFile = (file) => {
+    if (!file) return null;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'pdf') return `Only PDF files are accepted. Received: "${file.name}". Please re-upload as a PDF.`;
+    if (file.size > 50 * 1024 * 1024) return 'File exceeds 50 MB. Please upload a smaller PDF.';
+    return null;
+  };
+
+  const handleQuestionPaperChange = useCallback((e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const err = validatePdfFile(file);
+    if (err) { setQuestionPaperError(err); return; }
+    setQuestionPaperError(null);
+    setQuestionPaperFile(file);
+  }, []);
+
+  const handleMarkSchemeChange = useCallback((e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const err = validatePdfFile(file);
+    if (err) { setMarkSchemeError(err); return; }
+    setMarkSchemeError(null);
+    setMarkSchemeFile(file);
+  }, []);
+
+  const handleExtract = useCallback(async () => {
+    if (!questionPaperFile && !markSchemeFile) {
+      setExtractError('Please upload at least one PDF (question paper or mark scheme) before extracting.');
+      return;
+    }
+    setExtracting(true);
+    setExtractError(null);
+    const formData = new FormData();
+    if (questionPaperFile) formData.append('file', questionPaperFile);
+    if (markSchemeFile) formData.append('mark_scheme', markSchemeFile);
+    formData.append('subject', assessmentData.subject);
+    formData.append('exam_board', assessmentData.examBoard);
+    try {
+      const response = await axios.post(
+        `${API}/teacher/assessments/extract-past-paper`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      const questions = response.data.questions.map((q, i) => ({ ...q, questionNumber: i + 1 }));
+      setAssessmentData(prev => ({ ...prev, questions }));
+      showNotification(`Extracted ${questions.length} question${questions.length !== 1 ? 's' : ''} successfully`, 'success');
+    } catch (error) {
+      const msg = getApiErrorMessage(error, 'Failed to extract questions from the uploaded PDF');
+      setExtractError(msg);
+      showNotification(msg, 'error');
+    } finally {
+      setExtracting(false);
+    }
+  }, [questionPaperFile, markSchemeFile, assessmentData.subject, assessmentData.examBoard]);
 
   useEffect(() => {
     if (isEdit) {
@@ -299,7 +366,119 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === 2 && assessmentData.assessmentMode === OCR_GCSE_MODE && (
+          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Past Paper Details</h2>
+              <p className="text-sm text-gray-500 mt-1">Enter the metadata for this past paper session. Title and subject are required.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Assessment Title *</label>
+              <input
+                type="text"
+                value={assessmentData.title}
+                onChange={(e) => updateField('title', e.target.value)}
+                placeholder="e.g., AQA Mathematics Higher — June 2023 Paper 1"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${!assessmentData.title.trim() ? 'border-red-300' : ''}`}
+              />
+              {!assessmentData.title.trim() && <p className="mt-1 text-xs text-red-500">Title is required</p>}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
+                <select
+                  value={assessmentData.subject}
+                  onChange={(e) => updateField('subject', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option>Mathematics</option>
+                  <option>Physics</option>
+                  <option>Chemistry</option>
+                  <option>Biology</option>
+                  <option>Combined Science</option>
+                  <option>English Language</option>
+                  <option>English Literature</option>
+                  <option>History</option>
+                  <option>Geography</option>
+                  <option>Computer Science</option>
+                  <option>Business Studies</option>
+                  <option>Economics</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Exam Board / Source</label>
+                <select
+                  value={assessmentData.examBoard}
+                  onChange={(e) => updateField('examBoard', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option>AQA</option>
+                  <option>Edexcel</option>
+                  <option>OCR</option>
+                  <option>WJEC</option>
+                  <option>CIE</option>
+                  <option>Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tier <span className="text-gray-400 font-normal">(optional)</span></label>
+                <select
+                  value={assessmentData.tier}
+                  onChange={(e) => updateField('tier', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option>Higher</option>
+                  <option>Foundation</option>
+                  <option>Intermediate</option>
+                  <option>None</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Year / Series <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="text"
+                  value={assessmentData.yearSeries}
+                  onChange={(e) => updateField('yearSeries', e.target.value)}
+                  placeholder="e.g., June 2023 Paper 1"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
+              <input
+                type="number"
+                min="1"
+                max="120"
+                value={assessmentData.durationMinutes}
+                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value) || 90)}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex justify-between pt-4 border-t">
+              <button onClick={() => setCurrentStep(1)} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">← Back</button>
+              <button
+                onClick={() => {
+                  if (!assessmentData.title.trim()) { showNotification('Assessment title is required', 'error'); return; }
+                  if (!assessmentData.subject) { showNotification('Subject is required', 'error'); return; }
+                  setCurrentStep(3);
+                }}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Next: Upload Papers →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 2 && assessmentData.assessmentMode !== OCR_GCSE_MODE && (
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <h2 className="text-xl font-semibold text-gray-900">Assessment Details</h2>
 
@@ -375,13 +554,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Duration (minutes) - Between 1 and 60
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
               <input
                 type="number"
                 min="1"
-                max="60"
+                max="120"
                 value={assessmentData.durationMinutes}
                 onChange={(e) => updateField('durationMinutes', parseInt(e.target.value) || 45)}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -422,16 +599,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             </div>
 
             <div className="flex justify-between pt-4 border-t">
-              <button
-                onClick={() => setCurrentStep(1)}
-                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
+              <button onClick={() => setCurrentStep(1)} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">← Back</button>
+              <button onClick={() => setCurrentStep(3)} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 Next: Add Questions →
               </button>
             </div>
@@ -460,6 +629,103 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
             </div>
 
+            {assessmentData.assessmentMode === OCR_GCSE_MODE && (
+              <div className="bg-white rounded-lg shadow p-6 space-y-5">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Upload Exam Documents</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Upload the question paper to extract questions automatically. Adding the mark scheme enables AI to pre-fill mark schemes for each question. PDF files only.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Question Paper */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Question Paper PDF <span className="text-gray-400 font-normal">(primary)</span></label>
+                    <label className={`flex flex-col items-center justify-center w-full py-6 border-2 border-dashed rounded-lg transition-colors ${
+                      extracting ? 'cursor-not-allowed opacity-60' :
+                      questionPaperFile ? 'border-green-400 bg-green-50 hover:bg-green-100 cursor-pointer' :
+                      'border-orange-300 bg-orange-50 hover:border-orange-400 hover:bg-orange-100 cursor-pointer'
+                    }`}>
+                      <span className="text-3xl mb-1">{questionPaperFile ? '✅' : '📄'}</span>
+                      <span className="font-medium text-sm text-gray-800 text-center px-2">
+                        {questionPaperFile ? questionPaperFile.name : 'Click to upload question paper'}
+                      </span>
+                      <span className="text-xs text-gray-500 mt-1">PDF only — up to 50 MB</span>
+                      <input type="file" accept=".pdf" className="hidden" disabled={extracting} onChange={handleQuestionPaperChange} />
+                    </label>
+                    {questionPaperError && (
+                      <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{questionPaperError}</p>
+                    )}
+                    {questionPaperFile && !extracting && (
+                      <button onClick={() => setQuestionPaperFile(null)} className="mt-1 text-xs text-gray-400 hover:text-red-500 underline">Remove</button>
+                    )}
+                  </div>
+
+                  {/* Mark Scheme */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mark Scheme PDF <span className="text-gray-400 font-normal">(optional — pre-fills mark schemes)</span></label>
+                    <label className={`flex flex-col items-center justify-center w-full py-6 border-2 border-dashed rounded-lg transition-colors ${
+                      extracting ? 'cursor-not-allowed opacity-60' :
+                      markSchemeFile ? 'border-green-400 bg-green-50 hover:bg-green-100 cursor-pointer' :
+                      'border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100 cursor-pointer'
+                    }`}>
+                      <span className="text-3xl mb-1">{markSchemeFile ? '✅' : '📋'}</span>
+                      <span className="font-medium text-sm text-gray-800 text-center px-2">
+                        {markSchemeFile ? markSchemeFile.name : 'Click to upload mark scheme'}
+                      </span>
+                      <span className="text-xs text-gray-500 mt-1">PDF only — enables mark scheme pre-fill</span>
+                      <input type="file" accept=".pdf" className="hidden" disabled={extracting} onChange={handleMarkSchemeChange} />
+                    </label>
+                    {markSchemeError && (
+                      <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{markSchemeError}</p>
+                    )}
+                    {markSchemeFile && !extracting && (
+                      <button onClick={() => setMarkSchemeFile(null)} className="mt-1 text-xs text-gray-400 hover:text-red-500 underline">Remove</button>
+                    )}
+                  </div>
+                </div>
+
+                {!questionPaperFile && markSchemeFile && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-700">
+                      ⚠️ No question paper uploaded. AI will infer questions from the mark scheme only — question text will be placeholder text that you must fill in manually after extraction.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-sm text-gray-500">
+                    {questionPaperFile && markSchemeFile ? '✓ Question paper + mark scheme ready' :
+                     questionPaperFile ? '✓ Question paper ready' :
+                     markSchemeFile ? '⚠ Mark scheme only' : 'No files selected'}
+                  </span>
+                  <button
+                    onClick={handleExtract}
+                    disabled={extracting || (!questionPaperFile && !markSchemeFile)}
+                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                  >
+                    {extracting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Extracting… (may take 30–90s)
+                      </>
+                    ) : (
+                      '🔍 Extract Questions'
+                    )}
+                  </button>
+                </div>
+
+                {extractError && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{extractError}</p>
+                )}
+
+                {assessmentData.questions.length === 0 && !extracting && !questionPaperFile && !markSchemeFile && (
+                  <p className="text-sm text-gray-400 text-center">Upload at least one document above, then click Extract Questions to begin.</p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-4">
               {assessmentData.questions.map((question, index) => (
                 <Suspense key={index} fallback={<div className="p-4 bg-white rounded-lg shadow text-center text-gray-500">Loading question...</div>}>
@@ -482,12 +748,14 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                 >
                   + Add Question Manually
                 </button>
-                <button
-                  onClick={() => setShowAIBulk(true)}
-                  className="flex-1 py-4 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 text-purple-600 hover:text-purple-700 font-medium transition-colors"
-                >
-                  🤖 Generate Multiple Questions with AI
-                </button>
+                {assessmentData.assessmentMode !== OCR_GCSE_MODE && (
+                  <button
+                    onClick={() => setShowAIBulk(true)}
+                    className="flex-1 py-4 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 text-purple-600 hover:text-purple-700 font-medium transition-colors"
+                  >
+                    🤖 Generate Multiple Questions with AI
+                  </button>
+                )}
               </div>
             </div>
 
