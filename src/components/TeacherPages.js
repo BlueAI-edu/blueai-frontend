@@ -1,10 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { API } from "@/config";
 import { handleApiError, showSuccess } from "@/lib/handle-error";
 import { useAsync } from "../hooks/use-async";
 import { Navbar } from "./Navbar";
+import { AssessmentHero } from "./AssessmentHero";
+import { AssessmentCard, AssessmentCardSkeleton, AssessmentEmptyState } from "./AssessmentCard";
+import { AssessmentStatsRow } from "./AssessmentStatsRow";
+import { AssessmentQueuePanel } from "./AssessmentQueuePanel";
 
 export const AssessmentsPage = ({ user }) => {
   const [assessments, setAssessments] = useState([]);
@@ -15,6 +19,8 @@ export const AssessmentsPage = ({ user }) => {
   const [showForm, setShowForm] = useState(false);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [activeTab, setActiveTab] = useState("assessments"); // assessments, templates
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "review_needed" | "submissions"
   const [formData, setFormData] = useState({
     question_id: "",
     class_id: "",
@@ -30,6 +36,8 @@ export const AssessmentsPage = ({ user }) => {
     auto_close: false,
   });
   const navigate = useNavigate();
+  const listRef = useRef(null);
+  const scrollToList = () => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   useEffect(() => {
     loadData();
@@ -186,42 +194,38 @@ export const AssessmentsPage = ({ user }) => {
       <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2
-            className="text-3xl font-bold text-gray-900"
-            data-testid="assessments-title"
-          >
-            Assessments
-          </h2>
-          <div className="flex gap-2">
-            {activeTab === "templates" ? (
-              <button
-                onClick={() => setShowTemplateForm(true)}
-                className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700"
-                data-testid="new-template-btn"
-              >
-                New Template
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => navigate("/teacher/assessments/create")}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-lg hover:from-purple-700 hover:to-blue-700 font-medium flex items-center gap-2"
-                >
-                  <span>✨</span>
-                  Create Assessment
-                </button>
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700"
-                  data-testid="new-assessment-btn"
-                >
-                  Quick Create
-                </button>
-              </>
-            )}
+        <AssessmentHero
+          onCreateEnhanced={() => navigate("/teacher/assessments/create")}
+          onClassicMode={() => setShowForm(true)}
+          liveCount={assessments.filter((a) => a.status === "started").length}
+          onOpenLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
+        />
+
+        <AssessmentStatsRow
+          loading={loading}
+          totalAssessments={assessments.length}
+          liveAssessments={assessments.filter((a) => a.status === "started").length}
+          totalSubmissions={assessments.reduce((s, a) => s + (a.submission_count || 0), 0) || null}
+          reviewNeeded={assessments.filter((a) => a.status === "review_needed").length}
+          activeFilter={statusFilter}
+          onFilterAll={() => { setActiveTab("assessments"); setStatusFilter("all"); scrollToList(); }}
+          onFilterLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
+          onFilterSubmissions={() => { setActiveTab("assessments"); setStatusFilter("submissions"); scrollToList(); }}
+          onFilterReview={() => { setActiveTab("assessments"); setStatusFilter("review_needed"); scrollToList(); }}
+        />
+
+        {/* Tab toolbar — template-mode gets its own CTA here */}
+        {activeTab === "templates" && (
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => setShowTemplateForm(true)}
+              className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700"
+              data-testid="new-template-btn"
+            >
+              New Template
+            </button>
           </div>
-        </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex bg-gray-100 rounded-lg p-1 mb-6 w-fit">
@@ -522,7 +526,9 @@ export const AssessmentsPage = ({ user }) => {
 
         {/* Assessments Tab */}
         {activeTab === "assessments" && (
-          <>
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* ── Main column ── */}
+            <div className="flex-1 min-w-0">
             {showForm && (
               <div
                 className="bg-white p-6 rounded-lg shadow mb-6"
@@ -644,144 +650,118 @@ export const AssessmentsPage = ({ user }) => {
               </div>
             )}
 
-            {loading ? (
-              <div className="text-center py-12">Loading...</div>
-            ) : assessments.length === 0 ? (
-              <div
-                className="bg-white p-12 rounded-lg shadow text-center"
-                data-testid="no-assessments"
-              >
-                <p className="text-gray-600 mb-4">No assessments created yet. Set up your first assessment to start collecting student work.</p>
-              </div>
-            ) : (
-              <div className="space-y-4" data-testid="assessments-list">
-                {assessments.map((a) => {
-                  // Handle both Classic and Enhanced assessments
-                  const isEnhanced =
-                    a.assessmentMode && a.assessmentMode !== "CLASSIC";
-                  const question = questions.find(
-                    (q) => q.id === a.question_id,
-                  );
+            {(() => {
+              const FILTER_STATUS_MAP = {
+                started: "started",
+                review_needed: "review_needed",
+                submissions: "closed",
+              };
+              const activeStatus = FILTER_STATUS_MAP[statusFilter];
+              const filtered = activeStatus
+                ? assessments.filter((a) => a.status === activeStatus)
+                : assessments;
 
-                  // For enhanced assessments, get info from the assessment itself
-                  const displayTitle = isEnhanced
-                    ? a.title || "Untitled Assessment"
-                    : question?.subject || "Unknown";
-                  const displaySubject = isEnhanced
-                    ? a.subject || "N/A"
-                    : question?.subject || "Unknown";
-                  const displayTopic = isEnhanced
-                    ? `${a.questions?.length || 0} questions`
-                    : question?.topic || "";
-                  const displayMode = isEnhanced
-                    ? (a.assessmentMode || "ENHANCED").replace(/_/g, " ")
-                    : "CLASSIC";
+              const FILTER_LABELS = {
+                all: "All Assessments",
+                started: "Live Assessments",
+                review_needed: "Review Needed",
+                submissions: "With Submissions",
+              };
 
-                  return (
-                    <div
-                      key={a.id}
-                      className="bg-white p-6 rounded-lg shadow"
-                      data-testid={`assessment-${a.id}`}
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {displayTitle}
-                            </h3>
-                            {getStatusBadge(a.status)}
-                            {isEnhanced && (
-                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                                ✨ {displayMode}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-gray-600 mb-1">{displayTopic}</p>
-                          {a.duration_minutes && (
-                            <p className="text-sm text-gray-500">
-                              Duration: {a.duration_minutes} minutes
-                            </p>
-                          )}
-                          {isEnhanced && a.totalMarks && (
-                            <p className="text-sm text-gray-500">
-                              Total Marks: {a.totalMarks}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="bg-blue-50 px-4 py-2 rounded">
-                            <p className="text-xs text-gray-600">Join Code</p>
-                            <p
-                              className="text-xl font-bold text-blue-600"
-                              data-testid={`join-code-${a.id}`}
-                            >
-                              {a.join_code}
-                            </p>
-                          </div>
-                          {a.status === "started" && (
-                            <div className="text-xs text-gray-500">
-                              Link: {window.location.origin}/join
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {(a.status === "draft" || a.status === "published") && (
-                          <button
-                            onClick={() => handleStart(a.id)}
-                            className="bg-green-600 text-white py-1 px-3 rounded text-sm hover:bg-green-700"
-                            data-testid={`start-assessment-${a.id}`}
-                          >
-                            Start
-                          </button>
-                        )}
-                        {(a.status === "draft" || a.status === "published") && isEnhanced && (
-                          <button
-                            onClick={() => navigate(`/teacher/assessments/${a.id}/edit`)}
-                            className="bg-gray-600 text-white py-1 px-3 rounded text-sm hover:bg-gray-700"
-                            data-testid={`edit-assessment-${a.id}`}
-                          >
-                            Edit
-                          </button>
-                        )}
-                        {a.status === "started" && (
-                          <button
-                            onClick={() => handleClose(a.id)}
-                            className="bg-red-600 text-white py-1 px-3 rounded text-sm hover:bg-red-700"
-                            data-testid={`close-assessment-${a.id}`}
-                          >
-                            Close
-                          </button>
-                        )}
-                        {a.status === "closed" && (
-                          <button
-                            onClick={() => handleReopen(a.id)}
-                            className="bg-yellow-600 text-white py-1 px-3 rounded text-sm hover:bg-yellow-700"
-                            data-testid={`reopen-assessment-${a.id}`}
-                          >
-                            Reopen
-                          </button>
-                        )}
+              return loading ? (
+                <div className="space-y-4" data-testid="assessments-loading">
+                  {[1, 2, 3].map((n) => <AssessmentCardSkeleton key={n} />)}
+                </div>
+              ) : (
+                <div ref={listRef}>
+                  {/* Active filter pill */}
+                  {statusFilter && statusFilter !== "all" && (
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xs text-gray-500">Filtered:</span>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200">
+                        {FILTER_LABELS[statusFilter]}
                         <button
-                          onClick={() => {
-                            if (isEnhanced) {
-                              navigate(`/teacher/assessments/${a.id}/enhanced`);
-                            } else {
-                              navigate(`/teacher/assessments/${a.id}`);
-                            }
-                          }}
-                          className="bg-blue-600 text-white py-1 px-3 rounded text-sm hover:bg-blue-700"
-                          data-testid={`view-submissions-${a.id}`}
+                          onClick={() => setStatusFilter(null)}
+                          className="ml-0.5 text-indigo-500 hover:text-indigo-800"
+                          aria-label="Clear filter"
                         >
-                          View Submissions
+                          ×
                         </button>
-                      </div>
+                      </span>
+                      <span className="text-xs text-gray-400">({filtered.length} result{filtered.length !== 1 ? "s" : ""})</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
+                  )}
+
+                  {assessments.length === 0 ? (
+                    <AssessmentEmptyState
+                      onCreateEnhanced={() => navigate("/teacher/assessments/create")}
+                      onClassicMode={() => setShowForm(true)}
+                    />
+                  ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-8 bg-white border border-dashed border-gray-200 rounded-xl text-center">
+                      <p className="text-sm font-medium text-gray-600 mb-1">No assessments match this filter</p>
+                      <p className="text-xs text-gray-400 mb-4">Try a different view or clear the filter</p>
+                      <button
+                        onClick={() => setStatusFilter(null)}
+                        className="text-xs text-indigo-600 font-medium hover:underline"
+                      >
+                        Clear filter
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-3" data-testid="assessments-list">
+                        {filtered.slice(0, visibleCount).map((a) => {
+                          const question = questions.find((q) => q.id === a.question_id);
+                          return (
+                            <AssessmentCard
+                              key={a.id}
+                              assessment={a}
+                              question={question}
+                              classes={classes}
+                              onStart={() => handleStart(a.id)}
+                              onClose={() => handleClose(a.id)}
+                              onReopen={() => handleReopen(a.id)}
+                              onEdit={() => navigate(`/teacher/assessments/${a.id}/edit`)}
+                              onViewSubmissions={() => navigate(`/teacher/assessments/${a.id}`)}
+                              onViewEnhanced={() => navigate(`/teacher/assessments/${a.id}/enhanced`)}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {filtered.length > visibleCount && (
+                        <div className="flex justify-center mt-6">
+                          <button
+                            onClick={() => setVisibleCount((n) => n + 10)}
+                            className="px-5 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all"
+                            data-testid="load-more-btn"
+                          >
+                            Load more assessments ({filtered.length - visibleCount} remaining)
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            </div>{/* end main column */}
+
+            {/* ── Sidebar: Assessment Queue ── */}
+            <div className="w-full lg:w-72 xl:w-80 flex-shrink-0">
+              <AssessmentQueuePanel
+                assessments={assessments}
+                loading={loading}
+                onNavigate={(path) => navigate(path)}
+                onFilterReview={(filter) => {
+                  setStatusFilter(filter);
+                  scrollToList();
+                }}
+                onCreateEnhanced={() => navigate("/teacher/assessments/create")}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>
