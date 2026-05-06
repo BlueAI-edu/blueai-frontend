@@ -8,6 +8,7 @@ import { useAsync } from '@/hooks/use-async';
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
 const AIBulkGenerator = lazy(() => import('../components/EnhancedAssessmentBuilder/AIBulkGenerator'));
+const OCRExtractionReview = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRExtractionReview'));
 
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();
@@ -46,6 +47,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [markSchemeFile, setMarkSchemeFile] = useState(null);
   const [questionPaperError, setQuestionPaperError] = useState(null);
   const [markSchemeError, setMarkSchemeError] = useState(null);
+
+  // OCR sub-flow state: 'uploading' → 'reviewing' → 'editing'
+  const [ocrReviewState, setOcrReviewState] = useState('uploading');
+  const [extractionSummary, setExtractionSummary] = useState(null);
+  const [pageThumbnails, setPageThumbnails] = useState({});
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -96,8 +102,15 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       const questions = response.data.questions.map((q, i) => ({ ...q, questionNumber: i + 1 }));
+      // Store extracted questions in state but go to review — do NOT auto-advance to editing
       setAssessmentData(prev => ({ ...prev, questions }));
-      showNotification(`Extracted ${questions.length} question${questions.length !== 1 ? 's' : ''} successfully`, 'success');
+      setExtractionSummary(response.data.extraction_summary || null);
+      setPageThumbnails(response.data.page_thumbnails || {});
+      setOcrReviewState('reviewing');
+      showNotification(
+        `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
+        'success'
+      );
     } catch (error) {
       const msg = getApiErrorMessage(error, 'Failed to extract questions from the uploaded PDF');
       setExtractError(msg);
@@ -106,6 +119,20 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setExtracting(false);
     }
   }, [questionPaperFile, markSchemeFile, assessmentData.subject, assessmentData.examBoard]);
+
+  const handleOcrReviewConfirm = useCallback((reviewedQuestions) => {
+    setAssessmentData(prev => ({ ...prev, questions: reviewedQuestions }));
+    setOcrReviewState('editing');
+    showNotification('Extraction confirmed. You can now edit individual questions in detail.', 'success');
+  }, []);
+
+  const handleOcrReviewBack = useCallback(() => {
+    // Clear extracted questions and go back to upload step
+    setAssessmentData(prev => ({ ...prev, questions: [] }));
+    setExtractionSummary(null);
+    setPageThumbnails({});
+    setOcrReviewState('uploading');
+  }, []);
 
   useEffect(() => {
     if (isEdit) {
@@ -127,6 +154,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       if (assessment.status === 'started') {
         showNotification('This assessment is live and cannot be edited while students are taking it.', 'error');
         setTimeout(() => navigate('/teacher/assessments'), 2000);
+        return;
+      }
+
+      if (assessment.assessmentMode === OCR_GCSE_MODE && assessment.ocrConfirmed) {
+        // Locked OCR assessment — redirect to detail page with a message
+        showNotification(
+          'This GCSE Past Paper assessment is locked after review. To re-extract, use "Unlock for re-extraction" on the assessment detail page.',
+          'error'
+        );
+        setTimeout(() => navigate(`/teacher/assessments/${assessmentId}/enhanced`), 2500);
         return;
       }
 
@@ -234,12 +271,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       return false;
     }
 
+    const isOcrMode = assessmentData.assessmentMode === OCR_GCSE_MODE;
+
     for (const q of assessmentData.questions) {
       if (!q.questionBody.trim()) {
         showNotification(`Question ${q.questionNumber} is missing question text`, 'error');
         return false;
       }
-      if (q.questionType === 'LONG_RESPONSE' && (q.maxMarks < 6 || q.maxMarks > 15)) {
+      // Skip mark-range enforcement for OCR-extracted questions — marks come directly from the
+      // mark scheme and may legitimately be outside the 6-15 range used for teacher-authored questions
+      if (!isOcrMode && q.questionType === 'LONG_RESPONSE' && (q.maxMarks < 6 || q.maxMarks > 15)) {
         showNotification(`Question ${q.questionNumber} is a Long Response question and must be between 6 and 15 marks`, 'error');
         return false;
       }
@@ -251,15 +292,21 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const saveDraft = () => {
     if (!validateAssessment()) return;
 
+    const isOcrMode = assessmentData.assessmentMode === OCR_GCSE_MODE;
+
     runSave(
       async () => {
         if (isEdit) {
           await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+          // For OCR assessments being re-saved after edits, ocrConfirmed stays as-is
           showNotification('Draft saved successfully!', 'success');
         } else {
-          const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
+          // Set ocrConfirmed=true for OCR mode so teacher has explicitly reviewed extraction
+          const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+          const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
+          const newId = response.data.assessment.id;
           showNotification('Assessment created as draft!', 'success');
-          navigate(`/teacher/assessments/${response.data.assessment.id}/edit`);
+          navigate(`/teacher/assessments/${newId}/enhanced`);
         }
       },
       (error) => {
@@ -275,12 +322,15 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
   const confirmPublish = () => {
     setShowPublishConfirm(false);
+    const isOcrMode = assessmentData.assessmentMode === OCR_GCSE_MODE;
+
     runSave(
       async () => {
         let finalAssessmentId = assessmentId;
 
         if (!isEdit) {
-          const response = await axios.post(`${API}/teacher/assessments/enhanced`, assessmentData);
+          const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+          const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
           finalAssessmentId = response.data.assessment.id;
         } else {
           await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
@@ -327,7 +377,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <h1 className="text-2xl font-bold text-gray-900">
                 {isEdit ? 'Edit Assessment' : 'Create New Assessment'}
               </h1>
-              <p className="text-sm text-gray-600">Step {currentStep} of 3</p>
+              <p className="text-sm text-gray-600">
+                {assessmentData.assessmentMode === OCR_GCSE_MODE && currentStep === 3
+                  ? ocrReviewState === 'uploading' ? 'Step 3 of 4 — Upload'
+                    : ocrReviewState === 'reviewing' ? 'Step 4 of 4 — Review Extraction'
+                    : 'Step 4 of 4 — Edit Questions'
+                  : `Step ${currentStep} of 3`}
+              </p>
             </div>
             <button
               onClick={() => navigate('/teacher/assessments')}
@@ -338,9 +394,20 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
           </div>
 
           <div className="mt-4 flex gap-2">
-            <div className={`flex-1 h-1 rounded ${currentStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-            <div className={`flex-1 h-1 rounded ${currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-            <div className={`flex-1 h-1 rounded ${currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+            {assessmentData.assessmentMode === OCR_GCSE_MODE ? (
+              <>
+                <div className={`flex-1 h-1 rounded ${currentStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded ${currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded ${currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded ${ocrReviewState !== 'uploading' ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              </>
+            ) : (
+              <>
+                <div className={`flex-1 h-1 rounded ${currentStep >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded ${currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`flex-1 h-1 rounded ${currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -629,7 +696,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
             </div>
 
-            {assessmentData.assessmentMode === OCR_GCSE_MODE && (
+            {assessmentData.assessmentMode === OCR_GCSE_MODE && ocrReviewState === 'uploading' && (
               <div className="bg-white rounded-lg shadow p-6 space-y-5">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Upload Exam Documents</h3>
@@ -708,7 +775,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                     {extracting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Extracting… (may take 30–90s)
+                        Extracting… (may take 30–60s)
                       </>
                     ) : (
                       '🔍 Extract Questions'
@@ -720,10 +787,23 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{extractError}</p>
                 )}
 
-                {assessmentData.questions.length === 0 && !extracting && !questionPaperFile && !markSchemeFile && (
+                {!extracting && !questionPaperFile && !markSchemeFile && (
                   <p className="text-sm text-gray-400 text-center">Upload at least one document above, then click Extract Questions to begin.</p>
                 )}
               </div>
+            )}
+
+            {/* ── OCR Review step ── */}
+            {assessmentData.assessmentMode === OCR_GCSE_MODE && ocrReviewState === 'reviewing' && (
+              <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading review…</div>}>
+                <OCRExtractionReview
+                  questions={assessmentData.questions}
+                  extractionSummary={extractionSummary}
+                  pageThumbnails={pageThumbnails}
+                  onConfirm={handleOcrReviewConfirm}
+                  onBack={handleOcrReviewBack}
+                />
+              </Suspense>
             )}
 
             <div className="space-y-4">
