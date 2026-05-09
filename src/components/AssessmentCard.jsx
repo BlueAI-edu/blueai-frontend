@@ -31,13 +31,14 @@ export const StatusBadge = ({ status }) => {
 // ─── Type badge ───────────────────────────────────────────────────────────────
 
 const MODE_TO_TYPE = {
-  CLASSIC:                        { label: "Classic",       bg: "bg-slate-100",   text: "text-slate-600"  },
-  FORMATIVE_SINGLE_LONG_RESPONSE: { label: "Formative",     bg: "bg-sky-100",     text: "text-sky-700"    },
-  SUMMATIVE_MULTI_QUESTION:       { label: "Summative",     bg: "bg-indigo-100",  text: "text-indigo-700" },
-  EXAM_STRUCTURED_GCSE_STYLE:     { label: "GCSE Style",    bg: "bg-purple-100",  text: "text-purple-700" },
-  OCR_GENERATED:                  { label: "OCR Generated", bg: "bg-amber-100",   text: "text-amber-700"  },
-  AI_GENERATED:                   { label: "AI Generated",  bg: "bg-violet-100",  text: "text-violet-700" },
-  MANUAL:                         { label: "Manual",        bg: "bg-gray-100",    text: "text-gray-600"   },
+  CLASSIC:                           { label: "Classic",          bg: "bg-slate-100",   text: "text-slate-600"  },
+  FORMATIVE_SINGLE_LONG_RESPONSE:    { label: "Formative",        bg: "bg-sky-100",     text: "text-sky-700"    },
+  SUMMATIVE_MULTI_QUESTION:          { label: "Summative",        bg: "bg-indigo-100",  text: "text-indigo-700" },
+  EXAM_STRUCTURED_GCSE_STYLE:        { label: "GCSE Style",       bg: "bg-purple-100",  text: "text-purple-700" },
+  OCR_GENERATED_GCSE_PAST_PAPER:     { label: "GCSE Past Paper",  bg: "bg-amber-100",   text: "text-amber-700"  },
+  OCR_GENERATED:                     { label: "OCR Generated",    bg: "bg-amber-100",   text: "text-amber-700"  },
+  AI_GENERATED:                      { label: "AI Generated",     bg: "bg-violet-100",  text: "text-violet-700" },
+  MANUAL:                            { label: "Manual",           bg: "bg-gray-100",    text: "text-gray-600"   },
 };
 
 export const TypeBadge = ({ mode }) => {
@@ -267,7 +268,8 @@ export const AssessmentCard = ({
   const isPublished = a.status === "published";
   const isStarted = a.status === "started";
   const isClosed = a.status === "closed";
-  const canEdit = (isDraft || isPublished) && isEnhanced;
+  const isOcrLocked = a.assessmentMode === "OCR_GENERATED_GCSE_PAST_PAPER" && a.ocrConfirmed;
+  const canEdit = (isDraft || isPublished) && isEnhanced && !isOcrLocked;
   const canStart = isDraft || isPublished;
 
   const viewDetailRoute = isEnhanced ? onViewEnhanced : onViewSubmissions;

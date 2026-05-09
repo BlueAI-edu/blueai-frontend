@@ -103,7 +103,23 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
 
   const { assessment, submissions, attempts_count } = data;
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
+  const isOcrLocked = assessment.assessmentMode === 'OCR_GENERATED_GCSE_PAST_PAPER' && assessment.ocrConfirmed;
   const unreleasedCount = submissions?.filter(s => s.status === 'marked' && !s.feedback_released).length || 0;
+
+  const handleUnlockOcr = async () => {
+    if (!window.confirm(
+      'Unlock this GCSE Past Paper assessment for re-extraction?\n\n' +
+      'This will allow you to re-upload and re-extract questions from the PDF. ' +
+      'Existing questions will remain until you re-extract. Continue?'
+    )) return;
+    try {
+      await axios.post(`${API}/teacher/assessments/${assessmentId}/unlock-ocr`);
+      showSuccess('Assessment unlocked. You can now re-upload and re-extract.');
+      loadData();
+    } catch (error) {
+      handleApiError(error, 'Failed to unlock assessment');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -139,6 +155,28 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
               </div>
             </div>
           </div>
+
+          {/* OCR lock banner */}
+          {isOcrLocked && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start justify-between gap-4">
+              <div className="flex items-start gap-2">
+                <span className="text-amber-600 mt-0.5">🔒</span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">GCSE Past Paper — OCR Review Confirmed</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    This assessment is locked after teacher review. Questions and mark scheme are fixed.
+                    To re-extract from the original PDF, unlock it below.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleUnlockOcr}
+                className="shrink-0 px-3 py-1.5 text-xs font-medium border border-amber-400 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
+              >
+                Unlock for re-extraction
+              </button>
+            </div>
+          )}
 
           {/* Bulk Actions */}
           {unreleasedCount > 0 && (
