@@ -800,7 +800,6 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading review…</div>}>
                 <OCRExtractionReview
                   questions={assessmentData.questions}
-                  extractionSummary={extractionSummary}
                   pageThumbnails={pageThumbnails}
                   pageImages={pageImages}
                   onConfirm={handleOcrReviewConfirm}

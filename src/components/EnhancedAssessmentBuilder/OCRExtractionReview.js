@@ -11,9 +11,24 @@ const getConfidenceTier = (score) => {
   return 'low';
 };
 
-const ConfidenceBadge = ({ score }) => {
-  const tier = getConfidenceTier(score);
-  const pct = score !== null && score !== undefined ? Math.round(score * 100) : null;
+// A question with an unresolved missing-diagram flag is always "needs review",
+// regardless of how high its raw confidence score is.
+const getEffectiveTier = (question) => {
+  const tier = getConfidenceTier(question.extractionConfidence);
+  if (
+    tier === 'high' &&
+    (question.extractionFlags || []).includes('diagram_referenced_but_missing') &&
+    !question.stimulusBlock
+  ) {
+    return 'medium';
+  }
+  return tier;
+};
+
+const ConfidenceBadge = ({ question }) => {
+  const tier = getEffectiveTier(question);
+  const pct = question.extractionConfidence !== null && question.extractionConfidence !== undefined
+    ? Math.round(question.extractionConfidence * 100) : null;
 
   const styles = {
     high: 'bg-green-100 text-green-800 border-green-200',
@@ -22,17 +37,17 @@ const ConfidenceBadge = ({ score }) => {
     unknown: 'bg-gray-100 text-gray-600 border-gray-200',
   };
   const labels = {
-    high: `High (${pct}%)`,
-    medium: `Review (${pct}%)`,
-    low: `Low (${pct}%)`,
+    high:    `High (${pct}%)`,
+    medium:  `Review (${pct}%)`,
+    low:     `Low (${pct}%)`,
     unknown: 'Unscored',
   };
 
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${styles[tier]}`}>
-      {tier === 'high' && '✓ '}
+      {tier === 'high'   && '✓ '}
       {tier === 'medium' && '⚠ '}
-      {tier === 'low' && '⚡ '}
+      {tier === 'low'    && '⚡ '}
       {labels[tier]}
     </span>
   );
@@ -112,7 +127,7 @@ const QuestionInlineEditor = ({ question, onChange }) => {
 const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, pageImages }) => {
   const [expanded, setExpanded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
-  const tier = getConfidenceTier(question.extractionConfidence);
+  const tier = getEffectiveTier(question);
   const flags = question.extractionFlags || [];
 
   const pageImage = pageImages && question.page_num
@@ -128,6 +143,15 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
     onChange(index, { ...question, stimulusBlock: null });
     setCropModalOpen(false);
   };
+
+  const handleSkipMissingDiagram = () => {
+    onChange(index, {
+      ...question,
+      extractionFlags: (question.extractionFlags || []).filter(f => f !== 'diagram_referenced_but_missing'),
+    });
+  };
+
+  const isMissingDiagram = flags.includes('diagram_referenced_but_missing') && !question.stimulusBlock;
 
   const borderColor = {
     high: 'border-l-green-400',
@@ -182,7 +206,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
-              <ConfidenceBadge score={question.extractionConfidence} />
+              <ConfidenceBadge question={question} />
               <span className="text-xs text-gray-500">
                 {question.maxMarks != null ? `${question.maxMarks} mark${question.maxMarks !== 1 ? 's' : ''}` : 'marks unset'}
               </span>
@@ -207,12 +231,14 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
 
             {flags.length > 0 && (
               <ul className="mt-1.5 space-y-0.5">
-                {flags.map((flag) => (
-                  <li key={flag} className="text-xs text-amber-700 flex items-center gap-1">
-                    <span>⚠</span>
-                    {FLAG_LABELS[flag] || flag}
-                  </li>
-                ))}
+                {flags
+                  .filter(f => f !== 'diagram_referenced_but_missing')
+                  .map((flag) => (
+                    <li key={flag} className="text-xs text-amber-700 flex items-center gap-1">
+                      <span>⚠</span>
+                      {FLAG_LABELS[flag] || flag}
+                    </li>
+                  ))}
               </ul>
             )}
           </div>
@@ -233,6 +259,34 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
             </button>
           </div>
         </div>
+
+        {/* Missing diagram action banner */}
+        {isMissingDiagram && (
+          <div className="mt-3 ml-10 flex items-center justify-between gap-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-amber-500 shrink-0">⚠</span>
+              <span className="text-sm text-amber-800">
+                This question references a diagram that wasn't automatically extracted.
+              </span>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {pageImage && (
+                <button
+                  onClick={() => setCropModalOpen(true)}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Crop diagram
+                </button>
+              )}
+              <button
+                onClick={handleSkipMissingDiagram}
+                className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Diagram preview + crop controls */}
         {!expanded && (
@@ -392,15 +446,17 @@ const SourcePagesPanel = ({ thumbnails }) => {
  *   onConfirm(qs)      – called with (possibly edited) questions when teacher confirms
  *   onBack()           – called when teacher wants to go back and re-upload
  */
-const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, pageThumbnails, pageImages, onConfirm, onBack }) => {
+const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, pageImages, onConfirm, onBack }) => {
   const [questions, setQuestions] = useState(() =>
     (initialQuestions || []).map((q, i) => ({ ...q, questionNumber: i + 1 }))
   );
   const [filterTier, setFilterTier] = useState('all'); // 'all' | 'high' | 'medium' | 'low'
 
-  const summary = extractionSummary || {};
-  const lowCount = summary.low_confidence ?? questions.filter((q) => getConfidenceTier(q.extractionConfidence) === 'low').length;
-  const medCount = summary.medium_confidence ?? questions.filter((q) => getConfidenceTier(q.extractionConfidence) === 'medium').length;
+  // Always recompute from live question state so that resolving a missing diagram
+  // (via crop or Skip) immediately updates the summary counts and filter bar.
+  const highCount = questions.filter((q) => getEffectiveTier(q) === 'high').length;
+  const medCount  = questions.filter((q) => getEffectiveTier(q) === 'medium').length;
+  const lowCount  = questions.filter((q) => getEffectiveTier(q) === 'low').length;
   const needsReview = lowCount + medCount;
 
   const moveQuestion = useCallback((fromIdx, toIdx) => {
@@ -430,7 +486,7 @@ const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, p
 
   const filteredQuestions = filterTier === 'all'
     ? questions
-    : questions.filter((q) => getConfidenceTier(q.extractionConfidence) === filterTier);
+    : questions.filter((q) => getEffectiveTier(q) === filterTier);
 
   return (
     <div className="space-y-4">
@@ -458,7 +514,7 @@ const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, p
             <span className="text-gray-500">questions</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg border border-green-200 text-sm">
-            <span className="font-semibold text-green-800">{summary.high_confidence ?? questions.filter((q) => getConfidenceTier(q.extractionConfidence) === 'high').length}</span>
+            <span className="font-semibold text-green-800">{highCount}</span>
             <span className="text-green-700">high confidence</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200 text-sm">
@@ -498,11 +554,7 @@ const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, p
             {tier === 'all' ? 'All' : tier.charAt(0).toUpperCase() + tier.slice(1)}
             {tier !== 'all' && (
               <span className="ml-1 opacity-70">
-                ({tier === 'high'
-                  ? (summary.high_confidence ?? questions.filter((q) => getConfidenceTier(q.extractionConfidence) === 'high').length)
-                  : tier === 'medium'
-                  ? medCount
-                  : lowCount})
+                ({tier === 'high' ? highCount : tier === 'medium' ? medCount : lowCount})
               </span>
             )}
           </button>
