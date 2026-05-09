@@ -7,25 +7,226 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/msalConfig';
 
-export const Login = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [schoolName, setSchoolName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetSent, setResetSent] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+// ─── Design tokens (matches landing page) ─────────────────────────────────────
+const T = {
+  inkBlack:     '#05060f',
+  blue:         '#1d4ed8',
+  blueHover:    '#1e40af',
+  blueLight:    '#dbeafe',
+  blueText:     '#1e40af',
+  cloudWhite:   '#ffffff',
+  whisperGray:  '#f8f8f8',
+  stoneGray:    '#696a6f',
+  platinumGray: '#d7d7d9',
+  errorRed:     '#dc2626',
+  errorRedBg:   '#fef2f2',
+  shadowXl:     'rgba(0,19,41,0.01) 0px 10px 32px 0px, rgba(0,19,41,0.02) 0px 2px 0px 0px, rgba(0,19,41,0.02) 0px 0px 24px 0px',
+  shadowSm:     'rgba(5,6,15,0.04) 0px 2px 4px 0px, rgba(5,6,15,0.02) 0px 0px 5px 0px',
+};
 
-  // Handle error messages from AuthCallback
+const inputStyle = {
+  width: '100%',
+  border: `1px solid ${T.platinumGray}`,
+  borderRadius: 10,
+  padding: '11px 14px',
+  fontSize: 14,
+  color: T.inkBlack,
+  outline: 'none',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  background: T.cloudWhite,
+  boxSizing: 'border-box',
+  transition: 'border-color 0.15s',
+};
+
+const labelStyle = {
+  display: 'block',
+  fontSize: 13,
+  fontWeight: 500,
+  color: T.inkBlack,
+  marginBottom: 6,
+};
+
+const btnPrimary = {
+  width: '100%',
+  background: T.blue,
+  color: T.cloudWhite,
+  border: 'none',
+  borderRadius: '100px',
+  padding: '12px 24px',
+  fontSize: 14,
+  fontWeight: 500,
+  cursor: 'pointer',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  transition: 'background 0.15s',
+};
+
+const CheckIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.blue}
+    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+// ─── Shared page shell ────────────────────────────────────────────────────────
+const Shell = ({ children }) => (
+  <div style={{
+    minHeight: '100vh',
+    background: T.whisperGray,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px 16px',
+    fontFamily: 'Inter, system-ui, sans-serif',
+  }}>
+    {/* Logo */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
+      <div style={{ width: 34, height: 34, borderRadius: 9, background: T.blue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: T.cloudWhite, fontWeight: 700, fontSize: 15 }}>B</span>
+      </div>
+      <span style={{ fontWeight: 700, fontSize: 17, color: T.inkBlack, letterSpacing: '-0.3px' }}>BlueAI</span>
+    </div>
+
+    {/* Card */}
+    <div style={{
+      background: T.cloudWhite,
+      borderRadius: 20,
+      boxShadow: T.shadowXl,
+      width: '100%',
+      maxWidth: 420,
+      padding: '32px',
+    }}>
+      {children}
+    </div>
+
+    {/* Footer note */}
+    <p style={{ marginTop: 20, fontSize: 12, color: T.stoneGray, textAlign: 'center' }}>
+      Teacher portal · BlueAI Assessment Platform
+    </p>
+  </div>
+);
+
+// ─── Forgot password view ─────────────────────────────────────────────────────
+const ForgotPasswordView = ({ onBack }) => {
+  const [resetEmail, setResetEmail] = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+  const [sent, setSent]             = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await axios.post(`${API}/auth/forgot-password`, { email: resetEmail });
+      setSent(true);
+    } catch {
+      setError('Failed to send reset email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <Shell>
+        <div style={{ textAlign: 'center', padding: '8px 0' }}>
+          <div style={{ width: 52, height: 52, borderRadius: '50%', background: T.blueLight, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <CheckIcon />
+          </div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, letterSpacing: '-0.3px', margin: '0 0 8px' }}>Check your email</h1>
+          <p style={{ fontSize: 14, color: T.stoneGray, lineHeight: 1.65, margin: '0 0 24px' }}>
+            If an account exists for that address, we've sent a password reset link.
+          </p>
+          <button
+            onClick={() => { setSent(false); onBack(); }}
+            style={{ ...btnPrimary, width: 'auto', padding: '10px 28px' }}
+            onMouseEnter={e => e.currentTarget.style.background = T.blueHover}
+            onMouseLeave={e => e.currentTarget.style.background = T.blue}
+            data-testid="back-to-login-btn"
+          >
+            Back to Sign In
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, letterSpacing: '-0.3px', margin: '0 0 6px' }}>Reset your password</h1>
+        <p style={{ fontSize: 14, color: T.stoneGray, lineHeight: 1.65, margin: 0 }}>
+          Enter your email and we'll send you a reset link.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <label style={labelStyle}>Email address</label>
+          <input
+            data-testid="reset-email-input"
+            type="email"
+            required
+            value={resetEmail}
+            onChange={e => setResetEmail(e.target.value)}
+            placeholder="you@school.org"
+            style={inputStyle}
+            onFocus={e => e.currentTarget.style.borderColor = T.blue}
+            onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+          />
+        </div>
+
+        {error && (
+          <div data-testid="reset-error" style={{ background: T.errorRedBg, color: T.errorRed, fontSize: 13, padding: '10px 14px', borderRadius: 10, lineHeight: 1.5 }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          data-testid="send-reset-btn"
+          type="submit"
+          disabled={loading}
+          style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.blueHover; }}
+          onMouseLeave={e => e.currentTarget.style.background = T.blue}
+        >
+          {loading ? 'Sending…' : 'Send Reset Link'}
+        </button>
+
+        <button
+          type="button"
+          onClick={onBack}
+          data-testid="cancel-reset-btn"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: T.stoneGray, fontFamily: 'inherit', padding: '4px 0' }}
+          onMouseEnter={e => e.currentTarget.style.color = T.inkBlack}
+          onMouseLeave={e => e.currentTarget.style.color = T.stoneGray}
+        >
+          ← Back to Sign In
+        </button>
+      </form>
+    </Shell>
+  );
+};
+
+// ─── Main login component ─────────────────────────────────────────────────────
+export const Login = () => {
+  const [isSignUp, setIsSignUp]                   = useState(false);
+  const [email, setEmail]                         = useState('');
+  const [password, setPassword]                   = useState('');
+  const [name, setName]                           = useState('');
+  const [schoolName, setSchoolName]               = useState('');
+  const [loading, setLoading]                     = useState(false);
+  const [error, setError]                         = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const { instance } = useMsal();
+
   useEffect(() => {
     if (location.state?.error) {
       setError(location.state.error);
-      // Clear the error from location state
       navigate('/teacher/login', { replace: true });
     }
   }, [location.state, navigate]);
@@ -34,13 +235,11 @@ export const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const endpoint = isSignUp ? '/auth/register' : '/auth/login';
-      const payload = isSignUp
+      const payload  = isSignUp
         ? { email, password, name, school_name: schoolName }
         : { email, password };
-
       await axios.post(`${API}${endpoint}`, payload);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Authentication failed'));
@@ -55,7 +254,7 @@ export const Login = () => {
     setError('');
     try {
       await axios.post(`${API}/auth/google`, {}, {
-        headers: { 'Authorization': `Bearer ${credentialResponse.credential}` }
+        headers: { Authorization: `Bearer ${credentialResponse.credential}` },
       });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Google authentication failed'));
@@ -65,21 +264,16 @@ export const Login = () => {
     navigate('/teacher/dashboard');
   };
 
-  const { instance } = useMsal();
-
   const handleMicrosoftLogin = async () => {
     setLoading(true);
     setError('');
     try {
       const msalResponse = await instance.loginPopup(loginRequest);
       await axios.post(`${API}/auth/microsoft`, {}, {
-        headers: { 'Authorization': `Bearer ${msalResponse.accessToken}` }
+        headers: { Authorization: `Bearer ${msalResponse.accessToken}` },
       });
     } catch (err) {
-      if (err.errorCode === 'user_cancelled') {
-        setLoading(false);
-        return;
-      }
+      if (err.errorCode === 'user_cancelled') { setLoading(false); return; }
       setError(getApiErrorMessage(err, 'Microsoft authentication failed'));
       setLoading(false);
       return;
@@ -87,255 +281,220 @@ export const Login = () => {
     navigate('/teacher/dashboard');
   };
 
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      await axios.post(`${API}/auth/forgot-password`, { email: resetEmail });
-      setResetSent(true);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to send reset email');
-      setLoading(false);
-    }
-  };
+  const switchMode = (signup) => { setIsSignUp(signup); setError(''); };
 
   if (showForgotPassword) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full" data-testid="forgot-password-container">
-          <h1 className="text-3xl font-bold text-blue-600 mb-2 text-center" data-testid="forgot-password-title">Reset Password</h1>
-          
-          {resetSent ? (
-            <div className="text-center py-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold mb-2">Check Your Email</h2>
-              <p className="text-gray-600 mb-4">If an account exists with that email, we've sent a password reset link.</p>
-              <button
-                onClick={() => { setShowForgotPassword(false); setResetSent(false); }}
-                className="text-blue-600 hover:text-blue-700 font-medium"
-                data-testid="back-to-login-btn"
-              >
-                ← Back to Login
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleForgotPassword} className="space-y-4 mt-6">
-              <p className="text-gray-600 text-sm">Enter your email address and we'll send you a link to reset your password.</p>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                <input
-                  data-testid="reset-email-input"
-                  type="email"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  required
-                  placeholder="your.email@example.com"
-                />
-              </div>
-
-              {error && (
-                <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm" data-testid="reset-error">{error}</div>
-              )}
-
-              <button
-                data-testid="send-reset-btn"
-                type="submit"
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? 'Sending...' : 'Send Reset Link'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(false)}
-                className="w-full text-blue-600 hover:text-blue-700 text-sm font-medium"
-                data-testid="cancel-reset-btn"
-              >
-                Cancel
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    );
+    return <ForgotPasswordView onBack={() => setShowForgotPassword(false)} />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full" data-testid="login-container">
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-blue-600 mb-2" data-testid="login-title">BlueAI</h1>
-          <p className="text-gray-600">Teacher Portal</p>
-        </div>
-
-        {/* Toggle between Sign Up and Sign In */}
-        <div className="flex border-b border-gray-200 mb-6">
-          <button
-            onClick={() => { setIsSignUp(false); setError(''); }}
-            className={`flex-1 pb-3 font-medium transition-colors ${!isSignUp ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            data-testid="signin-tab"
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => { setIsSignUp(true); setError(''); }}
-            className={`flex-1 pb-3 font-medium transition-colors ${isSignUp ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            data-testid="signup-tab"
-          >
-            Sign Up
-          </button>
-        </div>
-
-        {/* Email/Password Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-4">
-          {isSignUp && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                <input
-                  data-testid="name-input"
-                  type="text"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  placeholder="John Smith"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">School / Organisation (Optional)</label>
-                <input
-                  data-testid="school-input"
-                  type="text"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  placeholder="Greenfield Academy"
-                />
-              </div>
-            </>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-            <input
-              data-testid="email-input"
-              type="email"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="your.email@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-            <input
-              data-testid="password-input"
-              type="password"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              minLength={6}
-            />
-          </div>
-
-          {!isSignUp && (
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                data-testid="forgot-password-link"
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm" data-testid="auth-error">{error}</div>
-          )}
-
-          <button
-            data-testid="email-auth-btn"
-            type="submit"
-            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-            disabled={loading}
-          >
-            {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
-          </button>
-        </form>
-
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with</span>
-          </div>
-        </div>
-
-        {/* Social Login Buttons */}
-        <div className="space-y-3">
-          {/* Google */}
-          <div className="flex justify-center" data-testid="google-login-btn">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError('Google sign-in failed')}
-              theme="outline"
-              size="large"
-              width="100%"
-              text="signin_with"
-              shape="rectangular"
-            />
-          </div>
-
-          {/* Microsoft */}
-          <button
-            data-testid="microsoft-login-btn"
-            onClick={handleMicrosoftLogin}
-            disabled={loading}
-            className="w-full bg-white text-gray-700 py-3 px-6 rounded-lg font-medium border-2 border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 21 21">
-              <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-              <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-              <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-            </svg>
-            Sign in with Microsoft
-          </button>
-        </div>
-
-        <p className="text-xs text-gray-500 text-center mt-6">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button
-            type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-            className="text-blue-600 hover:text-blue-700 font-medium"
-            data-testid="toggle-auth-mode"
-          >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
-          </button>
+    <Shell>
+      {/* Heading */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, letterSpacing: '-0.3px', margin: '0 0 4px' }}>
+          {isSignUp ? 'Create your account' : 'Welcome back'}
+        </h1>
+        <p style={{ fontSize: 14, color: T.stoneGray, margin: 0, lineHeight: 1.6 }}>
+          {isSignUp ? 'Start your BlueAI teacher account.' : 'Sign in to your teacher portal.'}
         </p>
       </div>
-    </div>
+
+      {/* Tab row */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${T.platinumGray}`, marginBottom: 24 }}>
+        {[{ label: 'Sign In', signup: false, testId: 'signin-tab' }, { label: 'Sign Up', signup: true, testId: 'signup-tab' }].map(tab => (
+          <button
+            key={tab.label}
+            data-testid={tab.testId}
+            onClick={() => switchMode(tab.signup)}
+            style={{
+              flex: 1,
+              background: 'none',
+              border: 'none',
+              borderBottom: isSignUp === tab.signup ? `2px solid ${T.blue}` : '2px solid transparent',
+              padding: '0 0 12px',
+              fontSize: 14,
+              fontWeight: 500,
+              color: isSignUp === tab.signup ? T.blue : T.stoneGray,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'color 0.15s',
+              marginBottom: -1,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleEmailAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {isSignUp && (
+          <>
+            <div>
+              <label style={labelStyle}>Full name</label>
+              <input
+                data-testid="name-input"
+                type="text"
+                required
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Jane Smith"
+                style={inputStyle}
+                onFocus={e => e.currentTarget.style.borderColor = T.blue}
+                onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>
+                School / Organisation{' '}
+                <span style={{ fontWeight: 400, color: T.stoneGray }}>(optional)</span>
+              </label>
+              <input
+                data-testid="school-input"
+                type="text"
+                value={schoolName}
+                onChange={e => setSchoolName(e.target.value)}
+                placeholder="Greenfield Academy"
+                style={inputStyle}
+                onFocus={e => e.currentTarget.style.borderColor = T.blue}
+                onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+              />
+            </div>
+          </>
+        )}
+
+        <div>
+          <label style={labelStyle}>Email address</label>
+          <input
+            data-testid="email-input"
+            type="email"
+            required
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@school.org"
+            style={inputStyle}
+            onFocus={e => e.currentTarget.style.borderColor = T.blue}
+            onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+          />
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+            {!isSignUp && (
+              <button
+                type="button"
+                data-testid="forgot-password-link"
+                onClick={() => setShowForgotPassword(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: T.blue, fontFamily: 'inherit', padding: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = T.blueHover}
+                onMouseLeave={e => e.currentTarget.style.color = T.blue}
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+          <input
+            data-testid="password-input"
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+            style={inputStyle}
+            onFocus={e => e.currentTarget.style.borderColor = T.blue}
+            onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+          />
+        </div>
+
+        {error && (
+          <div data-testid="auth-error" style={{ background: T.errorRedBg, color: T.errorRed, fontSize: 13, padding: '10px 14px', borderRadius: 10, lineHeight: 1.5 }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          data-testid="email-auth-btn"
+          type="submit"
+          disabled={loading}
+          style={{ ...btnPrimary, marginTop: 4, opacity: loading ? 0.7 : 1 }}
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.blueHover; }}
+          onMouseLeave={e => e.currentTarget.style.background = T.blue}
+        >
+          {loading ? 'Please wait…' : isSignUp ? 'Create Account' : 'Sign In'}
+        </button>
+      </form>
+
+      {/* Divider */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+        <div style={{ flex: 1, height: 1, background: T.platinumGray }} />
+        <span style={{ fontSize: 12, color: T.stoneGray, whiteSpace: 'nowrap' }}>or continue with</span>
+        <div style={{ flex: 1, height: 1, background: T.platinumGray }} />
+      </div>
+
+      {/* Social buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div data-testid="google-login-btn" style={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google sign-in failed')}
+            theme="outline"
+            size="large"
+            width="356"
+            text="signin_with"
+            shape="pill"
+          />
+        </div>
+
+        <button
+          data-testid="microsoft-login-btn"
+          onClick={handleMicrosoftLogin}
+          disabled={loading}
+          style={{
+            width: '100%',
+            background: T.cloudWhite,
+            color: T.inkBlack,
+            border: `1px solid ${T.platinumGray}`,
+            borderRadius: '100px',
+            padding: '11px 24px',
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = T.stoneGray}
+          onMouseLeave={e => e.currentTarget.style.borderColor = T.platinumGray}
+        >
+          <svg width="18" height="18" viewBox="0 0 21 21">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+          </svg>
+          Sign in with Microsoft
+        </button>
+      </div>
+
+      {/* Switch mode */}
+      <p style={{ textAlign: 'center', fontSize: 13, color: T.stoneGray, marginTop: 20, marginBottom: 0 }}>
+        {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+        <button
+          type="button"
+          data-testid="toggle-auth-mode"
+          onClick={() => switchMode(!isSignUp)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: T.blue, fontFamily: 'inherit', padding: 0 }}
+          onMouseEnter={e => e.currentTarget.style.color = T.blueHover}
+          onMouseLeave={e => e.currentTarget.style.color = T.blue}
+        >
+          {isSignUp ? 'Sign In' : 'Sign Up'}
+        </button>
+      </p>
+    </Shell>
   );
 };
-
-// Public Join Page
