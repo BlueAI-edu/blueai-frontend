@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import DiagramRenderer from '../DiagramRenderer';
+import DiagramCropModal from './DiagramCropModal';
 
 // ─── Confidence helpers ───────────────────────────────────────────────────────
 
@@ -108,10 +109,25 @@ const QuestionInlineEditor = ({ question, onChange }) => {
 
 // ─── Single question card ─────────────────────────────────────────────────────
 
-const QuestionCard = ({ question, index, total, onMove, onChange, onRemove }) => {
+const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, pageImages }) => {
   const [expanded, setExpanded] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
   const tier = getConfidenceTier(question.extractionConfidence);
   const flags = question.extractionFlags || [];
+
+  const pageImage = pageImages && question.page_num
+    ? pageImages[String(question.page_num)]
+    : null;
+
+  const handleCropConfirm = (newStimulus) => {
+    onChange(index, { ...question, stimulusBlock: newStimulus });
+    setCropModalOpen(false);
+  };
+
+  const handleRemoveDiagram = () => {
+    onChange(index, { ...question, stimulusBlock: null });
+    setCropModalOpen(false);
+  };
 
   const borderColor = {
     high: 'border-l-green-400',
@@ -126,6 +142,16 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove }) =>
   const hasSubParts = question.questionType === 'STRUCTURED_WITH_PARTS' && question.parts?.length > 0;
 
   return (
+    <>
+    {cropModalOpen && pageImage && (
+      <DiagramCropModal
+        pageImage={pageImage}
+        currentDiagram={question.stimulusBlock}
+        onConfirm={handleCropConfirm}
+        onRemove={question.stimulusBlock ? handleRemoveDiagram : null}
+        onClose={() => setCropModalOpen(false)}
+      />
+    )}
     <div className={`bg-white rounded-lg border-l-4 border border-gray-200 ${borderColor} shadow-sm`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
@@ -208,10 +234,41 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove }) =>
           </div>
         </div>
 
-        {/* Diagram preview */}
-        {!expanded && question.stimulusBlock && (
-          <div className="mt-2 ml-10 max-w-xs border border-gray-200 rounded overflow-hidden">
-            <DiagramRenderer diagram={question.stimulusBlock} />
+        {/* Diagram preview + crop controls */}
+        {!expanded && (
+          <div className="mt-2 ml-10">
+            {question.stimulusBlock && (
+              <div className="max-w-xs border border-gray-200 rounded overflow-hidden mb-1">
+                <DiagramRenderer diagram={question.stimulusBlock} />
+              </div>
+            )}
+            {pageImage && (
+              <div className="flex gap-2 mt-1">
+                {question.stimulusBlock ? (
+                  <>
+                    <button
+                      onClick={() => setCropModalOpen(true)}
+                      className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50"
+                    >
+                      ✂ Fix crop
+                    </button>
+                    <button
+                      onClick={handleRemoveDiagram}
+                      className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50"
+                    >
+                      Remove diagram
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setCropModalOpen(true)}
+                    className="text-xs text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-50"
+                  >
+                    + Add diagram crop
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -219,9 +276,27 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove }) =>
         {expanded && (
           <div className="ml-10">
             {question.stimulusBlock && (
-              <div className="mt-2 mb-2 border border-gray-200 rounded overflow-hidden max-w-sm">
+              <div className="mt-2 mb-1 border border-gray-200 rounded overflow-hidden max-w-sm">
                 <p className="text-xs text-gray-500 px-2 pt-1">Extracted diagram</p>
                 <DiagramRenderer diagram={question.stimulusBlock} />
+              </div>
+            )}
+            {pageImage && (
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => setCropModalOpen(true)}
+                  className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50"
+                >
+                  ✂ {question.stimulusBlock ? 'Fix crop' : 'Add diagram crop'}
+                </button>
+                {question.stimulusBlock && (
+                  <button
+                    onClick={handleRemoveDiagram}
+                    className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50"
+                  >
+                    Remove diagram
+                  </button>
+                )}
               </div>
             )}
             <QuestionInlineEditor question={question} onChange={(updated) => onChange(index, updated)} />
@@ -229,6 +304,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove }) =>
         )}
       </div>
     </div>
+    </>
   );
 };
 
@@ -316,7 +392,7 @@ const SourcePagesPanel = ({ thumbnails }) => {
  *   onConfirm(qs)      – called with (possibly edited) questions when teacher confirms
  *   onBack()           – called when teacher wants to go back and re-upload
  */
-const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, pageThumbnails, onConfirm, onBack }) => {
+const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, pageThumbnails, pageImages, onConfirm, onBack }) => {
   const [questions, setQuestions] = useState(() =>
     (initialQuestions || []).map((q, i) => ({ ...q, questionNumber: i + 1 }))
   );
@@ -451,6 +527,7 @@ const OCRExtractionReview = ({ questions: initialQuestions, extractionSummary, p
                 onMove={moveQuestion}
                 onChange={updateQuestion}
                 onRemove={removeQuestion}
+                pageImages={pageImages}
               />
             );
           })}

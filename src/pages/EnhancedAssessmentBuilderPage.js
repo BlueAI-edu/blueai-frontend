@@ -52,6 +52,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [ocrReviewState, setOcrReviewState] = useState('uploading');
   const [extractionSummary, setExtractionSummary] = useState(null);
   const [pageThumbnails, setPageThumbnails] = useState({});
+  const [pageImages, setPageImages] = useState({});
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -106,6 +107,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setAssessmentData(prev => ({ ...prev, questions }));
       setExtractionSummary(response.data.extraction_summary || null);
       setPageThumbnails(response.data.page_thumbnails || {});
+      setPageImages(response.data.page_images || {});
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -127,10 +129,10 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   }, []);
 
   const handleOcrReviewBack = useCallback(() => {
-    // Clear extracted questions and go back to upload step
     setAssessmentData(prev => ({ ...prev, questions: [] }));
     setExtractionSummary(null);
     setPageThumbnails({});
+    setPageImages({});
     setOcrReviewState('uploading');
   }, []);
 
@@ -800,6 +802,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   questions={assessmentData.questions}
                   extractionSummary={extractionSummary}
                   pageThumbnails={pageThumbnails}
+                  pageImages={pageImages}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />
