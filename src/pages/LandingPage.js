@@ -117,14 +117,34 @@ const PathIcon = ({ d, size = 20, color = T.stoneGray }) => (
   </svg>
 );
 
+const LogoMark = ({ size = 32, dark = false }) => (
+  <div style={{
+    width: size,
+    height: size,
+    borderRadius: Math.round(size * 0.25),
+    background: dark ? T.cloudWhite : T.violet,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  }}>
+    <svg width={Math.round(size * 0.72)} height={Math.round(size * 0.72)} viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <path d="M5 19.5L14 4l9 15.5" stroke={dark ? T.violet : T.cloudWhite} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 15.5h10" stroke={dark ? T.violet : T.cloudWhite} strokeWidth="3" strokeLinecap="round" />
+      <circle cx="14" cy="21" r="2.5" fill={dark ? T.violet : T.cloudWhite} />
+    </svg>
+  </div>
+);
+
 // ─── Waitlist Modal ───────────────────────────────────────────────────────────
-const WaitlistModal = ({ onClose, interestType = 'Join Waitlist' }) => {
+const WaitlistModal = ({ onClose, interestType = 'Join Early Access' }) => {
   const [form, setForm] = useState({ name: '', email: '', role: '', school: '', interest: interestType });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const roles = ['Teacher', 'Head of Department', 'Assistant Headteacher', 'Headteacher', 'Other'];
-  const interests = ['Join Waitlist', 'Request a Demo', 'Pilot Interest'];
+  const interests = ['Join Early Access', 'Request a Demo', 'Pilot Interest'];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,10 +187,10 @@ const WaitlistModal = ({ onClose, interestType = 'Join Waitlist' }) => {
             <div style={{ marginBottom: 24 }}>
               <span style={badgeViolet}>Early Access</span>
               <h2 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, margin: '12px 0 6px', letterSpacing: '-0.3px' }}>
-                Join the BlueAI Waitlist
+                Join BlueAI Assess early access
               </h2>
               <p style={{ fontSize: 14, color: T.stoneGray, lineHeight: 1.6 }}>
-                Be first to access AI-supported assessment and feedback.
+                Be first to access teacher-reviewed assessment, OCR, marking drafts, feedback, and reporting.
               </p>
             </div>
 
@@ -252,19 +272,19 @@ const DashboardMockup = () => (
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: T.inkBlack }}>Year 11 Biology — Mock Assessment</div>
-            <div style={{ fontSize: 11, color: T.stoneGray, marginTop: 2 }}>28 responses uploaded · OCR complete</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.inkBlack }}>Year 10 Physics — Forces Assessment</div>
+            <div style={{ fontSize: 11, color: T.stoneGray, marginTop: 2 }}>32 scripts uploaded · OCR complete · Mark scheme applied</div>
           </div>
-          <span style={badgeSuccess}>Ready to review</span>
+          <span style={badgeSuccess}>Feedback drafts ready</span>
         </div>
 
         {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
           {[
             { label: 'Class avg', value: '67%', color: T.infoBlue },
-            { label: 'Marked', value: '28/28', color: T.violet },
-            { label: 'Flagged', value: '3', color: '#d97706' },
-            { label: 'Reports', value: 'Ready', color: T.successGreen },
+            { label: 'Drafted', value: '32/32', color: T.violet },
+            { label: 'Need review', value: '3', color: '#d97706' },
+            { label: 'Reports', value: 'Drafts', color: T.successGreen },
           ].map(s => (
             <div key={s.label} style={{ background: T.whisperGray, borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -276,9 +296,9 @@ const DashboardMockup = () => (
         {/* Student rows */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {[
-            { name: 'Amara Johnson', q1: 4, q2: 3, total: 7, flag: false },
-            { name: 'Thomas Chen',   q1: 5, q2: 4, total: 9, flag: false },
-            { name: 'Sofia Patel',   q1: 2, q2: 2, total: 4, flag: true  },
+            { name: 'Amara Johnson', q1: 4, q2: 3, total: 7, flag: null },
+            { name: 'Thomas Chen',   q1: 5, q2: 4, total: 9, flag: null },
+            { name: 'Sofia Patel',   q1: 2, q2: 2, total: 4, flag: 'Low-confidence OCR' },
           ].map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: i % 2 === 0 ? T.cloudWhite : T.whisperGray }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%', background: T.violetLight, color: T.violet, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -289,7 +309,7 @@ const DashboardMockup = () => (
                 <div style={{ fontSize: 11, color: T.stoneGray }}>Q1: {s.q1}/5 · Q2: {s.q2}/5</div>
               </div>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.inkBlack }}>{s.total}/10</div>
-              {s.flag && <span style={{ ...badgeViolet, fontSize: 10, padding: '2px 7px' }}>Review</span>}
+              {s.flag && <span style={{ ...badgeViolet, fontSize: 10, padding: '2px 7px' }}>Review required</span>}
             </div>
           ))}
         </div>
@@ -304,7 +324,7 @@ const DashboardMockup = () => (
             <span style={{ marginLeft: 'auto', fontSize: 11, color: T.violet, cursor: 'pointer', fontWeight: 500 }}>Edit &amp; approve →</span>
           </div>
           <p style={{ fontSize: 11, color: T.violetText, lineHeight: 1.6, margin: 0 }}>
-            "You identified the correct process but missed the role of enzymes in step 2. Revisit cellular respiration — specifically the Krebs cycle."
+            "You selected the correct resultant force but missed one unit conversion. Recheck the newtons to kilonewtons step before final approval."
           </p>
         </div>
       </div>
@@ -324,7 +344,7 @@ export const LandingPage = () => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalInterest, setModalInterest] = useState('Join Waitlist');
+  const [modalInterest, setModalInterest] = useState('Join Early Access');
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -333,7 +353,7 @@ export const LandingPage = () => {
     return () => window.removeEventListener('scroll', handler);
   }, []);
 
-  const openModal = (interest = 'Join Waitlist') => { setModalInterest(interest); setModalOpen(true); };
+  const openModal = (interest = 'Join Early Access') => { setModalInterest(interest); setModalOpen(true); };
   const scrollTo  = (id) => { setMenuOpen(false); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); };
 
   const navLinks = [
@@ -361,10 +381,8 @@ export const LandingPage = () => {
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: T.violet, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: T.cloudWhite, fontWeight: 700, fontSize: 14 }}>B</span>
-            </div>
-            <span style={{ fontWeight: 700, fontSize: 16, color: T.inkBlack, letterSpacing: '-0.3px' }}>BlueAI</span>
+            <LogoMark />
+            <span style={{ fontWeight: 700, fontSize: 16, color: T.inkBlack, letterSpacing: '-0.3px' }}>BlueAI Assess</span>
           </div>
 
           {/* Desktop nav */}
@@ -380,15 +398,19 @@ export const LandingPage = () => {
           </nav>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="hidden-mobile">
+            <button onClick={() => navigate('/join')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', fontSize: 14, fontWeight: 500, color: T.stoneGray, fontFamily: 'inherit' }}>
+              Student Join
+            </button>
             <button onClick={() => navigate('/teacher/login')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', fontSize: 14, fontWeight: 500, color: T.stoneGray, fontFamily: 'inherit' }}>
-              Sign In
+              Teacher Sign In
             </button>
-            <button onClick={() => openModal('Join Waitlist')}
+            <button onClick={() => openModal('Join Early Access')}
               style={btnPrimary}
               onMouseEnter={e => e.currentTarget.style.background = T.violetHover}
               onMouseLeave={e => e.currentTarget.style.background = T.violet}>
-              Join Waitlist
+              Join Early Access
             </button>
           </div>
 
@@ -410,10 +432,12 @@ export const LandingPage = () => {
               </button>
             ))}
             <div style={{ borderTop: `1px solid ${T.platinumGray}`, marginTop: 8, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => navigate('/join')}
+                style={{ ...btnGhost, justifyContent: 'center', width: '100%' }}>Student Join</button>
               <button onClick={() => navigate('/teacher/login')}
-                style={{ ...btnGhost, justifyContent: 'center', width: '100%' }}>Sign In</button>
-              <button onClick={() => openModal('Join Waitlist')}
-                style={{ ...btnPrimary, justifyContent: 'center', width: '100%' }}>Join Waitlist</button>
+                style={{ ...btnGhost, justifyContent: 'center', width: '100%' }}>Teacher Sign In</button>
+              <button onClick={() => openModal('Join Early Access')}
+                style={{ ...btnPrimary, justifyContent: 'center', width: '100%' }}>Join Early Access</button>
             </div>
           </div>
         )}
@@ -449,7 +473,7 @@ export const LandingPage = () => {
             <div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...badgeViolet, marginBottom: 24 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.violet, display: 'inline-block' }} />
-                Now accepting waitlist applications
+                Early access for teachers now open
               </div>
 
               <h1 className="hero-headline" style={{
@@ -457,30 +481,30 @@ export const LandingPage = () => {
                 lineHeight: 1.12, letterSpacing: '-1.45px',
                 margin: '0 0 20px',
               }}>
-                Assessment and feedback for every teacher
+                From assessment to feedback, faster — with teachers in control
               </h1>
 
               <p style={{ fontSize: 16, color: T.stoneGray, lineHeight: 1.7, marginBottom: 32, maxWidth: 480 }}>
-                BlueAI helps teachers create structured assessments, extract and organise student responses from scanned scripts, draft AI-supported marking, and return personalised feedback — with you in control at every step.
+                BlueAI helps teachers create structured assessments, extract responses from scanned scripts, draft mark-scheme-aligned feedback, and review everything before it is shared.
               </p>
 
               <div className="cta-btns" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 36 }}>
-                <button onClick={() => openModal('Join Waitlist')}
+                <button onClick={() => openModal('Join Early Access')}
                   style={{ ...btnPrimary, padding: '12px 28px', fontSize: 15 }}
                   onMouseEnter={e => e.currentTarget.style.background = T.violetHover}
                   onMouseLeave={e => e.currentTarget.style.background = T.violet}>
-                  Join the Waitlist <ArrowRight size={14} />
+                  Join Early Access <ArrowRight size={14} />
                 </button>
-                <button onClick={() => scrollTo('how-it-works')}
+                <button onClick={() => openModal('Request a Demo')}
                   style={{ ...btnGhost, padding: '12px 28px', fontSize: 15 }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = T.stoneGray}
                   onMouseLeave={e => e.currentTarget.style.borderColor = T.platinumGray}>
-                  See How It Works
+                  Request a Demo
                 </button>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {['Assessment Builder', 'OCR Extraction', 'AI Marking', 'Feedback & Reports', 'Analytics'].map(tag => (
+                {['Assessment Builder', 'OCR Extraction', 'Marking Drafts', 'Teacher Review', 'Feedback & Reports'].map(tag => (
                   <span key={tag} style={{ fontSize: 12, fontWeight: 500, color: T.stoneGray, background: T.whisperGray, borderRadius: 100, padding: '4px 12px', border: `1px solid ${T.platinumGray}` }}>
                     {tag}
                   </span>
@@ -521,7 +545,7 @@ export const LandingPage = () => {
               Assessment is the most time-intensive part of teaching
             </h2>
             <p style={{ fontSize: 16, color: T.stoneGray, lineHeight: 1.7, margin: 0 }}>
-              Teachers spend hours creating, marking, and feeding back — time that could be spent on teaching.
+              Teachers spend hours creating papers, marking scripts, writing feedback and turning results into action — often outside the school day.
             </p>
           </div>
 
@@ -529,8 +553,8 @@ export const LandingPage = () => {
             {[
               { icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', title: 'Marking takes too long', body: 'A class of 30 scripts can take hours to mark, with little time left for meaningful written feedback.' },
               { icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', title: 'Feedback is hard to personalise', body: 'Writing tailored comments for every student at scale is near-impossible within a standard working week.' },
-              { icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', title: 'Scripts are hard to manage', body: 'Handwritten student responses are difficult to organise, store, and review systematically at volume.' },
-              { icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', title: 'Data is hard to act on', body: 'Even when results exist, turning assessment data into class-level interventions requires planning time few teachers have.' },
+              { icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', title: 'Paper scripts are difficult to organise at scale', body: 'Handwritten student responses are difficult to organise, store, and review systematically at volume.' },
+              { icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', title: 'Assessment data rarely becomes action quickly enough', body: 'Even when results exist, turning assessment data into class-level interventions requires planning time few teachers have.' },
               { icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', title: 'Creating exam-style papers is time-consuming', body: 'Building structured, mark-scheme-aligned assessments from scratch requires significant preparation time every term.' },
               { icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', title: 'Teachers want support, not replacement', body: 'Generic AI tools don\'t fit assessment workflows. Teachers need targeted support that respects professional judgement.' },
             ].map((item, i) => (
@@ -555,7 +579,7 @@ export const LandingPage = () => {
               One connected assessment workflow
             </h2>
             <p style={{ fontSize: 16, color: T.stoneGray, lineHeight: 1.7, margin: 0 }}>
-              BlueAI connects every stage of assessment into a single, teacher-controlled platform — from paper creation through to class-level analytics.
+              BlueAI Assess connects every stage of assessment into a single, teacher-controlled platform — from paper creation through to class-level analytics.
             </p>
           </div>
 
@@ -564,7 +588,7 @@ export const LandingPage = () => {
               { n: '01', title: 'Create',  body: 'Build or generate structured, mark-scheme-aligned assessments.',   highlight: false },
               { n: '02', title: 'Upload',  body: 'Upload scanned student scripts or digital responses in bulk.',      highlight: false },
               { n: '03', title: 'Extract', body: 'OCR extracts and organises each student\'s answers automatically.', highlight: false },
-              { n: '04', title: 'Mark',    body: 'AI drafts marks and feedback against your mark scheme.',           highlight: false },
+              { n: '04', title: 'Draft',   body: 'AI-supported marking drafts are prepared against your mark scheme.', highlight: false },
               { n: '05', title: 'Review',  body: 'You review, edit, and approve all marks and feedback.',            highlight: true  },
               { n: '06', title: 'Export',  body: 'Download PDF reports and view class analytics.',                   highlight: false },
             ].map((s, i) => (
@@ -609,7 +633,7 @@ export const LandingPage = () => {
             {[
               { icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', title: 'Assessment Builder', body: 'Create structured, mark-scheme-aligned assessments with multiple question types. Generate questions with AI or build from your own bank.', tags: ['GCSE-ready', 'Structured questions', 'Mark scheme'] },
               { icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', title: 'OCR & Response Extraction', body: 'Upload scanned scripts and BlueAI extracts each answer. Review and correct OCR output before marking begins.', tags: ['Handwritten scripts', 'OCR moderation', 'Confidence flags'] },
-              { icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', title: 'AI Marking Engine', body: 'AI drafts marks against your mark scheme for every student response. You review and approve before anything is finalised.', tags: ['Mark-scheme aligned', 'Teacher approval', 'Override support'] },
+              { icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', title: 'AI-supported marking drafts', body: 'BlueAI drafts mark-scheme-aligned marks for every student response. You review and approve before anything is finalised.', tags: ['Mark-scheme aligned', 'Teacher approval', 'Override support'] },
               { icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', title: 'Personalised Feedback', body: 'BlueAI drafts targeted written feedback for each student based on their specific answers. Edit and approve before sharing.', tags: ['Per-student', 'Editable drafts', 'Specific comments'] },
               { icon: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z', title: 'PDF Reports', body: 'Generate downloadable feedback reports for individual students. Clear, professional, and ready to share with students and parents.', tags: ['Student reports', 'One-click export', 'Professional layout'] },
               { icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', title: 'Analytics', body: 'Class-level performance dashboards showing score distributions, question-level analysis, and intervention insights by topic.', tags: ['Class overview', 'Question analysis', 'Intervention flags'] },
@@ -646,7 +670,7 @@ export const LandingPage = () => {
               { n: '01', title: 'Create or generate an assessment',     body: 'Use the Assessment Builder to create structured exam-style questions with mark schemes. Generate questions using AI, or build from your existing bank. Export as a printable PDF.',  note: null,  highlight: false },
               { n: '02', title: 'Upload student responses',              body: 'Scan or photograph completed student scripts and upload them in bulk. BlueAI organises them automatically by student.',   note: null,  highlight: false },
               { n: '03', title: 'BlueAI extracts and organises answers', body: 'OCR reads each handwritten or typed answer and extracts it into a structured format. Low-confidence extractions are flagged for your review before marking begins.', note: null, highlight: false },
-              { n: '04', title: 'BlueAI marks and drafts feedback',      body: 'Using your mark scheme, BlueAI drafts marks and written feedback for each response. This is a draft only — nothing is finalised without your approval.', note: null, highlight: false },
+              { n: '04', title: 'BlueAI drafts marks and feedback',      body: 'Using your mark scheme, BlueAI drafts marks and written feedback for each response. This is a draft only — nothing is finalised without your approval.', note: null, highlight: false },
               { n: '05', title: 'You review, edit, and approve',         body: 'You have complete oversight of every mark and feedback comment. Review drafts, make any changes, add your own comments, and approve before results are returned.', note: 'Teacher remains in control. All marks require your approval. Override any AI suggestion at any point.', highlight: true },
               { n: '06', title: 'Export reports and view insights',      body: 'Download individual student PDF reports, view class-level dashboards, and identify students and topics that need further attention.', note: null, highlight: false },
             ].map((s, i) => (
@@ -680,14 +704,24 @@ export const LandingPage = () => {
       {/* ── Why BlueAI ─────────────────────────────────────────────────────── */}
       <section style={{ background: T.cloudWhite, padding: '80px 0' }}>
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px' }}>
+          <div style={{ maxWidth: 760, margin: '0 auto 48px', textAlign: 'center' }}>
+            <SectionLabel>Positioning</SectionLabel>
+            <h2 style={{ fontSize: 40, fontWeight: 700, color: T.inkBlack, lineHeight: 1.22, letterSpacing: '-0.7px', margin: '0 0 12px' }}>
+              Built for assessment. Not adapted from a chatbot.
+            </h2>
+            <p style={{ fontSize: 16, color: T.stoneGray, lineHeight: 1.7, margin: 0 }}>
+              Generic AI tools generate text. BlueAI Assess is designed around the teacher assessment workflow — from mark scheme to moderation to personalised feedback at class scale.
+            </p>
+          </div>
+
           <div className="two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'start' }}>
             <div>
               <SectionLabel>Why BlueAI</SectionLabel>
               <h2 style={{ fontSize: 32, fontWeight: 700, color: T.inkBlack, lineHeight: 1.33, letterSpacing: '-0.5px', margin: '0 0 16px' }}>
-                Built for assessment. Not adapted from a chatbot.
+                Assessment support that fits how teachers work
               </h2>
               <p style={{ fontSize: 15, color: T.stoneGray, lineHeight: 1.7, marginBottom: 32 }}>
-                Generic AI tools generate text. BlueAI is designed around the teacher assessment workflow — from mark scheme to moderation to personalised feedback at class scale.
+                The product is shaped around exam-style assessment, handwritten scripts, teacher moderation, and the reality that feedback must be useful, timely, and professionally reviewed.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -824,19 +858,19 @@ export const LandingPage = () => {
           <div style={{ maxWidth: 680 }}>
             <SectionLabel>Our approach</SectionLabel>
             <h2 style={{ fontSize: 32, fontWeight: 700, color: T.inkBlack, lineHeight: 1.33, letterSpacing: '-0.5px', margin: '0 0 24px' }}>
-              Built from real classroom experience
+              Built with teachers, for real assessment workflows
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
-                'BlueAI was built because assessment and feedback workflows in schools are genuinely difficult. Not difficult in a way that needs an AI chatbot — difficult in a way that requires a structured, teacher-respecting tool that fits how assessment actually works.',
+                'BlueAI is being developed with direct classroom insight from UK teaching practice. It is designed around real assessment pain points: marking workload, feedback turnaround, OCR from student scripts, teacher moderation, and class-level intervention planning.',
                 'The platform is designed around the reality of classroom assessment: structured questions, mark schemes, handwritten responses, the need for speed, and the professional responsibility that teachers carry when they mark and return work to students.',
-                'BlueAI is not a tool that does marking for you. It is a tool that helps you mark at scale — with more consistency, more speed, and more time to actually teach.',
+                'Student responses remain part of a teacher-controlled workflow. AI-generated marks and feedback are drafts for teacher review, not final decisions.',
               ].map((p, i) => (
                 <p key={i} style={{ fontSize: 15, color: T.stoneGray, lineHeight: 1.7, margin: 0 }}>{p}</p>
               ))}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 24 }}>
-              {['Educator-led', 'Classroom-tested', 'Teacher-centred AI', 'Built for real workflows'].map(tag => (
+              {['Designed around real teacher workflows', 'Teacher review and override built in', 'Responsible AI use', 'Early pilot access available'].map(tag => (
                 <span key={tag} style={{ fontSize: 13, fontWeight: 500, color: T.inkBlack, background: T.cloudWhite, borderRadius: 100, padding: '6px 16px', border: `1px solid ${T.platinumGray}` }}>
                   {tag}
                 </span>
@@ -858,27 +892,21 @@ export const LandingPage = () => {
             Be among the first teachers to use BlueAI
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 40px' }}>
-            Join our waitlist for early access. Pilot interest groups are open — register below to be considered for our first school cohort.
+            Join the waitlist for early access. We are currently inviting teachers and small pilot groups to test BlueAI in real classroom assessment workflows.
           </p>
 
           <div className="cta-btns" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 32 }}>
-            <button onClick={() => openModal('Join Waitlist')}
+            <button onClick={() => openModal('Join Early Access')}
               style={{ ...btnPrimary, background: T.cloudWhite, color: T.violet, padding: '12px 28px', fontSize: 15 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f8f8f8'; }}
               onMouseLeave={e => { e.currentTarget.style.background = T.cloudWhite; }}>
-              Join the Waitlist <ArrowRight size={14} color={T.violet} />
+              Join Early Access <ArrowRight size={14} color={T.violet} />
             </button>
             <button onClick={() => openModal('Request a Demo')}
               style={{ ...btnGhost, background: 'transparent', color: T.cloudWhite, borderColor: 'rgba(255,255,255,0.4)', padding: '12px 28px', fontSize: 15 }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = T.cloudWhite; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}>
               Request a Demo
-            </button>
-            <button onClick={() => openModal('Pilot Interest')}
-              style={{ ...btnGhost, background: 'transparent', color: T.cloudWhite, borderColor: 'rgba(255,255,255,0.4)', padding: '12px 28px', fontSize: 15 }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = T.cloudWhite; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}>
-              Pilot Interest
             </button>
           </div>
 
@@ -899,10 +927,8 @@ export const LandingPage = () => {
           <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 48, marginBottom: 48 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 7, background: T.violet, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ color: T.cloudWhite, fontWeight: 700, fontSize: 12 }}>B</span>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: 15, color: T.cloudWhite }}>BlueAI</span>
+                <LogoMark size={28} dark />
+                <span style={{ fontWeight: 700, fontSize: 15, color: T.cloudWhite }}>BlueAI Assess</span>
               </div>
               <p style={{ fontSize: 13, color: T.stoneGray, lineHeight: 1.7, maxWidth: 260, margin: 0 }}>
                 AI-supported assessment and feedback for teachers. Built for real classroom workflows.
@@ -911,7 +937,7 @@ export const LandingPage = () => {
 
             {[
               { heading: 'Product',   links: [{ label: 'Features', action: () => scrollTo('features') }, { label: 'How It Works', action: () => scrollTo('how-it-works') }, { label: 'Use Cases', action: () => scrollTo('use-cases') }] },
-              { heading: 'Access',    links: [{ label: 'Join Waitlist', action: () => openModal('Join Waitlist') }, { label: 'Request a Demo', action: () => openModal('Request a Demo') }, { label: 'Pilot Interest', action: () => openModal('Pilot Interest') }, { label: 'Teacher Sign In', action: () => navigate('/teacher/login') }] },
+              { heading: 'Access',    links: [{ label: 'Student Join', action: () => navigate('/join') }, { label: 'Teacher Sign In', action: () => navigate('/teacher/login') }, { label: 'Join Early Access', action: () => openModal('Join Early Access') }, { label: 'Request a Demo', action: () => openModal('Request a Demo') }] },
               { heading: 'Legal',     links: [{ label: 'Privacy Policy', action: null }, { label: 'Terms of Service', action: null }, { label: 'hello@blueai.app', action: null, href: 'mailto:hello@blueai.app' }] },
             ].map(col => (
               <div key={col.heading}>

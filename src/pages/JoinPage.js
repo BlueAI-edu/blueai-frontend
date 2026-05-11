@@ -7,6 +7,9 @@ import { getApiErrorMessage } from '@/lib/handle-error';
 export const JoinPage = () => {
   const [joinCode, setJoinCode] = useState('');
   const [studentName, setStudentName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [candidateNumber, setCandidateNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -22,6 +25,9 @@ export const JoinPage = () => {
     setClassRoster(null);
     setSelectedStudentId('');
     setStudentName('');
+    setFirstName('');
+    setLastName('');
+    setCandidateNumber('');
     
     if (code.length === 6) {
       setCheckingCode(true);
@@ -43,9 +49,10 @@ export const JoinPage = () => {
     setError('');
 
     try {
+      const fullName = classRoster ? studentName : `${firstName.trim()} ${lastName.trim()}`.trim();
       const payload = {
         join_code: joinCode.toUpperCase(),
-        student_name: studentName
+        student_name: fullName
       };
       
       // Phase 4: Include student_id if selected from roster
@@ -78,8 +85,11 @@ export const JoinPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full" data-testid="join-container">
-        <h1 className="text-3xl font-bold text-blue-600 mb-2 text-center" data-testid="join-title">Join Assessment</h1>
-        <p className="text-gray-600 mb-6 text-center">Enter your details to begin</p>
+        <div className="mb-6 text-center">
+          <p className="text-sm font-semibold text-blue-600 mb-2">BlueAI Assess</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2" data-testid="join-title">Enter your assessment code</h1>
+          <p className="text-gray-600">Use the join code provided by your teacher.</p>
+        </div>
 
         <form onSubmit={handleJoin} className="space-y-4">
           <div>
@@ -133,20 +143,50 @@ export const JoinPage = () => {
             </div>
           )}
 
-          {/* Show name input only if NOT class-linked */}
+          {/* Show manual details only if NOT class-linked */}
           {!classRoster && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" data-testid="name-label">Your Name</label>
-              <input
-                data-testid="name-input"
-                type="text"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={studentName}
-                onChange={(e) => setStudentName(e.target.value)}
-                required
-                placeholder="Enter your full name"
-              />
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" data-testid="first-name-label">First name</label>
+                  <input
+                    data-testid="first-name-input"
+                    type="text"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2" data-testid="last-name-label">Last name</label>
+                  <input
+                    data-testid="last-name-input"
+                    type="text"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2" data-testid="candidate-label">
+                  Student / candidate number <span className="font-normal text-gray-500">(optional)</span>
+                </label>
+                <input
+                  data-testid="candidate-input"
+                  type="text"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={candidateNumber}
+                  onChange={(e) => setCandidateNumber(e.target.value)}
+                  placeholder="e.g., 1042"
+                />
+              </div>
+            </>
           )}
 
           {error && (
@@ -159,7 +199,7 @@ export const JoinPage = () => {
             className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
             disabled={loading || (classRoster && !selectedStudentId)}
           >
-            {loading ? 'Joining...' : 'Join Assessment'}
+            {loading ? 'Joining...' : 'Start Assessment'}
           </button>
         </form>
       </div>
