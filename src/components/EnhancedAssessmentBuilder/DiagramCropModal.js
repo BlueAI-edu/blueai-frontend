@@ -1,8 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 
 // ─── Resize handle definitions ────────────────────────────────────────────────
-// Each handle sits at a specific position on the selection border.
-// style values are applied inside the selection div (position:absolute).
 const HANDLES = [
   { name: 'nw', style: { top: -5,    left: -5    }, cursor: 'nw-resize' },
   { name: 'n',  style: { top: -5,    left: '50%', transform: 'translateX(-50%)' }, cursor: 'n-resize'  },
@@ -33,7 +31,6 @@ function applyResize(startSel, startPos, currentPos, handle) {
     default: break;
   }
 
-  // Normalise negative w/h (dragged past opposite edge)
   if (w < 0) { x += w; w = -w; }
   if (h < 0) { y += h; h = -h; }
 
@@ -63,96 +60,112 @@ function applyMove(startSel, startPos, currentPos) {
  *   onRemove()     – discard existing diagram
  *   onClose()      – cancel without changes
  */
+
+const ZOOM_LEVELS = [1, 1.5, 2, 2.5, 3];
+
 const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onClose }) => {
-  const imgRef = useRef(null);
+  const imgRef       = useRef(null);
   const containerRef = useRef(null);
   const [selection, setSelection] = useState(null);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgLoaded,  setImgLoaded]  = useState(false);
+  const [zoom, setZoom] = useState(1);
 
-  // Keep a ref to current selection for use inside event handlers without
-  // re-creating them on every render.
-  const selectionRef = useRef(null);
+  // Refs so event handlers can read latest state without stale closures.
+  const selectionRef  = useRef(null);
+  const drawStartRef  = useRef(null);   // {x,y} origin when drawing a new rect
+  const dragStateRef  = useRef(null);   // { type, handle?, startPos, startSel }
+  const activeRef     = useRef(false);
+
   useEffect(() => { selectionRef.current = selection; }, [selection]);
 
-  // Refs track the active interaction without causing re-renders on every move.
-  const drawStartRef = useRef(null);   // {x,y} when starting a new draw
-  const dragStateRef = useRef(null);   // { type:'move'|'resize', handle?, startPos, startSel }
-  const activeRef = useRef(false);
-
-  // Close on Escape
+  // ── Close on Escape ──────────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // ── Normalised position relative to the image container ─────────────────────
+  // getBoundingClientRect() accounts for scroll offset automatically, so this
+  // is correct whether the container is scrolled or not.
   const getRelPos = useCallback((e) => {
     const rect = containerRef.current.getBoundingClientRect();
     return {
-      x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
-      y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+      x: Math.max(0, Math.min(1, (e.clientX - rect.left)  / rect.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - rect.top)   / rect.height)),
     };
   }, []);
 
-  // Clicking on the background area (outside any existing selection) starts a new draw
+  // ── Window-level mousemove / mouseup ─────────────────────────────────────────
+  // Attached to window so that:
+  //  • dragging continues if the cursor drifts onto a scrollbar or outside the container
+  //  • scrolling the view does not cancel an active draw/resize/move
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!activeRef.current || !containerRef.current) return;
+      const pos = getRelPos(e);
+
+      if (drawStartRef.current) {
+        const s = drawStartRef.current;
+        setSelection({
+          x: Math.min(s.x, pos.x),
+          y: Math.min(s.y, pos.y),
+          w: Math.abs(pos.x - s.x),
+          h: Math.abs(pos.y - s.y),
+        });
+        return;
+      }
+
+      if (dragStateRef.current) {
+        const { type, handle, startPos, startSel } = dragStateRef.current;
+        setSelection(type === 'move'
+          ? applyMove(startSel, startPos, pos)
+          : applyResize(startSel, startPos, pos, handle)
+        );
+      }
+    };
+
+    const onUp = () => {
+      drawStartRef.current = null;
+      dragStateRef.current = null;
+      activeRef.current    = false;
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+  }, [getRelPos]);
+
+  // ── Container mousedown handlers ─────────────────────────────────────────────
+
   const handleBgMouseDown = useCallback((e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    const pos = getRelPos(e);
-    drawStartRef.current = pos;
-    activeRef.current = true;
+    drawStartRef.current = getRelPos(e);
+    activeRef.current    = true;
     setSelection(null);
   }, [getRelPos]);
 
-  // Clicking on the selection interior starts a move
   const handleMoveStart = useCallback((e) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const pos = getRelPos(e);
-    dragStateRef.current = { type: 'move', startPos: pos, startSel: selectionRef.current };
-    activeRef.current = true;
+    dragStateRef.current = { type: 'move', startPos: getRelPos(e), startSel: selectionRef.current };
+    activeRef.current    = true;
   }, [getRelPos]);
 
-  // Clicking on a resize handle starts a resize
   const handleResizeStart = useCallback((handleName, e) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const pos = getRelPos(e);
-    dragStateRef.current = { type: 'resize', handle: handleName, startPos: pos, startSel: selectionRef.current };
-    activeRef.current = true;
+    dragStateRef.current = { type: 'resize', handle: handleName, startPos: getRelPos(e), startSel: selectionRef.current };
+    activeRef.current    = true;
   }, [getRelPos]);
 
-  const handleMouseMove = useCallback((e) => {
-    if (!activeRef.current) return;
-    const pos = getRelPos(e);
-
-    if (drawStartRef.current) {
-      const s = drawStartRef.current;
-      setSelection({
-        x: Math.min(s.x, pos.x),
-        y: Math.min(s.y, pos.y),
-        w: Math.abs(pos.x - s.x),
-        h: Math.abs(pos.y - s.y),
-      });
-      return;
-    }
-
-    if (dragStateRef.current) {
-      const { type, handle, startPos, startSel } = dragStateRef.current;
-      setSelection(type === 'move'
-        ? applyMove(startSel, startPos, pos)
-        : applyResize(startSel, startPos, pos, handle)
-      );
-    }
-  }, [getRelPos]);
-
-  const handleMouseUp = useCallback(() => {
-    drawStartRef.current = null;
-    dragStateRef.current = null;
-    activeRef.current = false;
-  }, []);
+  // ── Confirm crop ─────────────────────────────────────────────────────────────
 
   const handleConfirm = useCallback(() => {
     const sel = selectionRef.current;
@@ -165,7 +178,7 @@ const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onCl
     const cw = Math.max(1, Math.round(sel.w * sw));
     const ch = Math.max(1, Math.round(sel.h * sh));
     const canvas = document.createElement('canvas');
-    canvas.width = cw;
+    canvas.width  = cw;
     canvas.height = ch;
     canvas.getContext('2d').drawImage(src,
       Math.round(sel.x * sw), Math.round(sel.y * sh), cw, ch,
@@ -175,6 +188,7 @@ const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onCl
   }, [onConfirm]);
 
   const hasValidSelection = selection && selection.w > 0.01 && selection.h > 0.01;
+  const isZoomed          = zoom > 1;
 
   return (
     <div
@@ -188,26 +202,64 @@ const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onCl
           <div>
             <h3 className="font-semibold text-gray-900">Crop Diagram</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              Drag on the page to draw a selection · then drag handles to resize or drag the box to move it
+              Drag on the page to draw a selection · drag handles to resize · drag the box to move it
+              {isZoomed && ' · scroll to pan around the image'}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+          <div className="flex items-center gap-3">
+            {/* Zoom controls */}
+            <div className="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-1">
+              <button
+                onClick={() => setZoom(z => { const i = ZOOM_LEVELS.indexOf(z); return i > 0 ? ZOOM_LEVELS[i - 1] : z; })}
+                disabled={zoom === ZOOM_LEVELS[0]}
+                className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-lg leading-none"
+                title="Zoom out"
+              >−</button>
+              <span className="text-xs text-gray-600 w-8 text-center select-none">{zoom}×</span>
+              <button
+                onClick={() => setZoom(z => { const i = ZOOM_LEVELS.indexOf(z); return i < ZOOM_LEVELS.length - 1 ? ZOOM_LEVELS[i + 1] : z; })}
+                disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-lg leading-none"
+                title="Zoom in"
+              >+</button>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+          </div>
         </div>
 
-        {/* Page image canvas */}
-        <div className="flex-1 overflow-y-auto min-h-0 p-4">
+        {/* Scroll hint bar — only shown when zoomed */}
+        {isZoomed && imgLoaded && (
+          <div className="px-5 py-1.5 bg-blue-50 border-b border-blue-100 shrink-0 flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>
+            </svg>
+            <span className="text-xs text-blue-700">Scrollbars active — use them to pan, then draw your crop selection</span>
+          </div>
+        )}
+
+        {/* Page image + scrollable canvas */}
+        <div
+          className="flex-1 min-h-0 p-4"
+          style={{
+            overflowX: isZoomed ? 'scroll' : 'auto',
+            overflowY: isZoomed ? 'scroll' : 'auto',
+          }}
+        >
           {!imgLoaded && (
             <div className="flex items-center justify-center h-48 text-gray-400 text-sm">Loading page…</div>
           )}
 
+          {/* Image container — expands to zoom * 100% wide, triggering both scrollbars */}
           <div
             ref={containerRef}
             className={`relative rounded border border-gray-200 ${imgLoaded ? '' : 'hidden'}`}
-            style={{ cursor: 'crosshair', userSelect: 'none' }}
+            style={{
+              cursor: 'crosshair',
+              userSelect: 'none',
+              width: `${zoom * 100}%`,
+              minWidth: `${zoom * 100}%`,
+            }}
             onMouseDown={handleBgMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
           >
             <img
               ref={imgRef}
@@ -220,21 +272,17 @@ const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onCl
 
             {selection && (
               <>
-                {/* Dimming overlays — 4 rects surrounding the selection */}
-                {/* Top */}
+                {/* Dimming overlays */}
                 <div className="absolute inset-x-0 top-0 bg-black bg-opacity-40 pointer-events-none"
                      style={{ height: `${selection.y * 100}%` }} />
-                {/* Bottom */}
                 <div className="absolute inset-x-0 bg-black bg-opacity-40 pointer-events-none"
                      style={{ top: `${(selection.y + selection.h) * 100}%`, bottom: 0 }} />
-                {/* Left */}
                 <div className="absolute bg-black bg-opacity-40 pointer-events-none"
                      style={{ top: `${selection.y * 100}%`, height: `${selection.h * 100}%`, left: 0, width: `${selection.x * 100}%` }} />
-                {/* Right */}
                 <div className="absolute bg-black bg-opacity-40 pointer-events-none"
                      style={{ top: `${selection.y * 100}%`, height: `${selection.h * 100}%`, left: `${(selection.x + selection.w) * 100}%`, right: 0 }} />
 
-                {/* Selection box — draggable to move */}
+                {/* Selection box */}
                 <div
                   style={{
                     position: 'absolute',
@@ -248,14 +296,12 @@ const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onCl
                   }}
                   onMouseDown={handleMoveStart}
                 >
-                  {/* Resize handles */}
                   {HANDLES.map((h) => (
                     <div
                       key={h.name}
                       style={{
                         position: 'absolute',
-                        width: 10,
-                        height: 10,
+                        width: 10, height: 10,
                         background: 'white',
                         border: '2px solid #2563eb',
                         borderRadius: 2,

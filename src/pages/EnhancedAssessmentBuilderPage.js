@@ -43,6 +43,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
   const [showAIBulk, setShowAIBulk] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [extractProgress, setExtractProgress] = useState(0);
+  const [extractStuck, setExtractStuck] = useState(false);
   const [extractError, setExtractError] = useState(null);
   const [questionPaperFile, setQuestionPaperFile] = useState(null);
   const [markSchemeFile, setMarkSchemeFile] = useState(null);
@@ -92,6 +94,14 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     }
     setExtracting(true);
     setExtractError(null);
+    setExtractProgress(0);
+
+    // Simulate progress: advances quickly at first then decelerates, asymptotically
+    // approaching 98% so the bar keeps moving even on slow extractions.
+    const progressInterval = setInterval(() => {
+      setExtractProgress(prev => Math.min(98, Math.round(prev + (98 - prev) * 0.04)));
+    }, 500);
+
     const formData = new FormData();
     if (questionPaperFile) formData.append('file', questionPaperFile);
     if (markSchemeFile) formData.append('mark_scheme', markSchemeFile);
@@ -103,8 +113,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
+      clearInterval(progressInterval);
+      setExtractProgress(100);
+      // Let the user see 100% before the page transitions.
+      await new Promise(resolve => setTimeout(resolve, 600));
       const questions = response.data.questions.map((q, i) => ({ ...q, questionNumber: i + 1 }));
-      // Store extracted questions in state but go to review — do NOT auto-advance to editing
       setAssessmentData(prev => ({ ...prev, questions }));
       setExtractionSummary(response.data.extraction_summary || null);
       setPageThumbnails(response.data.page_thumbnails || {});
@@ -115,6 +128,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         'success'
       );
     } catch (error) {
+      clearInterval(progressInterval);
+      setExtractProgress(0);
       const msg = getApiErrorMessage(error, 'Failed to extract questions from the uploaded PDF');
       setExtractError(msg);
       showNotification(msg, 'error');
@@ -136,6 +151,17 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setPageImages({});
     setOcrReviewState('uploading');
   }, []);
+
+  // Show a "do not refresh" warning if extractProgress hasn't changed for 5 seconds.
+  // Re-runs every time extractProgress changes, resetting the timer each time.
+  useEffect(() => {
+    if (!extracting || extractProgress >= 100) {
+      setExtractStuck(false);
+      return;
+    }
+    const timer = setTimeout(() => setExtractStuck(true), 5000);
+    return () => clearTimeout(timer);
+  }, [extractProgress, extracting]);
 
   useEffect(() => {
     if (isEdit) {
@@ -799,13 +825,34 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                     {extracting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Extracting… (may take 30–60s)
+                        Extracting…
                       </>
                     ) : (
                       '🔍 Extract Questions'
                     )}
                   </button>
                 </div>
+
+                {extracting && (
+                  <div className="pt-1">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Extracting questions from PDF…</span>
+                      <span>{extractProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-orange-500 h-2 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${extractProgress}%` }}
+                      />
+                    </div>
+                    {extractStuck && (
+                      <p className="mt-2 text-xs font-medium text-amber-700 flex items-center gap-1.5">
+                        <span>⚠</span>
+                        Large papers can take a while — do not refresh this page or your upload will be lost.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {extractError && (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{extractError}</p>
@@ -830,6 +877,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </Suspense>
             )}
 
+            {(assessmentData.assessmentMode !== OCR_GCSE_MODE || ocrReviewState === 'editing') && (
             <div className="space-y-4">
               {assessmentData.questions.map((question, index) => (
                 <Suspense key={index} fallback={<div className="p-4 bg-white rounded-lg shadow text-center text-gray-500">Loading question...</div>}>
@@ -863,6 +911,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                 )}
               </div>
             </div>
+            )}
 
             {showAIBulk && (
               <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
