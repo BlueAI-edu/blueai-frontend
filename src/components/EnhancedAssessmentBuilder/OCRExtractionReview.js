@@ -63,59 +63,122 @@ const FLAG_LABELS = {
 
 // ─── Inline edit form for a single question ───────────────────────────────────
 
+const inputCls = "w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500";
+
 const QuestionInlineEditor = ({ question, onChange }) => {
   const handleField = (field, value) => onChange({ ...question, [field]: value });
+  const isStructured = question.questionType === 'STRUCTURED_WITH_PARTS';
+
+  const handlePartField = (partIdx, field, value) => {
+    const newParts = [...(question.parts || [])];
+    newParts[partIdx] = { ...newParts[partIdx], [field]: value };
+    onChange({ ...question, parts: newParts });
+  };
 
   return (
     <div className="mt-3 space-y-3 border-t pt-3">
+      {/* Root question text */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Question text</label>
+        <label className="block text-xs font-medium text-gray-600 mb-1">
+          {isStructured ? 'Shared question stem' : 'Question text'}
+        </label>
         <textarea
           value={question.questionBody || question.question_text || ''}
           onChange={(e) => handleField('questionBody', e.target.value)}
           rows={3}
-          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          className={inputCls}
         />
       </div>
 
-      <div className="flex gap-3">
-        <div className="w-28">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Max marks</label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            value={question.maxMarks ?? ''}
-            onChange={(e) => handleField('maxMarks', parseInt(e.target.value) || 0)}
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+      {/* Non-structured: marks, type, mark scheme */}
+      {!isStructured && (
+        <>
+          <div className="flex gap-3">
+            <div className="w-28">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Max marks</label>
+              <input
+                type="number" min="0" max="100"
+                value={question.maxMarks ?? ''}
+                onChange={(e) => handleField('maxMarks', parseInt(e.target.value) || 0)}
+                className={inputCls}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Question type</label>
+              <select
+                value={question.questionType || 'SHORT_ANSWER'}
+                onChange={(e) => handleField('questionType', e.target.value)}
+                className={inputCls}
+              >
+                <option value="SHORT_ANSWER">Short Answer</option>
+                <option value="NUMERIC">Numeric</option>
+                <option value="LONG_RESPONSE">Long Response</option>
+                <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+                <option value="STRUCTURED_WITH_PARTS">Structured with Parts</option>
+              </select>
+            </div>
+          </div>
+          {question.markScheme && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Mark scheme (pre-filled from PDF)</label>
+              <textarea
+                value={question.markScheme}
+                onChange={(e) => handleField('markScheme', e.target.value)}
+                rows={2}
+                className={`${inputCls} font-mono`}
+              />
+            </div>
+          )}
+        </>
+      )}
 
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-600 mb-1">Question type</label>
-          <select
-            value={question.questionType || 'SHORT_ANSWER'}
-            onChange={(e) => handleField('questionType', e.target.value)}
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="SHORT_ANSWER">Short Answer</option>
-            <option value="NUMERIC">Numeric</option>
-            <option value="LONG_RESPONSE">Long Response</option>
-            <option value="MULTIPLE_CHOICE">Multiple Choice</option>
-            <option value="STRUCTURED_WITH_PARTS">Structured with Parts</option>
-          </select>
-        </div>
-      </div>
-
-      {question.markScheme && (
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Mark scheme (pre-filled from PDF)</label>
-          <textarea
-            value={question.markScheme}
-            onChange={(e) => handleField('markScheme', e.target.value)}
-            rows={2}
-            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 font-mono"
-          />
+      {/* Structured: sub-parts editor */}
+      {isStructured && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-gray-600">
+            Sub-parts ({(question.parts || []).length}) — total {question.maxMarks ?? 0} marks
+          </p>
+          {(question.parts || []).map((part, partIdx) => (
+            <div key={partIdx} className="border border-purple-200 rounded-lg p-3 bg-purple-50 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-purple-700 bg-purple-200 px-2 py-0.5 rounded">
+                  Part {part.partLabel}
+                </span>
+                <span className="text-xs text-purple-600">{part.maxMarks ?? 0} mark{part.maxMarks !== 1 ? 's' : ''}</span>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Part text</label>
+                <textarea
+                  value={part.partPrompt || ''}
+                  onChange={(e) => handlePartField(partIdx, 'partPrompt', e.target.value)}
+                  rows={2}
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="w-24">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Marks</label>
+                  <input
+                    type="number" min="0" max="100"
+                    value={part.maxMarks ?? ''}
+                    onChange={(e) => handlePartField(partIdx, 'maxMarks', parseInt(e.target.value) || 0)}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+              {part.markScheme && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Mark scheme</label>
+                  <textarea
+                    value={part.markScheme}
+                    onChange={(e) => handlePartField(partIdx, 'markScheme', e.target.value)}
+                    rows={2}
+                    className={`${inputCls} font-mono`}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
