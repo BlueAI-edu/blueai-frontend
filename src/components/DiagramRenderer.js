@@ -319,7 +319,8 @@ const DiagramRenderer = ({ diagram, className = '' }) => {
         <img
           src={diagram.content}
           alt={diagram.caption || 'Diagram'}
-          className="max-w-full h-auto border rounded shadow-sm"
+          className="max-w-full border rounded shadow-sm"
+          style={{ height: 'auto', maxHeight: '480px', objectFit: 'contain', display: 'block' }}
         />
       );
     case 'venn_diagram':

@@ -56,6 +56,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [extractionSummary, setExtractionSummary] = useState(null);
   const [pageThumbnails, setPageThumbnails] = useState({});
   const [pageImages, setPageImages] = useState({});
+  const [msPageThumbnails, setMsPageThumbnails] = useState({});
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -122,6 +123,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setExtractionSummary(response.data.extraction_summary || null);
       setPageThumbnails(response.data.page_thumbnails || {});
       setPageImages(response.data.page_images || {});
+      setMsPageThumbnails(response.data.ms_page_thumbnails || {});
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -149,6 +151,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setExtractionSummary(null);
     setPageThumbnails({});
     setPageImages({});
+    setMsPageThumbnails({});
     setOcrReviewState('uploading');
   }, []);
 
@@ -871,6 +874,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   questions={assessmentData.questions}
                   pageThumbnails={pageThumbnails}
                   pageImages={pageImages}
+                  msPageThumbnails={msPageThumbnails}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />
@@ -937,22 +941,25 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
             )}
 
-            <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center sticky bottom-0">
-              <button
-                onClick={saveDraft}
-                disabled={saving}
-                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : '💾 Save Draft'}
-              </button>
-              <button
-                onClick={handlePublishClick}
-                disabled={saving}
-                className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 font-medium disabled:opacity-50"
-              >
-                {saving ? 'Publishing...' : '🚀 Publish Assessment'}
-              </button>
-            </div>
+            {/* Hide Save/Publish while the OCR review is in progress — teacher must complete review first */}
+            {(assessmentData.assessmentMode !== OCR_GCSE_MODE || ocrReviewState === 'editing') && (
+              <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center sticky bottom-0">
+                <button
+                  onClick={saveDraft}
+                  disabled={saving}
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : '💾 Save Draft'}
+                </button>
+                <button
+                  onClick={handlePublishClick}
+                  disabled={saving}
+                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Publishing...' : '🚀 Publish Assessment'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

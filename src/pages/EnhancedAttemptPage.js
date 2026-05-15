@@ -4,6 +4,8 @@ import axios from 'axios';
 import StudentMathInput from '../components/StudentMathInput';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import DiagramRenderer from '../components/DiagramRenderer';
+import DrawableCanvas, { requiresDrawing } from '../components/DrawableCanvas';
+import StudentMathKeyboard from '../components/StudentMathKeyboard';
 import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
 import QuestionSidebar from '../components/QuestionSidebar';
 import SecurityOverlays from '../components/SecurityOverlays';
@@ -24,6 +26,7 @@ export const EnhancedAttemptPage = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showMathKeyboard, setShowMathKeyboard] = useState(false);
 
   const { timeLeft } = useTimer({
     // Per-student timing: count down from when the student personally joined.
@@ -141,6 +144,17 @@ export const EnhancedAttemptPage = () => {
     setCurrentQuestionIndex(prev => prev > 0 ? prev - 1 : prev);
   }, []);
 
+  // Returns true if an answer value (string or drawing JSON) counts as answered.
+  const hasAnswer = useCallback((val) => {
+    if (!val) return false;
+    try {
+      const parsed = JSON.parse(val);
+      return parsed?._type === 'drawing' && !!parsed.imageData;
+    } catch {
+      return !!val.trim();
+    }
+  }, []);
+
   const answerProgress = useMemo(() => {
     if (!assessment?.questions) return { answeredCount: 0, totalItems: 0 };
     let answeredCount = 0;
@@ -150,15 +164,15 @@ export const EnhancedAttemptPage = () => {
         totalItems += q.parts.length;
         q.parts.forEach(part => {
           const partKey = `${q.questionNumber}-${part.partLabel}`;
-          if (answers[partKey]?.trim()) answeredCount++;
+          if (hasAnswer(answers[partKey])) answeredCount++;
         });
       } else {
         totalItems += 1;
-        if (answers[q.questionNumber]?.trim()) answeredCount++;
+        if (hasAnswer(answers[q.questionNumber])) answeredCount++;
       }
     });
     return { answeredCount, totalItems };
-  }, [assessment?.questions, answers]);
+  }, [assessment?.questions, answers, hasAnswer]);
 
   if (loading) {
     return (
@@ -231,6 +245,35 @@ export const EnhancedAttemptPage = () => {
 
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
 
+  // Respect explicit teacher override; fall back to keyword auto-detection.
+  const shouldDraw = (entity, text) => {
+    if (entity?.drawingEnabled === true) return true;
+    if (entity?.drawingEnabled === false) return false;
+    return requiresDrawing(text);
+  };
+
+  // Insert a keyboard symbol into whichever textarea/input is currently focused.
+  const insertIntoFocused = (symbol, cursorOffset = 0) => {
+    const el = document.activeElement;
+    if (!el || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT')) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const before = el.value.substring(0, start);
+    const after = el.value.substring(end);
+    const newValue = before + symbol + after;
+    // Trigger React's synthetic onChange via the native value setter.
+    const proto = el.tagName === 'TEXTAREA'
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, newValue);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(() => {
+      const pos = start + symbol.length + (cursorOffset || 0);
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
   return (
     <div
       className="min-h-screen bg-gray-50 flex"
@@ -292,6 +335,15 @@ export const EnhancedAttemptPage = () => {
               <div className="mt-6 space-y-6">
                 {currentQuestion.parts.map((part, idx) => {
                   const partAnswerKey = `${currentQuestion.questionNumber}-${part.partLabel}`;
+                  const partNeedsDrawing = shouldDraw(part, part.partPrompt);
+                  // Recover saved drawing data if any
+                  let savedDrawingData = null;
+                  if (partNeedsDrawing && answers[partAnswerKey]) {
+                    try {
+                      const p = JSON.parse(answers[partAnswerKey]);
+                      if (p?._type === 'drawing') savedDrawingData = p.imageData;
+                    } catch { /* not a drawing answer */ }
+                  }
                   return (
                     <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
                       <div className="flex items-start justify-between mb-3">
@@ -301,6 +353,11 @@ export const EnhancedAttemptPage = () => {
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
                               {part.maxMarks} {part.maxMarks === 1 ? 'mark' : 'marks'}
                             </span>
+                            {partNeedsDrawing && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                                Draw / Plot
+                              </span>
+                            )}
                           </div>
                           <div className="prose max-w-none">
                             <LaTeXRenderer text={part.partPrompt || ''} />
@@ -311,12 +368,22 @@ export const EnhancedAttemptPage = () => {
                         </div>
                       </div>
                       <div className="mt-3">
-                        <StudentMathInput
-                          value={answers[partAnswerKey] || ''}
-                          onChange={(value) => handleAnswerChange(partAnswerKey, value)}
-                          placeholder={`Your answer for part ${part.partLabel}...`}
-                          showKeyboard={false}
-                        />
+                        {partNeedsDrawing ? (
+                          <DrawableCanvas
+                            key={partAnswerKey}
+                            initialDrawing={savedDrawingData}
+                            onChange={(imageData) =>
+                              handleAnswerChange(partAnswerKey, JSON.stringify({ _type: 'drawing', imageData }))
+                            }
+                          />
+                        ) : (
+                          <StudentMathInput
+                            value={answers[partAnswerKey] || ''}
+                            onChange={(value) => handleAnswerChange(partAnswerKey, value)}
+                            placeholder={`Your answer for part ${part.partLabel}...`}
+                            showKeyboard={false}
+                          />
+                        )}
                       </div>
                     </div>
                   );
@@ -356,20 +423,84 @@ export const EnhancedAttemptPage = () => {
 
           {/* Answer Input for non-MCQ and non-Structured */}
           {currentQuestion.questionType !== 'MULTIPLE_CHOICE' &&
-           currentQuestion.questionType !== 'STRUCTURED_WITH_PARTS' && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Your Answer</h3>
-              <StudentMathInput
-                value={answers[currentQuestion.questionNumber] || ''}
-                onChange={(value) => handleAnswerChange(currentQuestion.questionNumber, value)}
-                placeholder="Type your answer here..."
-                showKeyboard={true}
-              />
-              <p className="text-sm text-gray-500 mt-2">
-                You can use the math keyboard to insert mathematical symbols and expressions.
-              </p>
+           currentQuestion.questionType !== 'STRUCTURED_WITH_PARTS' && (() => {
+            const needsDrawing = shouldDraw(currentQuestion, currentQuestion.questionBody);
+            let savedDrawing = null;
+            if (needsDrawing && answers[currentQuestion.questionNumber]) {
+              try {
+                const p = JSON.parse(answers[currentQuestion.questionNumber]);
+                if (p?._type === 'drawing') savedDrawing = p.imageData;
+              } catch { /* not a drawing answer */ }
+            }
+            return (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  Your Answer
+                  {needsDrawing && (
+                    <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                      Draw / Plot
+                    </span>
+                  )}
+                </h3>
+                {needsDrawing ? (
+                  <DrawableCanvas
+                    key={currentQuestion.questionNumber}
+                    initialDrawing={savedDrawing}
+                    onChange={(imageData) =>
+                      handleAnswerChange(currentQuestion.questionNumber, JSON.stringify({ _type: 'drawing', imageData }))
+                    }
+                  />
+                ) : (
+                  <>
+                    <StudentMathInput
+                      value={answers[currentQuestion.questionNumber] || ''}
+                      onChange={(value) => handleAnswerChange(currentQuestion.questionNumber, value)}
+                      placeholder="Type your answer here..."
+                      showKeyboard={true}
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      You can use the math keyboard to insert mathematical symbols and expressions.
+                    </p>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Floating maths keyboard panel (right side, teacher-enabled per question) */}
+      {currentQuestion.mathKeyboardEnabled && (
+        <>
+          {/* Toggle button — visible when panel is closed */}
+          {!showMathKeyboard && (
+            <button
+              onClick={() => setShowMathKeyboard(true)}
+              className="fixed right-4 bottom-24 z-40 flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 text-sm font-medium"
+              title="Open maths keyboard"
+            >
+              🔢 Keyboard
+            </button>
+          )}
+          {/* Panel */}
+          {showMathKeyboard && (
+            <div className="fixed right-0 top-0 h-full w-72 bg-white shadow-2xl border-l border-gray-200 overflow-y-auto z-40 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-600 text-white shrink-0">
+                <span className="font-semibold text-sm">🔢 Maths Keyboard</span>
+                <button
+                  onClick={() => setShowMathKeyboard(false)}
+                  className="p-1 rounded hover:bg-blue-700 text-white"
+                  title="Close keyboard"
+                >✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2">
+                <StudentMathKeyboard
+                  onInsert={insertIntoFocused}
+                  onClose={() => setShowMathKeyboard(false)}
+                />
+              </div>
             </div>
           )}
+        </>
+      )}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8">

@@ -276,7 +276,7 @@ const QuestionEditor = ({
                 )}
 
                 {/* Additional Options */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-4">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -286,6 +286,32 @@ const QuestionEditor = ({
                     />
                     <span className="text-sm">Calculator allowed</span>
                   </label>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={question.mathKeyboardEnabled || false}
+                      onChange={(e) => updateQuestion('mathKeyboardEnabled', e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Maths keyboard for students</span>
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">Drawing canvas:</span>
+                    <select
+                      value={question.drawingEnabled === true ? 'on' : question.drawingEnabled === false ? 'off' : 'auto'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        updateQuestion('drawingEnabled', v === 'auto' ? null : v === 'on');
+                      }}
+                      className="text-sm border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="auto">Auto-detect</option>
+                      <option value="on">Always show</option>
+                      <option value="off">Disabled</option>
+                    </select>
+                  </div>
                 </div>
               </>
             )}

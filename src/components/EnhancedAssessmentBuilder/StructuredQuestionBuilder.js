@@ -150,6 +150,25 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
                     </div>
                   </div>
 
+                  {/* Part options */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700">Drawing:</span>
+                      <select
+                        value={part.drawingEnabled === true ? 'on' : part.drawingEnabled === false ? 'off' : 'auto'}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          updatePart(index, 'drawingEnabled', v === 'auto' ? null : v === 'on');
+                        }}
+                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="auto">Auto-detect</option>
+                        <option value="on">Always show</option>
+                        <option value="off">Disabled</option>
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Mark Scheme */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
