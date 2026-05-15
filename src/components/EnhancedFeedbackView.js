@@ -34,10 +34,12 @@ const EnhancedFeedbackView = ({ attempt, assessment }) => {
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Assessment Results</h1>
 
-          {!isFormative && attempt.score !== null && (
+          {attempt.score !== null && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-              <p className="text-sm text-gray-600 mb-1">Your Score</p>
-              <p className="text-4xl font-bold text-blue-600">
+              <p className="text-sm text-gray-600 mb-1">
+                {isFormative ? 'Marks Awarded' : 'Your Score'}
+              </p>
+              <p className={`${isFormative ? 'text-2xl' : 'text-4xl'} font-bold text-blue-600`}>
                 {attempt.score} / {assessment.totalMarks}
               </p>
             </div>

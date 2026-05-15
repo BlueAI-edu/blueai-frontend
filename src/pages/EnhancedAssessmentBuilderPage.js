@@ -36,6 +36,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     shuffleQuestions: false,
     shuffleOptions: false,
     allowDraftSaving: true,
+    markingStrictness: 'STANDARD_STRICT',
     questions: [],
     class_id: null
   });
@@ -210,12 +211,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
   const addQuestion = useCallback(() => {
     setAssessmentData(prev => {
+      const isFormative = prev.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
       const newQuestion = {
         questionNumber: prev.questions.length + 1,
-        questionType: '',
+        questionType: isFormative ? 'LONG_RESPONSE' : '',
         questionBody: '',
         stimulusBlock: null,
-        maxMarks: 1,
+        maxMarks: isFormative ? 6 : 1,
         subject: prev.subject,
         topic: '',
         difficulty: 'Medium',
@@ -289,9 +291,15 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       return false;
     }
 
-    if (assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length < 1) {
-      showNotification('Formative mode requires at least 1 question', 'error');
-      return false;
+    if (assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE') {
+      if (assessmentData.questions.length !== 1) {
+        showNotification('Formative mode requires exactly 1 long-response question', 'error');
+        return false;
+      }
+      if (assessmentData.questions[0]?.questionType !== 'LONG_RESPONSE') {
+        showNotification('Formative mode requires a long-response question', 'error');
+        return false;
+      }
     }
 
     if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 5 || assessmentData.questions.length > 20)) {
@@ -671,6 +679,20 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               />
             </div>
 
+            {assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Formative Marking Strictness</label>
+                <select
+                  value={assessmentData.markingStrictness}
+                  onChange={(e) => updateField('markingStrictness', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="STANDARD_STRICT">Standard Strict</option>
+                  <option value="SUPPORTIVE_STRICT">Supportive-Strict</option>
+                </select>
+              </div>
+            )}
+
             <div className="flex gap-4">
               <label className="flex items-center gap-2">
                 <input
@@ -874,11 +896,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <div className="flex gap-3">
                 <button
                   onClick={addQuestion}
+                  disabled={assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length >= 1}
                   className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 font-medium transition-colors"
                 >
                   + Add Question Manually
                 </button>
-                {assessmentData.assessmentMode !== OCR_GCSE_MODE && (
+                {assessmentData.assessmentMode !== OCR_GCSE_MODE && assessmentData.assessmentMode !== 'FORMATIVE_SINGLE_LONG_RESPONSE' && (
                   <button
                     onClick={() => setShowAIBulk(true)}
                     className="flex-1 py-4 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 text-purple-600 hover:text-purple-700 font-medium transition-colors"

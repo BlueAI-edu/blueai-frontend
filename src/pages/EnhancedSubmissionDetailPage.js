@@ -117,19 +117,19 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                 </span>
                 {isFormative && (
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                    Feedback Only (No Score)
+                    Formative Feedback
                   </span>
                 )}
               </div>
             </div>
-            {!isFormative && (
-              <div className="text-right">
-                <p className="text-sm text-gray-600 mb-1">Total Score</p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {calculateTotalScore()} / {assessment.totalMarks}
-                </p>
-              </div>
-            )}
+            <div className="text-right">
+              <p className="text-sm text-gray-600 mb-1">
+                {isFormative ? 'Marks Awarded' : 'Total Score'}
+              </p>
+              <p className="text-3xl font-bold text-blue-600">
+                {calculateTotalScore()} / {assessment.totalMarks}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -145,7 +145,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                     Question {question.questionNumber}
                   </h3>
                   <div className="flex items-center gap-2">
-                    {question.maxMarks && !isFormative && (
+                    {question.maxMarks && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                         {question.maxMarks} marks
                       </span>
@@ -207,24 +207,22 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                           )}
 
                           {/* Score Input for part */}
-                          {!isFormative && (
-                            <div className="mt-3">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Marks for part {part.partLabel}:
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={part.maxMarks}
-                                  value={questionScores[partKey] || 0}
-                                  onChange={(e) => handleScoreChange(partKey, e.target.value)}
-                                  className="w-20 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                />
-                                <span className="text-sm text-gray-600">out of {part.maxMarks}</span>
-                              </div>
+                          <div className="mt-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Marks for part {part.partLabel}:
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                max={part.maxMarks}
+                                value={questionScores[partKey] || 0}
+                                onChange={(e) => handleScoreChange(partKey, e.target.value)}
+                                className="w-20 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-600">out of {part.maxMarks}</span>
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                     })}
@@ -264,8 +262,8 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                       </div>
                     )}
 
-                    {/* Score Input (only for non-formative) */}
-                    {!isFormative && question.maxMarks && (
+                    {/* Score Input */}
+                    {question.maxMarks && (
                       <div className="mt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Marks Awarded:
