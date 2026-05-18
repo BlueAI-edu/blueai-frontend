@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -147,8 +147,6 @@ export const QuestionsPage = ({ user }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(blankFormData);
-  const [importing, setImporting] = useState(false);
-  const [importMessage, setImportMessage] = useState('');
   const [templates, setTemplates] = useState([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState('');
@@ -161,7 +159,6 @@ export const QuestionsPage = ({ user }) => {
     duration_minutes: '',
     auto_close: false,
   });
-  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -255,73 +252,6 @@ export const QuestionsPage = ({ user }) => {
     if (tab !== 'manual') setShowForm(false);
   };
 
-  const handleImportQuestion = () => {
-    setImportMessage('');
-    fileInputRef.current?.click();
-  };
-
-  const goToOcrUpload = () => {
-    navigate('/teacher/ocr-upload');
-  };
-
-  const handleImportFileChange = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    setImporting(true);
-    setImportMessage('');
-    try {
-      const text = await file.text();
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        throw new Error('File must be valid JSON (a single question object or an array of questions).');
-      }
-
-      const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed.questions) ? parsed.questions : [parsed];
-      if (items.length === 0) throw new Error('No questions found in the selected file.');
-
-      let imported = 0;
-      const failures = [];
-      for (const raw of items) {
-        if (!raw || typeof raw !== 'object') continue;
-        const payload = {
-          subject: raw.subject || raw.Subject || '',
-          exam_type: raw.exam_type || raw.examType || raw.exam || '',
-          topic: raw.topic || raw.Topic || '',
-          question_text: raw.question_text || raw.questionText || raw.text || raw.question || '',
-          mark_scheme: raw.mark_scheme || raw.markScheme || raw.scheme || '',
-          max_marks: parseInt(raw.max_marks ?? raw.maxMarks ?? raw.marks ?? 1, 10) || 1,
-        };
-        if (!payload.subject || !payload.exam_type || !payload.topic || !payload.question_text) {
-          failures.push(payload.topic || payload.question_text?.slice(0, 40) || 'Untitled');
-          continue;
-        }
-        try {
-          await axios.post(`${API}/teacher/questions`, payload);
-          imported += 1;
-        } catch {
-          failures.push(payload.topic || 'Untitled');
-        }
-      }
-
-      if (imported > 0) {
-        showSuccess(`Imported ${imported} question${imported === 1 ? '' : 's'}.`);
-        loadQuestions();
-      }
-      if (failures.length > 0) {
-        setImportMessage(`${imported} imported, ${failures.length} skipped (missing required fields: subject, exam_type, topic, question_text).`);
-      } else if (imported === 0) {
-        setImportMessage('No valid questions were imported.');
-      }
-    } catch (error) {
-      setImportMessage(error.message || 'Failed to import file.');
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -458,9 +388,10 @@ export const QuestionsPage = ({ user }) => {
       description: 'Extract questions from exam papers or structured source content, then review and adapt.',
       icon: FileScan,
       actionLabel: 'Open OCR tool',
-      onClick: goToOcrUpload,
+      onClick: undefined,
       active: false,
-      badge: 'Available',
+      badge: 'Coming Soon',
+      comingSoon: true,
     },
   ];
 
@@ -512,29 +443,17 @@ export const QuestionsPage = ({ user }) => {
                     New Question
                   </button>
                   <button
-                    onClick={handleImportQuestion}
-                    disabled={importing}
-                    className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    title="Coming soon"
+                    className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-400 shadow-sm"
                   >
-                    {importing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Import className="h-4 w-4" />}
-                    {importing ? 'Importing…' : 'Import Question'}
+                    <Import className="h-4 w-4" />
+                    Import Question
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">Coming soon</span>
                   </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="application/json,.json"
-                    className="hidden"
-                    onChange={handleImportFileChange}
-                  />
                 </div>
-                {importMessage && (
-                  <p className="mt-3 text-xs text-slate-600">{importMessage}</p>
-                )}
-                <p className="mt-2 text-xs text-slate-500">
-                  Import a <code className="rounded bg-slate-100 px-1 py-0.5">.json</code> file (single question or array). Fields: subject, exam_type, topic, question_text, mark_scheme, max_marks.
-                  {' '}Need to scan a paper instead?{' '}
-                  <button onClick={goToOcrUpload} className="font-semibold text-blue-700 hover:text-blue-800">Use OCR upload</button>.
-                </p>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -677,25 +596,38 @@ export const QuestionsPage = ({ user }) => {
                     </div>
                   ))
                 ) : (
-                  routeCards.map(({ title, description, icon: Icon, actionLabel, onClick, active, badge }) => (
+                  routeCards.map(({ title, description, icon: Icon, actionLabel, onClick, active, badge, comingSoon }) => (
                     <button
                       key={title}
                       onClick={onClick}
-                      className={`group rounded-lg border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-                        active ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-200'
+                      disabled={comingSoon}
+                      aria-disabled={comingSoon}
+                      title={comingSoon ? 'Coming soon' : undefined}
+                      className={`group rounded-lg border p-4 text-left transition ${
+                        comingSoon
+                          ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-70'
+                          : 'hover:-translate-y-0.5 hover:shadow-md'
+                      } ${
+                        active ? 'border-blue-300 bg-blue-50' : !comingSoon ? 'border-slate-200 bg-white hover:border-blue-200' : ''
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <span className={`rounded-lg p-2 ${active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 group-hover:bg-blue-50 group-hover:text-blue-700'}`}>
                           <Icon className="h-5 w-5" />
                         </span>
-                        {badge && <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{badge}</span>}
+                        {badge && (
+                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                            comingSoon ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-700'
+                          }`}>
+                            {badge}
+                          </span>
+                        )}
                       </div>
                       <h3 className="mt-4 font-semibold text-slate-950">{title}</h3>
                       <p className="mt-2 min-h-[48px] text-sm leading-6 text-slate-500">{description}</p>
-                      <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
-                        {actionLabel}
-                        <ArrowRight className="h-4 w-4" />
+                      <span className={`mt-4 inline-flex items-center gap-2 text-sm font-semibold ${comingSoon ? 'text-slate-400' : 'text-blue-700'}`}>
+                        {comingSoon ? 'Coming soon' : actionLabel}
+                        {!comingSoon && <ArrowRight className="h-4 w-4" />}
                       </span>
                     </button>
                   ))
