@@ -179,17 +179,10 @@ const StudentMathKeyboard = ({ onInsert, onClose, compact = false }) => {
     setRecentSymbols(newRecent);
   };
 
-  const handleInsert = (symbol) => {
-    addToRecent(symbol);
-    onInsert(symbol);
-  };
-
   const handleInsertSymbol = (symbol) => {
-    if (symbol.latex) {
-      handleInsert(`$${symbol.value}$`, symbol.cursor);
-    } else {
-      handleInsert(symbol.value, symbol.cursor);
-    }
+    addToRecent(symbol);
+    const textValue = symbol.latex ? `$${symbol.value}$` : symbol.value;
+    onInsert(textValue, symbol.cursor);
   };
 
   const tabs = [
@@ -238,6 +231,7 @@ const StudentMathKeyboard = ({ onInsert, onClose, compact = false }) => {
           {mathSymbols.algebra.slice(0, 12).map((symbol, index) => (
             <button
               key={index}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleInsertSymbol(symbol)}
               className="px-2 py-2 bg-gray-50 hover:bg-blue-50 rounded text-sm font-medium transition-colors"
               title={symbol.tooltip || symbol.value}
@@ -276,13 +270,14 @@ const StudentMathKeyboard = ({ onInsert, onClose, compact = false }) => {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b bg-gray-50">
+      {/* Tabs — horizontally scrollable so all tabs are reachable in a narrow panel */}
+      <div className="flex border-b bg-gray-50 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${
+            className={`shrink-0 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap ${
               activeTab === tab.id
                 ? "border-blue-600 text-blue-600 bg-white"
                 : "border-transparent text-gray-600 hover:text-blue-600"
@@ -305,6 +300,7 @@ const StudentMathKeyboard = ({ onInsert, onClose, compact = false }) => {
           )?.map((symbol, index) => (
             <button
               key={index}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleInsertSymbol(symbol)}
               className="px-3 py-2 bg-gray-50 hover:bg-blue-50 rounded font-medium transition-colors text-center relative group"
               title={symbol.tooltip || symbol.value}

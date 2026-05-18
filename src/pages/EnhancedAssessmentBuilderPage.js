@@ -37,6 +37,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     shuffleOptions: false,
     allowDraftSaving: true,
     markingStrictness: 'STANDARD_STRICT',
+    calculatorAllowed: false,
+    mathKeyboardEnabled: false,
     questions: [],
     class_id: null
   });
@@ -336,7 +338,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     runSave(
       async () => {
         if (isEdit) {
-          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
+            questions: assessmentData.questions,
+            calculatorAllowed: assessmentData.calculatorAllowed,
+            mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
+          });
           // For OCR assessments being re-saved after edits, ocrConfirmed stays as-is
           showNotification('Draft saved successfully!', 'success');
         } else {
@@ -372,7 +378,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
           const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
           finalAssessmentId = response.data.assessment.id;
         } else {
-          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
+            questions: assessmentData.questions,
+            calculatorAllowed: assessmentData.calculatorAllowed,
+            mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
+          });
         }
 
         await axios.post(`${API}/teacher/assessments/${finalAssessmentId}/publish`);
@@ -568,6 +578,31 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               />
             </div>
 
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Student tools</p>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.calculatorAllowed}
+                    onChange={(e) => updateField('calculatorAllowed', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Calculator</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.mathKeyboardEnabled}
+                    onChange={(e) => updateField('mathKeyboardEnabled', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Maths keyboard</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
+            </div>
+
             <div className="flex justify-between pt-4 border-t">
               <button onClick={() => setCurrentStep(1)} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">← Back</button>
               <button
@@ -696,7 +731,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
             )}
 
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -716,6 +751,31 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                 />
                 <span className="text-sm">Shuffle MCQ options</span>
               </label>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Student tools</p>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.calculatorAllowed}
+                    onChange={(e) => updateField('calculatorAllowed', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Calculator</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.mathKeyboardEnabled}
+                    onChange={(e) => updateField('mathKeyboardEnabled', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Maths keyboard</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
 
             <div className="flex justify-between pt-4 border-t">

@@ -203,9 +203,8 @@ const QuestionEditor = ({
                   <StructuredQuestionBuilder
                     parts={question.parts || []}
                     onPartsChange={(parts) => {
-                      updateQuestion('parts', parts);
                       const totalMarks = parts.reduce((sum, p) => sum + (p.maxMarks || 0), 0);
-                      updateQuestion('maxMarks', totalMarks);
+                      onQuestionChange(questionIndex, { ...question, parts, maxMarks: totalMarks });
                     }}
                     questionNumber={question.questionNumber}
                   />
@@ -277,26 +276,6 @@ const QuestionEditor = ({
 
                 {/* Additional Options */}
                 <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={question.calculatorAllowed || false}
-                      onChange={(e) => updateQuestion('calculatorAllowed', e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Calculator allowed</span>
-                  </label>
-
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={question.mathKeyboardEnabled || false}
-                      onChange={(e) => updateQuestion('mathKeyboardEnabled', e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Maths keyboard for students</span>
-                  </label>
-
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-700">Drawing canvas:</span>
                     <select
