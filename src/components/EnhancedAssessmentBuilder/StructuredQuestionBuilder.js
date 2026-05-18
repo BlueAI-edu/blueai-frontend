@@ -1,5 +1,6 @@
 import React from 'react';
 import LaTeXRenderer from '../LaTeXRenderer';
+import DiagramRenderer from '../DiagramRenderer';
 
 const LaTeXPreview = ({ text, label }) => {
   if (!text || !text.includes('$')) return null;
@@ -122,6 +123,23 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
                     <LaTeXPreview text={part.partPrompt} label={`part ${part.partLabel}`} />
                   </div>
 
+                  {/* Extracted diagram for this part — teacher can remove if incorrectly assigned */}
+                  {part.partStimulus && (
+                    <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-medium text-amber-700">Extracted diagram for part ({part.partLabel})</p>
+                        <button
+                          type="button"
+                          onClick={() => updatePart(index, 'partStimulus', null)}
+                          className="text-xs text-red-600 hover:text-red-800 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <DiagramRenderer diagram={part.partStimulus} />
+                    </div>
+                  )}
+
                   {/* Marks and Answer Type */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -146,6 +164,25 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
                         <option value="NUMERIC">Numeric</option>
                         <option value="MATHS">Maths (LaTeX)</option>
                         <option value="MIXED">Mixed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Part options */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700">Drawing:</span>
+                      <select
+                        value={part.drawingEnabled === true ? 'on' : part.drawingEnabled === false ? 'off' : 'auto'}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          updatePart(index, 'drawingEnabled', v === 'auto' ? null : v === 'on');
+                        }}
+                        className="text-sm border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="auto">Auto-detect</option>
+                        <option value="on">Always show</option>
+                        <option value="off">Disabled</option>
                       </select>
                     </div>
                   </div>

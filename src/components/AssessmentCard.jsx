@@ -304,12 +304,12 @@ export const AssessmentCard = ({
 
   return (
     <div
-      className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden"
+      className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200"
       data-testid={`assessment-card-${a.id}`}
     >
       {/* Status accent bar */}
       <div
-        className={`h-1 w-full ${
+        className={`h-1 w-full rounded-t-xl ${
           isStarted ? "bg-green-400" :
           isPublished ? "bg-blue-400" :
           isClosed ? "bg-gray-300" :

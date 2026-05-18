@@ -37,6 +37,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     shuffleOptions: false,
     allowDraftSaving: true,
     markingStrictness: 'STANDARD_STRICT',
+    calculatorAllowed: false,
+    mathKeyboardEnabled: false,
     questions: [],
     class_id: null
   });
@@ -56,6 +58,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [extractionSummary, setExtractionSummary] = useState(null);
   const [pageThumbnails, setPageThumbnails] = useState({});
   const [pageImages, setPageImages] = useState({});
+  const [msPageThumbnails, setMsPageThumbnails] = useState({});
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -122,6 +125,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setExtractionSummary(response.data.extraction_summary || null);
       setPageThumbnails(response.data.page_thumbnails || {});
       setPageImages(response.data.page_images || {});
+      setMsPageThumbnails(response.data.ms_page_thumbnails || {});
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -149,6 +153,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setExtractionSummary(null);
     setPageThumbnails({});
     setPageImages({});
+    setMsPageThumbnails({});
     setOcrReviewState('uploading');
   }, []);
 
@@ -333,7 +338,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     runSave(
       async () => {
         if (isEdit) {
-          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
+            questions: assessmentData.questions,
+            calculatorAllowed: assessmentData.calculatorAllowed,
+            mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
+          });
           // For OCR assessments being re-saved after edits, ocrConfirmed stays as-is
           showNotification('Draft saved successfully!', 'success');
         } else {
@@ -369,7 +378,11 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
           const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
           finalAssessmentId = response.data.assessment.id;
         } else {
-          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, assessmentData.questions);
+          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
+            questions: assessmentData.questions,
+            calculatorAllowed: assessmentData.calculatorAllowed,
+            mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
+          });
         }
 
         await axios.post(`${API}/teacher/assessments/${finalAssessmentId}/publish`);
@@ -565,6 +578,31 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               />
             </div>
 
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Student tools</p>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.calculatorAllowed}
+                    onChange={(e) => updateField('calculatorAllowed', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Calculator</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.mathKeyboardEnabled}
+                    onChange={(e) => updateField('mathKeyboardEnabled', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Maths keyboard</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
+            </div>
+
             <div className="flex justify-between pt-4 border-t">
               <button onClick={() => setCurrentStep(1)} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">← Back</button>
               <button
@@ -693,7 +731,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
             )}
 
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -713,6 +751,31 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                 />
                 <span className="text-sm">Shuffle MCQ options</span>
               </label>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Student tools</p>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.calculatorAllowed}
+                    onChange={(e) => updateField('calculatorAllowed', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Calculator</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={assessmentData.mathKeyboardEnabled}
+                    onChange={(e) => updateField('mathKeyboardEnabled', e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Maths keyboard</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
 
             <div className="flex justify-between pt-4 border-t">
@@ -871,6 +934,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   questions={assessmentData.questions}
                   pageThumbnails={pageThumbnails}
                   pageImages={pageImages}
+                  msPageThumbnails={msPageThumbnails}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />
@@ -937,22 +1001,25 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
             )}
 
-            <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center sticky bottom-0">
-              <button
-                onClick={saveDraft}
-                disabled={saving}
-                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : '💾 Save Draft'}
-              </button>
-              <button
-                onClick={handlePublishClick}
-                disabled={saving}
-                className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 font-medium disabled:opacity-50"
-              >
-                {saving ? 'Publishing...' : '🚀 Publish Assessment'}
-              </button>
-            </div>
+            {/* Hide Save/Publish while the OCR review is in progress — teacher must complete review first */}
+            {(assessmentData.assessmentMode !== OCR_GCSE_MODE || ocrReviewState === 'editing') && (
+              <div className="bg-white rounded-lg shadow p-6 flex justify-between items-center sticky bottom-0">
+                <button
+                  onClick={saveDraft}
+                  disabled={saving}
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : '💾 Save Draft'}
+                </button>
+                <button
+                  onClick={handlePublishClick}
+                  disabled={saving}
+                  className="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Publishing...' : '🚀 Publish Assessment'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

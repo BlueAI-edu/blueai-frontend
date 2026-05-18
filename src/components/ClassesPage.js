@@ -257,10 +257,17 @@ export const ClassDetailPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState('students');
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showEditClassModal, setShowEditClassModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
   useEffect(() => {
     loadClassData();
   }, [classId]);
+
+  useEffect(() => {
+    if (activeTab === 'assignments') loadAssignments();
+  }, [activeTab, classId]);
 
   const loadClassData = async () => {
     try {
@@ -269,6 +276,36 @@ export const ClassDetailPage = ({ user }) => {
     } catch (error) {
     }
     setLoading(false);
+  };
+
+  const loadAssignments = async () => {
+    setAssignmentsLoading(true);
+    try {
+      const response = await axios.get(`${API}/teacher/classes/${classId}/assignments`);
+      setAssignments(response.data.assignments || []);
+    } catch (error) {
+    }
+    setAssignmentsLoading(false);
+  };
+
+  const handleToggleAssignment = async (assignmentId, currentStatus) => {
+    try {
+      const action = currentStatus === 'open' ? 'close' : 'open';
+      await axios.post(`${API}/teacher/assignments/${assignmentId}/${action}`);
+      loadAssignments();
+    } catch (error) {
+      handleApiError(error, 'Failed to update assignment');
+    }
+  };
+
+  const handleDeleteAssignment = async (assignmentId) => {
+    if (!window.confirm('Remove this assignment? The join code will no longer be valid.')) return;
+    try {
+      await axios.delete(`${API}/teacher/assignments/${assignmentId}`);
+      loadAssignments();
+    } catch (error) {
+      handleApiError(error, 'Failed to delete assignment');
+    }
   };
 
   const handleDeleteClass = async () => {
@@ -381,10 +418,20 @@ export const ClassDetailPage = ({ user }) => {
             Assessments ({classData.assessments.length})
           </button>
           <button
+            onClick={() => setActiveTab('assignments')}
+            className={`px-6 py-3 font-medium border-b-2 transition-colors ${
+              activeTab === 'assignments'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Assignments
+          </button>
+          <button
             onClick={() => setActiveTab('analytics')}
             className={`px-6 py-3 font-medium border-b-2 transition-colors ${
-              activeTab === 'analytics' 
-                ? 'border-blue-600 text-blue-600' 
+              activeTab === 'analytics'
+                ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -536,6 +583,92 @@ export const ClassDetailPage = ({ user }) => {
           </div>
         )}
 
+        {activeTab === 'assignments' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-semibold text-gray-900">Assigned Assessments</h3>
+              <button
+                onClick={() => setShowAssignModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Assign Assessment
+              </button>
+            </div>
+
+            {assignmentsLoading ? (
+              <div className="p-8 text-center text-gray-500">Loading assignments...</div>
+            ) : assignments.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <p>No assessments assigned to this class yet.</p>
+                <button
+                  onClick={() => setShowAssignModal(true)}
+                  className="mt-4 text-blue-600 hover:underline"
+                >
+                  Assign your first assessment
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {assignments.map((assignment) => (
+                  <div key={assignment.id} className="p-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{assignment.assessment_title}</p>
+                        {assignment.subject && (
+                          <p className="text-sm text-gray-500">{assignment.subject}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-sm font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                            {assignment.join_code}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            assignment.status === 'open'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {assignment.status === 'open' ? 'Open' : 'Closed'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {assignment.submission_count} submitted · {assignment.marked_count} marked
+                          {assignment.avg_score != null && ` · Avg: ${assignment.avg_score}%`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleToggleAssignment(assignment.id, assignment.status)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                            assignment.status === 'open'
+                              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          {assignment.status === 'open' ? 'Close' : 'Reopen'}
+                        </button>
+                        <button
+                          onClick={() => navigate(`/teacher/assignments/${assignment.id}/submissions`)}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAssignment(assignment.id)}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'analytics' && (
           <ClassAnalyticsTab classId={classId} className={classData.class.class_name} />
         )}
@@ -555,7 +688,7 @@ export const ClassDetailPage = ({ user }) => {
 
       {/* Edit Class Modal */}
       {showEditClassModal && (
-        <EditClassModal 
+        <EditClassModal
           classData={classData.class}
           onClose={() => setShowEditClassModal(false)}
           onUpdated={() => {
@@ -564,9 +697,126 @@ export const ClassDetailPage = ({ user }) => {
           }}
         />
       )}
+
+      {/* Assign Assessment Modal */}
+      {showAssignModal && (
+        <AssignAssessmentModal
+          classId={classId}
+          onClose={() => setShowAssignModal(false)}
+          onAssigned={() => {
+            setShowAssignModal(false);
+            setActiveTab('assignments');
+            loadAssignments();
+          }}
+        />
+      )}
     </div>
   );
 };
+
+// Assign Assessment Modal
+const AssignAssessmentModal = ({ classId, onClose, onAssigned }) => {
+  const [assessments, setAssessments] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API}/teacher/assessments`)
+      .then(res => setAssessments(res.data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleAssign = async () => {
+    if (!selectedId) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await axios.post(`${API}/teacher/assessments/${selectedId}/assignments`, { class_id: classId });
+      setResult(res.data);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Failed to assign assessment'));
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-md w-full">
+        <div className="p-6 border-b flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-900">Assign Assessment to Class</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {result ? (
+            <div className="text-center space-y-3">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-semibold text-gray-900">Assessment assigned!</p>
+              <p className="text-gray-600 text-sm">{result.assessment_title}</p>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-xs text-gray-500 mb-1">Student join code</p>
+                <p className="text-3xl font-mono font-bold text-blue-700 tracking-widest">{result.assignment.join_code}</p>
+                <p className="text-xs text-gray-500 mt-2">Share this code with your students.</p>
+              </div>
+              <button onClick={onAssigned} className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 mt-2">
+                Done
+              </button>
+            </div>
+          ) : (
+            <>
+              {error && <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Assessment</label>
+                {loading ? (
+                  <p className="text-sm text-gray-500">Loading assessments...</p>
+                ) : assessments.length === 0 ? (
+                  <p className="text-sm text-gray-500">No assessments found. Create an assessment first.</p>
+                ) : (
+                  <select
+                    value={selectedId}
+                    onChange={e => setSelectedId(e.target.value)}
+                    className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select an assessment --</option>
+                    {assessments.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.title || `Assessment #${a.id.slice(0, 8)}`}
+                        {a.assessmentMode && a.assessmentMode !== 'CLASSIC' ? '' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={onClose} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200">Cancel</button>
+                <button
+                  onClick={handleAssign}
+                  disabled={!selectedId || saving}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? 'Assigning...' : 'Assign & Generate Code'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 // Class Analytics Tab Component
 const ClassAnalyticsTab = ({ classId, className }) => {

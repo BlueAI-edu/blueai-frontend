@@ -203,9 +203,8 @@ const QuestionEditor = ({
                   <StructuredQuestionBuilder
                     parts={question.parts || []}
                     onPartsChange={(parts) => {
-                      updateQuestion('parts', parts);
                       const totalMarks = parts.reduce((sum, p) => sum + (p.maxMarks || 0), 0);
-                      updateQuestion('maxMarks', totalMarks);
+                      onQuestionChange(questionIndex, { ...question, parts, maxMarks: totalMarks });
                     }}
                     questionNumber={question.questionNumber}
                   />
@@ -276,16 +275,22 @@ const QuestionEditor = ({
                 )}
 
                 {/* Additional Options */}
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={question.calculatorAllowed || false}
-                      onChange={(e) => updateQuestion('calculatorAllowed', e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Calculator allowed</span>
-                  </label>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">Drawing canvas:</span>
+                    <select
+                      value={question.drawingEnabled === true ? 'on' : question.drawingEnabled === false ? 'off' : 'auto'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        updateQuestion('drawingEnabled', v === 'auto' ? null : v === 'on');
+                      }}
+                      className="text-sm border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="auto">Auto-detect</option>
+                      <option value="on">Always show</option>
+                      <option value="off">Disabled</option>
+                    </select>
+                  </div>
                 </div>
               </>
             )}

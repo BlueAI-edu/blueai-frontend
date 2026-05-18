@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import DiagramRenderer from '../DiagramRenderer';
 import DiagramCropModal from './DiagramCropModal';
+import LaTeXRenderer from '../LaTeXRenderer';
 
 // ─── Confidence helpers ───────────────────────────────────────────────────────
 
@@ -11,8 +12,6 @@ const getConfidenceTier = (score) => {
   return 'low';
 };
 
-// A question with an unresolved missing-diagram flag is always "needs review",
-// regardless of how high its raw confidence score is.
 const getEffectiveTier = (question) => {
   const tier = getConfidenceTier(question.extractionConfidence);
   if (
@@ -25,15 +24,25 @@ const getEffectiveTier = (question) => {
   return tier;
 };
 
+// A question needs attention when its confidence is not high, OR when its mark
+// scheme is missing (extraction succeeded but no mark scheme was found for it).
+const questionNeedsAttention = (q) => {
+  if (getEffectiveTier(q) !== 'high') return true;
+  if (q.questionType === 'STRUCTURED_WITH_PARTS') {
+    return (q.parts || []).some(p => !p.markScheme?.trim());
+  }
+  return !q.markScheme?.trim();
+};
+
 const ConfidenceBadge = ({ question }) => {
   const tier = getEffectiveTier(question);
-  const pct = question.extractionConfidence !== null && question.extractionConfidence !== undefined
+  const pct = question.extractionConfidence != null
     ? Math.round(question.extractionConfidence * 100) : null;
 
   const styles = {
-    high: 'bg-green-100 text-green-800 border-green-200',
-    medium: 'bg-amber-100 text-amber-800 border-amber-200',
-    low: 'bg-red-100 text-red-800 border-red-200',
+    high:    'bg-green-100 text-green-800 border-green-200',
+    medium:  'bg-amber-100 text-amber-800 border-amber-200',
+    low:     'bg-red-100 text-red-800 border-red-200',
     unknown: 'bg-gray-100 text-gray-600 border-gray-200',
   };
   const labels = {
@@ -54,14 +63,51 @@ const ConfidenceBadge = ({ question }) => {
 };
 
 const FLAG_LABELS = {
-  marks_not_found: 'Marks not found — please set manually',
-  question_number_unclear: 'Question number unclear',
-  question_text_very_short: 'Question text is very short',
+  marks_not_found:              'Marks not found — please set manually',
+  question_number_unclear:      'Question number unclear',
+  question_text_very_short:     'Question text is very short',
   diagram_referenced_but_missing: 'Diagram referenced but not extracted',
-  scanned_page_fallback: 'Extracted via Vision (scanned page)',
+  scanned_page_fallback:        'Extracted via Vision (scanned page)',
 };
 
-// ─── Inline edit form for a single question ───────────────────────────────────
+// ─── Mark scheme image panel ──────────────────────────────────────────────────
+
+const MarkSchemeImagePanel = ({ msPageNum, msPageThumbnails }) => {
+  const [open, setOpen] = useState(false);
+
+  if (!msPageNum || !msPageThumbnails) return null;
+  const src = msPageThumbnails[String(msPageNum)];
+  if (!src) return null;
+
+  return (
+    <div className="mt-2 border border-blue-200 rounded-lg overflow-hidden bg-blue-50">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-blue-800 hover:bg-blue-100 transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="3 9 21 9"/><polyline points="9 21 9 9"/>
+          </svg>
+          View mark scheme (page {msPageNum})
+        </span>
+        <span>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="border-t border-blue-200 bg-white">
+          <img
+            src={src}
+            alt={`Mark scheme page ${msPageNum}`}
+            className="w-full block"
+            style={{ height: 'auto' }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Inline edit form ─────────────────────────────────────────────────────────
 
 const inputCls = "w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500";
 
@@ -118,17 +164,22 @@ const QuestionInlineEditor = ({ question, onChange }) => {
               </select>
             </div>
           </div>
-          {question.markScheme && (
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Mark scheme (pre-filled from PDF)</label>
-              <textarea
-                value={question.markScheme}
-                onChange={(e) => handleField('markScheme', e.target.value)}
-                rows={2}
-                className={`${inputCls} font-mono`}
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Mark scheme
+              {question.markScheme?.trim()
+                ? <span className="ml-1 text-green-600 font-normal">(pre-filled from PDF)</span>
+                : <span className="ml-1 text-amber-600 font-normal">(not extracted — enter manually)</span>
+              }
+            </label>
+            <textarea
+              value={question.markScheme || ''}
+              onChange={(e) => handleField('markScheme', e.target.value)}
+              rows={3}
+              placeholder="Enter the mark scheme here..."
+              className={`${inputCls} font-mono`}
+            />
+          </div>
         </>
       )}
 
@@ -166,17 +217,22 @@ const QuestionInlineEditor = ({ question, onChange }) => {
                   />
                 </div>
               </div>
-              {part.markScheme && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Mark scheme</label>
-                  <textarea
-                    value={part.markScheme}
-                    onChange={(e) => handlePartField(partIdx, 'markScheme', e.target.value)}
-                    rows={2}
-                    className={`${inputCls} font-mono`}
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Mark scheme
+                  {part.markScheme?.trim()
+                    ? <span className="ml-1 text-green-600 font-normal">(pre-filled)</span>
+                    : <span className="ml-1 text-amber-600 font-normal">(not extracted)</span>
+                  }
+                </label>
+                <textarea
+                  value={part.markScheme || ''}
+                  onChange={(e) => handlePartField(partIdx, 'markScheme', e.target.value)}
+                  rows={2}
+                  placeholder="Enter the mark scheme for this part..."
+                  className={`${inputCls} font-mono`}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -187,11 +243,18 @@ const QuestionInlineEditor = ({ question, onChange }) => {
 
 // ─── Single question card ─────────────────────────────────────────────────────
 
-const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, pageImages }) => {
+const QuestionCard = ({
+  question, index, total,
+  onMove, onChange, onRemove,
+  pageImages, msPageThumbnails,
+  isReviewed, onMarkReviewed,
+}) => {
   const [expanded, setExpanded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
+
   const tier = getEffectiveTier(question);
   const flags = question.extractionFlags || [];
+  const needsAttention = questionNeedsAttention(question);
 
   const pageImage = pageImages && question.page_num
     ? pageImages[String(question.page_num)]
@@ -199,11 +262,13 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
 
   const handleCropConfirm = (newStimulus) => {
     onChange(index, { ...question, stimulusBlock: newStimulus });
+    onMarkReviewed(index);
     setCropModalOpen(false);
   };
 
   const handleRemoveDiagram = () => {
     onChange(index, { ...question, stimulusBlock: null });
+    onMarkReviewed(index);
     setCropModalOpen(false);
   };
 
@@ -212,21 +277,39 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
       ...question,
       extractionFlags: (question.extractionFlags || []).filter(f => f !== 'diagram_referenced_but_missing'),
     });
+    onMarkReviewed(index);
+  };
+
+  const handleInlineChange = (updated) => {
+    onChange(index, updated);
+    onMarkReviewed(index);
+  };
+
+  const handleExpand = () => {
+    setExpanded(v => !v);
+    // Opening the edit panel counts as starting review
+    if (!expanded) onMarkReviewed(index);
   };
 
   const isMissingDiagram = flags.includes('diagram_referenced_but_missing') && !question.stimulusBlock;
 
-  const borderColor = {
-    high: 'border-l-green-400',
-    medium: 'border-l-amber-400',
-    low: 'border-l-red-400',
-    unknown: 'border-l-gray-300',
-  }[tier];
+  const hasSubParts = question.questionType === 'STRUCTURED_WITH_PARTS' && question.parts?.length > 0;
+  const missingMarkScheme = hasSubParts
+    ? (question.parts || []).some(p => !p.markScheme?.trim())
+    : !question.markScheme?.trim();
+
+  // Border: red when needing attention and not yet reviewed; green once reviewed; gray otherwise
+  let borderLeft;
+  if (needsAttention && !isReviewed) {
+    borderLeft = 'border-l-red-500';
+  } else if (isReviewed) {
+    borderLeft = 'border-l-green-500';
+  } else {
+    borderLeft = 'border-l-green-400';
+  }
 
   const bodyText = (question.questionBody || question.question_text || '').trim();
   const preview = bodyText.length > 100 ? bodyText.slice(0, 100) + '…' : bodyText;
-
-  const hasSubParts = question.questionType === 'STRUCTURED_WITH_PARTS' && question.parts?.length > 0;
 
   return (
     <>
@@ -239,7 +322,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
         onClose={() => setCropModalOpen(false)}
       />
     )}
-    <div className={`bg-white rounded-lg border-l-4 border border-gray-200 ${borderColor} shadow-sm`}>
+    <div className={`bg-white rounded-lg border-l-4 border border-gray-200 ${borderLeft} shadow-sm`}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           {/* Reorder buttons */}
@@ -249,17 +332,13 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
               disabled={index === 0}
               title="Move up"
               className="p-0.5 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              ▲
-            </button>
+            >▲</button>
             <button
               onClick={() => onMove(index, index + 1)}
               disabled={index === total - 1}
               title="Move down"
               className="p-0.5 rounded text-gray-400 hover:text-gray-700 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              ▼
-            </button>
+            >▼</button>
           </div>
 
           {/* Question number badge */}
@@ -286,11 +365,23 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
                   Has diagram
                 </span>
               )}
+              {missingMarkScheme && (
+                <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                  Mark scheme missing
+                </span>
+              )}
+              {isReviewed && (
+                <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  ✓ Reviewed
+                </span>
+              )}
             </div>
 
-            <p className="text-sm text-gray-800 leading-snug">
-              {preview || <span className="italic text-gray-400">No question text extracted</span>}
-            </p>
+            <div className="text-sm text-gray-800 leading-snug">
+              {bodyText
+                ? <LaTeXRenderer text={preview} />
+                : <span className="italic text-gray-400">No question text extracted</span>}
+            </div>
 
             {flags.length > 0 && (
               <ul className="mt-1.5 space-y-0.5">
@@ -298,8 +389,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
                   .filter(f => f !== 'diagram_referenced_but_missing')
                   .map((flag) => (
                     <li key={flag} className="text-xs text-amber-700 flex items-center gap-1">
-                      <span>⚠</span>
-                      {FLAG_LABELS[flag] || flag}
+                      <span>⚠</span> {FLAG_LABELS[flag] || flag}
                     </li>
                   ))}
               </ul>
@@ -308,7 +398,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
 
           <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={() => setExpanded((v) => !v)}
+              onClick={handleExpand}
               className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded hover:bg-blue-50"
             >
               {expanded ? 'Collapse' : 'Edit'}
@@ -317,9 +407,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
               onClick={() => onRemove(index)}
               title="Remove question"
               className="px-2 py-1 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded hover:bg-red-50"
-            >
-              ✕
-            </button>
+            >✕</button>
           </div>
         </div>
 
@@ -351,11 +439,11 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
           </div>
         )}
 
-        {/* Diagram preview + crop controls */}
+        {/* Collapsed view: diagram preview + mark scheme image */}
         {!expanded && (
-          <div className="mt-2 ml-10">
+          <div className="mt-2 ml-10 space-y-1">
             {question.stimulusBlock && (
-              <div className="max-w-xs border border-gray-200 rounded overflow-hidden mb-1">
+              <div className="max-w-xs border border-gray-200 rounded overflow-hidden">
                 <DiagramRenderer diagram={question.stimulusBlock} />
               </div>
             )}
@@ -366,26 +454,25 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
                     <button
                       onClick={() => setCropModalOpen(true)}
                       className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50"
-                    >
-                      ✂ Fix crop
-                    </button>
+                    >✂ Fix crop</button>
                     <button
                       onClick={handleRemoveDiagram}
                       className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50"
-                    >
-                      Remove diagram
-                    </button>
+                    >Remove diagram</button>
                   </>
                 ) : (
                   <button
                     onClick={() => setCropModalOpen(true)}
                     className="text-xs text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-50"
-                  >
-                    + Add diagram crop
-                  </button>
+                  >+ Add diagram crop</button>
                 )}
               </div>
             )}
+            {/* Mark scheme page image — always visible so teacher can check without expanding */}
+            <MarkSchemeImagePanel
+              msPageNum={question.msPageNum}
+              msPageThumbnails={msPageThumbnails}
+            />
           </div>
         )}
 
@@ -410,13 +497,16 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
                   <button
                     onClick={handleRemoveDiagram}
                     className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50"
-                  >
-                    Remove diagram
-                  </button>
+                  >Remove diagram</button>
                 )}
               </div>
             )}
-            <QuestionInlineEditor question={question} onChange={(updated) => onChange(index, updated)} />
+            {/* Mark scheme page image — open by default when editing */}
+            <MarkSchemeImagePanel
+              msPageNum={question.msPageNum}
+              msPageThumbnails={msPageThumbnails}
+            />
+            <QuestionInlineEditor question={question} onChange={handleInlineChange} />
           </div>
         )}
       </div>
@@ -425,7 +515,7 @@ const QuestionCard = ({ question, index, total, onMove, onChange, onRemove, page
   );
 };
 
-// ─── Source pages panel (side-by-side reference) ──────────────────────────────
+// ─── Source pages panel ───────────────────────────────────────────────────────
 
 const SourcePagesPanel = ({ thumbnails }) => {
   const [open, setOpen] = useState(false);
@@ -451,7 +541,6 @@ const SourcePagesPanel = ({ thumbnails }) => {
 
       {open && (
         <div className="border-t border-gray-100">
-          {/* Thumbnail strip */}
           <div className="flex gap-2 p-3 overflow-x-auto bg-gray-50">
             {entries.map(([pageNum, src]) => (
               <button
@@ -467,16 +556,11 @@ const SourcePagesPanel = ({ thumbnails }) => {
               </button>
             ))}
           </div>
-
-          {/* Expanded view of selected page */}
           {selected && thumbnails[selected] && (
             <div className="p-4 border-t border-gray-100 bg-white">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700">Page {selected}</span>
-                <button
-                  onClick={() => setSelected(null)}
-                  className="text-xs text-gray-400 hover:text-gray-600"
-                >
+                <button onClick={() => setSelected(null)} className="text-xs text-gray-400 hover:text-gray-600">
                   Close ✕
                 </button>
               </div>
@@ -496,35 +580,39 @@ const SourcePagesPanel = ({ thumbnails }) => {
 
 // ─── Main review component ────────────────────────────────────────────────────
 
-/**
- * OCRExtractionReview
- *
- * Presents extracted questions with confidence badges for teacher review
- * before the assessment is finalised. Prevents auto-confirmation.
- *
- * Props:
- *   questions          – array of extracted question objects
- *   extractionSummary  – { avg_confidence, high_confidence, medium_confidence, low_confidence }
- *   pageThumbnails     – { "1": "data:image/jpeg;base64,...", "2": ... } — original page images
- *   onConfirm(qs)      – called with (possibly edited) questions when teacher confirms
- *   onBack()           – called when teacher wants to go back and re-upload
- */
-const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, pageImages, onConfirm, onBack }) => {
+const OCRExtractionReview = ({
+  questions: initialQuestions,
+  pageThumbnails,
+  pageImages,
+  msPageThumbnails,
+  onConfirm,
+  onBack,
+}) => {
   const [questions, setQuestions] = useState(() =>
     (initialQuestions || []).map((q, i) => ({ ...q, questionNumber: i + 1 }))
   );
-  const [filterTier, setFilterTier] = useState('all'); // 'all' | 'high' | 'medium' | 'low'
+  const [filterTier, setFilterTier] = useState('all');
+  // Set of question indices the teacher has opened for editing
+  const [reviewedSet, setReviewedSet] = useState(() => new Set());
 
-  // Always recompute from live question state so that resolving a missing diagram
-  // (via crop or Skip) immediately updates the summary counts and filter bar.
-  const highCount = questions.filter((q) => getEffectiveTier(q) === 'high').length;
-  const medCount  = questions.filter((q) => getEffectiveTier(q) === 'medium').length;
-  const lowCount  = questions.filter((q) => getEffectiveTier(q) === 'low').length;
-  const needsReview = lowCount + medCount;
+  const markReviewed = useCallback((idx) => {
+    setReviewedSet(prev => {
+      if (prev.has(idx)) return prev;
+      return new Set([...prev, idx]);
+    });
+  }, []);
+
+  // Counts based on live question state
+  const highCount    = questions.filter(q => getEffectiveTier(q) === 'high').length;
+  const medCount     = questions.filter(q => getEffectiveTier(q) === 'medium').length;
+  const lowCount     = questions.filter(q => getEffectiveTier(q) === 'low').length;
+  // Include questions with missing mark scheme in the attention count, avoiding double-counting
+  const attentionCount = questions.filter(questionNeedsAttention).length;
+  const unreviewedCount = questions.filter((q, i) => questionNeedsAttention(q) && !reviewedSet.has(i)).length;
 
   const moveQuestion = useCallback((fromIdx, toIdx) => {
     if (toIdx < 0 || toIdx >= questions.length) return;
-    setQuestions((prev) => {
+    setQuestions(prev => {
       const next = [...prev];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
@@ -533,7 +621,7 @@ const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, page
   }, [questions.length]);
 
   const updateQuestion = useCallback((idx, updated) => {
-    setQuestions((prev) => {
+    setQuestions(prev => {
       const next = [...prev];
       next[idx] = { ...updated, questionNumber: idx + 1 };
       return next;
@@ -541,15 +629,23 @@ const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, page
   }, []);
 
   const removeQuestion = useCallback((idx) => {
-    setQuestions((prev) => {
+    setQuestions(prev => {
       const next = prev.filter((_, i) => i !== idx);
       return next.map((q, i) => ({ ...q, questionNumber: i + 1 }));
+    });
+    // Re-map reviewedSet indices after removal
+    setReviewedSet(prev => {
+      const next = new Set();
+      prev.forEach(i => { if (i < idx) next.add(i); else if (i > idx) next.add(i - 1); });
+      return next;
     });
   }, []);
 
   const filteredQuestions = filterTier === 'all'
     ? questions
-    : questions.filter((q) => getEffectiveTier(q) === filterTier);
+    : filterTier === 'attention'
+    ? questions.filter(questionNeedsAttention)
+    : questions.filter(q => getEffectiveTier(q) === filterTier);
 
   return (
     <div className="space-y-4">
@@ -559,7 +655,7 @@ const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, page
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Review Extracted Questions</h3>
             <p className="text-sm text-gray-500 mt-0.5">
-              Check every question before confirming. Low-confidence items need your attention.
+              Check every question before confirming. Questions highlighted in red need your attention.
             </p>
           </div>
           <button
@@ -580,46 +676,77 @@ const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, page
             <span className="font-semibold text-green-800">{highCount}</span>
             <span className="text-green-700">high confidence</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200 text-sm">
-            <span className="font-semibold text-amber-800">{medCount}</span>
-            <span className="text-amber-700">need review</span>
-          </div>
+          {medCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200 text-sm">
+              <span className="font-semibold text-amber-800">{medCount}</span>
+              <span className="text-amber-700">medium confidence</span>
+            </div>
+          )}
           {lowCount > 0 && (
             <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200 text-sm">
               <span className="font-semibold text-red-800">{lowCount}</span>
               <span className="text-red-700">low confidence</span>
             </div>
           )}
+          {attentionCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-300 text-sm">
+              <span className="font-semibold text-red-800">{attentionCount}</span>
+              <span className="text-red-700">need review</span>
+              {unreviewedCount < attentionCount && (
+                <span className="text-green-700 ml-1">· {attentionCount - unreviewedCount} reviewed</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {needsReview > 0 && (
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            ⚠ <strong>{needsReview} question{needsReview !== 1 ? 's' : ''}</strong> need your attention. Click <strong>Edit</strong> on each highlighted question to check and correct the extracted text.
+        {/* Attention banner — shown until all flagged questions have been reviewed */}
+        {unreviewedCount > 0 && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-3">
+            <span className="text-red-500 text-lg shrink-0">⚠</span>
+            <div>
+              <p className="text-sm font-semibold text-red-800">
+                {unreviewedCount} question{unreviewedCount !== 1 ? 's' : ''} need{unreviewedCount === 1 ? 's' : ''} your attention
+              </p>
+              <p className="text-xs text-red-700 mt-0.5">
+                Questions with a red border have low extraction confidence or a missing mark scheme.
+                Click <strong>Edit</strong> on each one to verify and correct the extracted text, then enter any missing mark scheme.
+              </p>
+            </div>
+          </div>
+        )}
+        {unreviewedCount === 0 && attentionCount > 0 && (
+          <div className="mt-3 p-3 bg-green-50 border border-green-300 rounded-lg flex items-center gap-2">
+            <span className="text-green-600">✓</span>
+            <p className="text-sm text-green-800 font-medium">All flagged questions have been reviewed.</p>
           </div>
         )}
       </div>
 
-      {/* Source pages side-by-side panel */}
+      {/* Source pages panel */}
       <SourcePagesPanel thumbnails={pageThumbnails} />
 
       {/* Filter bar */}
-      <div className="flex gap-2">
-        {['all', 'high', 'medium', 'low'].map((tier) => (
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { key: 'all',       label: 'All',            count: questions.length },
+          { key: 'attention', label: 'Needs attention', count: attentionCount },
+          { key: 'high',      label: 'High confidence', count: highCount },
+          { key: 'medium',    label: 'Medium',          count: medCount },
+          { key: 'low',       label: 'Low',             count: lowCount },
+        ].filter(f => f.key === 'all' || f.key === 'attention' || f.count > 0).map(({ key, label, count }) => (
           <button
-            key={tier}
-            onClick={() => setFilterTier(tier)}
+            key={key}
+            onClick={() => setFilterTier(key)}
             className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
-              filterTier === tier
-                ? 'bg-blue-600 text-white border-blue-600'
+              filterTier === key
+                ? key === 'attention' || key === 'low'
+                  ? 'bg-red-600 text-white border-red-600'
+                  : 'bg-blue-600 text-white border-blue-600'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
             }`}
           >
-            {tier === 'all' ? 'All' : tier.charAt(0).toUpperCase() + tier.slice(1)}
-            {tier !== 'all' && (
-              <span className="ml-1 opacity-70">
-                ({tier === 'high' ? highCount : tier === 'medium' ? medCount : lowCount})
-              </span>
-            )}
+            {label}
+            {key !== 'all' && <span className="ml-1 opacity-70">({count})</span>}
           </button>
         ))}
       </div>
@@ -643,6 +770,9 @@ const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, page
                 onChange={updateQuestion}
                 onRemove={removeQuestion}
                 pageImages={pageImages}
+                msPageThumbnails={msPageThumbnails}
+                isReviewed={reviewedSet.has(realIdx)}
+                onMarkReviewed={markReviewed}
               />
             );
           })}
@@ -652,14 +782,20 @@ const OCRExtractionReview = ({ questions: initialQuestions, pageThumbnails, page
       {/* Sticky confirm bar */}
       <div className="sticky bottom-0 bg-white border-t shadow-lg rounded-b-lg px-5 py-4 flex items-center justify-between gap-4">
         <div className="text-sm text-gray-600">
-          {questions.length} question{questions.length !== 1 ? 's' : ''} ready to edit
-          {needsReview > 0 && (
-            <span className="ml-2 text-amber-700">· {needsReview} still need review</span>
+          {unreviewedCount > 0 ? (
+            <span className="text-red-600 font-medium">
+              Review {unreviewedCount} remaining question{unreviewedCount !== 1 ? 's' : ''} before continuing
+            </span>
+          ) : (
+            <span className="text-green-700 font-medium">
+              {questions.length} question{questions.length !== 1 ? 's' : ''} ready — all reviewed
+            </span>
           )}
         </div>
         <button
           onClick={() => onConfirm(questions)}
-          disabled={questions.length === 0}
+          disabled={questions.length === 0 || unreviewedCount > 0}
+          title={unreviewedCount > 0 ? `${unreviewedCount} question${unreviewedCount !== 1 ? 's' : ''} still need review` : undefined}
           className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           Confirm &amp; Edit Questions →

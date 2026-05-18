@@ -19,7 +19,7 @@ export const JoinPage = () => {
   const [classRoster, setClassRoster] = useState(null);
   const [selectedStudentId, setSelectedStudentId] = useState('');
 
-  // Phase 4: Check if assessment is class-linked when join code changes
+  // Check if the code is an assignment code or class-linked assessment when entered
   const handleCodeChange = async (code) => {
     setJoinCode(code.toUpperCase());
     setClassRoster(null);
@@ -28,7 +28,8 @@ export const JoinPage = () => {
     setFirstName('');
     setLastName('');
     setCandidateNumber('');
-    
+    setError('');
+
     if (code.length === 6) {
       setCheckingCode(true);
       try {
@@ -36,8 +37,13 @@ export const JoinPage = () => {
         if (response.data.has_roster && response.data.students.length > 0) {
           setClassRoster(response.data);
         }
+        // type=assignment or has_roster=false → just show the manual name form (no action needed)
       } catch (err) {
-        // Silently fail - code might be invalid or not class-linked
+        // 400 means the code is valid but the assessment/assignment is closed
+        if (err.response?.status === 400) {
+          setError('This assessment is now closed. Contact your teacher.');
+        }
+        // 404 = invalid code — let the submit button validate it on submit
       }
       setCheckingCode(false);
     }
@@ -77,7 +83,14 @@ export const JoinPage = () => {
         navigate(`/attempt/${attemptId}`);
       }
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to join assessment'));
+      const msg = err.response?.data?.detail || '';
+      if (msg === 'Invalid join code') {
+        setError('Invalid join code. Please check the code and try again.');
+      } else if (msg === 'This assessment is now closed') {
+        setError('This assessment is now closed. Contact your teacher.');
+      } else {
+        setError(getApiErrorMessage(err, 'Failed to join assessment'));
+      }
       setLoading(false);
     }
   };

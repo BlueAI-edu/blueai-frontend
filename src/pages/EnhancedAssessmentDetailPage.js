@@ -12,6 +12,11 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [releasingIds, setReleasingIds] = useState(new Set());
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [assignResult, setAssignResult] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -106,6 +111,30 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
   const isOcrLocked = assessment.assessmentMode === 'OCR_GENERATED_GCSE_PAST_PAPER' && assessment.ocrConfirmed;
   const unreleasedCount = submissions?.filter(s => s.status === 'marked' && !s.feedback_released).length || 0;
 
+  const openAssignModal = async () => {
+    setAssignResult(null);
+    setSelectedClassId('');
+    setShowAssignModal(true);
+    try {
+      const res = await axios.get(`${API}/teacher/classes`);
+      setClasses(res.data.classes || []);
+    } catch {
+      setClasses([]);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedClassId) return;
+    setAssigning(true);
+    try {
+      const res = await axios.post(`${API}/teacher/assessments/${assessmentId}/assignments`, { class_id: selectedClassId });
+      setAssignResult(res.data);
+    } catch (error) {
+      handleApiError(error, 'Failed to assign assessment');
+    }
+    setAssigning(false);
+  };
+
   const handleUnlockOcr = async () => {
     if (!window.confirm(
       'Unlock this GCSE Past Paper assessment for re-extraction?\n\n' +
@@ -153,6 +182,17 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                   <p><strong>Submissions:</strong> {attempts_count}</p>
                 </div>
               </div>
+            </div>
+            <div className="ml-4 shrink-0">
+              <button
+                onClick={openAssignModal}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Assign to Class
+              </button>
             </div>
           </div>
 
@@ -287,6 +327,82 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
           )}
         </div>
       </div>
+
+      {/* Assign to Class Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Assign to Class</h2>
+              <button onClick={() => { setShowAssignModal(false); setAssignResult(null); }} className="text-gray-500 hover:text-gray-700">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {assignResult ? (
+                <div className="text-center space-y-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="font-semibold text-gray-900">Assigned to {assignResult.class_name}!</p>
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Student join code</p>
+                    <p className="text-3xl font-mono font-bold text-blue-700 tracking-widest">{assignResult.assignment.join_code}</p>
+                    <p className="text-xs text-gray-500 mt-2">Share this code with students in {assignResult.class_name}.</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowAssignModal(false); setAssignResult(null); }}
+                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Class</label>
+                    {classes.length === 0 ? (
+                      <p className="text-sm text-gray-500">No classes found. Create a class first.</p>
+                    ) : (
+                      <select
+                        value={selectedClassId}
+                        onChange={e => setSelectedClassId(e.target.value)}
+                        className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Select a class --</option>
+                        {classes.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.class_name}{c.year_group ? ` (Year ${c.year_group})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => { setShowAssignModal(false); setAssignResult(null); }}
+                      className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAssign}
+                      disabled={!selectedClassId || assigning}
+                      className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {assigning ? 'Assigning...' : 'Assign & Generate Code'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
