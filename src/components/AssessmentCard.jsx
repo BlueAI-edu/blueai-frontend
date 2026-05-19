@@ -124,29 +124,29 @@ const OverflowMenu = ({ items }) => {
 
 // ─── Countdown display ────────────────────────────────────────────────────────
 
-const TimeDisplay = ({ startedAt, durationMinutes }) => {
+const TimeDisplay = ({ startedAt }) => {
   const [display, setDisplay] = useState("");
 
   useEffect(() => {
-    if (!startedAt || !durationMinutes) return;
+    if (!startedAt) return;
     const tick = () => {
-      const endMs = new Date(startedAt).getTime() + durationMinutes * 60_000;
-      const diffMs = endMs - Date.now();
-      if (diffMs <= 0) { setDisplay("Ended"); return; }
-      const h = Math.floor(diffMs / 3_600_000);
-      const m = Math.floor((diffMs % 3_600_000) / 60_000);
-      const s = Math.floor((diffMs % 60_000) / 1_000);
-      setDisplay(h > 0 ? `${h}h ${m}m remaining` : `${m}m ${s}s remaining`);
+      const elapsedMs = Date.now() - new Date(startedAt).getTime();
+      if (elapsedMs < 0) return;
+      const totalSeconds = Math.floor(elapsedMs / 1_000);
+      const h = Math.floor(totalSeconds / 3_600);
+      const m = Math.floor((totalSeconds % 3_600) / 60);
+      const s = totalSeconds % 60;
+      setDisplay(h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`);
     };
     tick();
     const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
-  }, [startedAt, durationMinutes]);
+  }, [startedAt]);
 
   if (!display) return null;
   return (
     <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
-      ⏱ {display}
+      ⏱ Running {display}
     </span>
   );
 };
@@ -324,7 +324,7 @@ export const AssessmentCard = ({
             <StatusBadge status={a.status} />
             <TypeBadge mode={mode} />
             {isStarted && duration && (
-              <TimeDisplay startedAt={a.started_at} durationMinutes={duration} />
+              <TimeDisplay startedAt={a.started_at} />
             )}
           </div>
           <JoinCodeBlock code={a.join_code} status={a.status} />
