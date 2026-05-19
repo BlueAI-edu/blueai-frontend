@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import StudentMathInput from '../components/StudentMathInput';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import DiagramRenderer from '../components/DiagramRenderer';
+import DrawableCanvas, { requiresDrawing } from '../components/DrawableCanvas';
+import StudentMathKeyboard from '../components/StudentMathKeyboard';
+import StudentCalculator from '../components/StudentCalculator';
 import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
 import QuestionSidebar from '../components/QuestionSidebar';
 import SecurityOverlays from '../components/SecurityOverlays';
@@ -24,6 +26,9 @@ export const EnhancedAttemptPage = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showMathKeyboard, setShowMathKeyboard] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
 
   const { timeLeft } = useTimer({
     // Per-student timing: count down from when the student personally joined.
@@ -133,12 +138,32 @@ export const EnhancedAttemptPage = () => {
     }
   };
 
+  const toggleFlag = useCallback((index) => {
+    setFlaggedQuestions(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
   const goToQuestion = useCallback((index) => setCurrentQuestionIndex(index), []);
   const goToNextQuestion = useCallback(() => {
     setCurrentQuestionIndex(prev => prev < (assessment?.questions?.length || 1) - 1 ? prev + 1 : prev);
   }, [assessment?.questions?.length]);
   const goToPreviousQuestion = useCallback(() => {
     setCurrentQuestionIndex(prev => prev > 0 ? prev - 1 : prev);
+  }, []);
+
+  // Returns true if an answer value (string or drawing JSON) counts as answered.
+  const hasAnswer = useCallback((val) => {
+    if (!val) return false;
+    try {
+      const parsed = JSON.parse(val);
+      return parsed?._type === 'drawing' && !!parsed.imageData;
+    } catch {
+      return !!val.trim();
+    }
   }, []);
 
   const answerProgress = useMemo(() => {
@@ -150,15 +175,29 @@ export const EnhancedAttemptPage = () => {
         totalItems += q.parts.length;
         q.parts.forEach(part => {
           const partKey = `${q.questionNumber}-${part.partLabel}`;
-          if (answers[partKey]?.trim()) answeredCount++;
+          if (hasAnswer(answers[partKey])) answeredCount++;
         });
       } else {
         totalItems += 1;
-        if (answers[q.questionNumber]?.trim()) answeredCount++;
+        if (hasAnswer(answers[q.questionNumber])) answeredCount++;
       }
     });
     return { answeredCount, totalItems };
-  }, [assessment?.questions, answers]);
+  }, [assessment?.questions, answers, hasAnswer]);
+
+  // Track the last focused textarea/input so the keyboard can insert even after
+  // focus moves to a keyboard button (onMouseDown prevents this in most cases,
+  // but the ref is a reliable fallback).
+  const lastFocusedInputRef = useRef(null);
+  useEffect(() => {
+    const track = (e) => {
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+        lastFocusedInputRef.current = e.target;
+      }
+    };
+    document.addEventListener('focusin', track);
+    return () => document.removeEventListener('focusin', track);
+  }, []);
 
   if (loading) {
     return (
@@ -231,9 +270,38 @@ export const EnhancedAttemptPage = () => {
 
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
 
+  // Respect explicit teacher override; fall back to keyword auto-detection.
+  const shouldDraw = (entity, text) => {
+    if (entity?.drawingEnabled === true) return true;
+    if (entity?.drawingEnabled === false) return false;
+    return requiresDrawing(text);
+  };
+
+  // Insert a keyboard symbol into the last focused textarea/input.
+  const insertIntoFocused = (symbol, cursorOffset = 0) => {
+    const el = lastFocusedInputRef.current || document.activeElement;
+    if (!el || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT')) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const before = el.value.substring(0, start);
+    const after = el.value.substring(end);
+    const newValue = before + symbol + after;
+    // Trigger React's synthetic onChange via the native value setter.
+    const proto = el.tagName === 'TEXTAREA'
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, newValue);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(() => {
+      const pos = start + symbol.length + (cursorOffset || 0);
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
   return (
     <div
-      className="min-h-screen bg-gray-50 flex"
+      className="h-screen overflow-hidden bg-gray-50 flex"
       onCopy={(e) => e.preventDefault()}
       onCut={(e) => e.preventDefault()}
       onContextMenu={(e) => e.preventDefault()}
@@ -250,7 +318,9 @@ export const EnhancedAttemptPage = () => {
         timeLeft={timeLeft}
         answers={answers}
         currentQuestionIndex={currentQuestionIndex}
+        flaggedQuestions={flaggedQuestions}
         onGoToQuestion={goToQuestion}
+        onToggleFlag={toggleFlag}
         onSubmit={() => handleSubmit(false)}
         submitting={submitting}
         isSaving={isSaving}
@@ -265,17 +335,26 @@ export const EnhancedAttemptPage = () => {
               <h2 className="text-2xl font-bold text-gray-900">
                 Question {currentQuestion.questionNumber}
               </h2>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {currentQuestion.maxMarks && !isFormative && (
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                     {currentQuestion.maxMarks} marks
                   </span>
                 )}
-                {currentQuestion.calculatorAllowed && (
-                  <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                    Calculator Allowed
-                  </span>
-                )}
+                <button
+                  onClick={() => toggleFlag(currentQuestionIndex)}
+                  title={flaggedQuestions.has(currentQuestionIndex) ? 'Remove flag' : 'Flag for review'}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    flaggedQuestions.has(currentQuestionIndex)
+                      ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill={flaggedQuestions.has(currentQuestionIndex) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                  </svg>
+                  {flaggedQuestions.has(currentQuestionIndex) ? 'Flagged' : 'Flag'}
+                </button>
               </div>
             </div>
 
@@ -287,11 +366,48 @@ export const EnhancedAttemptPage = () => {
               <DiagramRenderer diagram={currentQuestion.stimulusBlock} className="mt-2" />
             )}
 
+            {/* Question-level drawing canvas for structured questions whose body requires a sketch */}
+            {currentQuestion.questionType === 'STRUCTURED_WITH_PARTS' && (() => {
+              const qNeedsDrawing = shouldDraw(currentQuestion, currentQuestion.questionBody);
+              if (!qNeedsDrawing) return null;
+              const sketchKey = `${currentQuestion.questionNumber}-drawing`;
+              let savedSketch = null;
+              if (answers[sketchKey]) {
+                try {
+                  const p = JSON.parse(answers[sketchKey]);
+                  if (p?._type === 'drawing') savedSketch = p.imageData;
+                } catch { /* not a drawing answer */ }
+              }
+              return (
+                <div className="mt-4 border border-purple-200 bg-purple-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-purple-800 mb-3">
+                    Use the grid below to sketch your answer
+                  </p>
+                  <DrawableCanvas
+                    key={sketchKey}
+                    initialDrawing={savedSketch}
+                    onChange={(imageData) =>
+                      handleAnswerChange(sketchKey, JSON.stringify({ _type: 'drawing', imageData }))
+                    }
+                  />
+                </div>
+              );
+            })()}
+
             {/* Structured Question Parts */}
             {currentQuestion.questionType === 'STRUCTURED_WITH_PARTS' && currentQuestion.parts && currentQuestion.parts.length > 0 && (
               <div className="mt-6 space-y-6">
                 {currentQuestion.parts.map((part, idx) => {
                   const partAnswerKey = `${currentQuestion.questionNumber}-${part.partLabel}`;
+                  const partNeedsDrawing = shouldDraw(part, part.partPrompt);
+                  // Recover saved drawing data if any
+                  let savedDrawingData = null;
+                  if (partNeedsDrawing && answers[partAnswerKey]) {
+                    try {
+                      const p = JSON.parse(answers[partAnswerKey]);
+                      if (p?._type === 'drawing') savedDrawingData = p.imageData;
+                    } catch { /* not a drawing answer */ }
+                  }
                   return (
                     <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
                       <div className="flex items-start justify-between mb-3">
@@ -301,6 +417,11 @@ export const EnhancedAttemptPage = () => {
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
                               {part.maxMarks} {part.maxMarks === 1 ? 'mark' : 'marks'}
                             </span>
+                            {partNeedsDrawing && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                                Draw / Plot
+                              </span>
+                            )}
                           </div>
                           <div className="prose max-w-none">
                             <LaTeXRenderer text={part.partPrompt || ''} />
@@ -311,12 +432,31 @@ export const EnhancedAttemptPage = () => {
                         </div>
                       </div>
                       <div className="mt-3">
-                        <StudentMathInput
-                          value={answers[partAnswerKey] || ''}
-                          onChange={(value) => handleAnswerChange(partAnswerKey, value)}
-                          placeholder={`Your answer for part ${part.partLabel}...`}
-                          showKeyboard={false}
-                        />
+                        {partNeedsDrawing ? (
+                          <DrawableCanvas
+                            key={partAnswerKey}
+                            initialDrawing={savedDrawingData}
+                            onChange={(imageData) =>
+                              handleAnswerChange(partAnswerKey, JSON.stringify({ _type: 'drawing', imageData }))
+                            }
+                          />
+                        ) : (
+                          <div className="space-y-2">
+                            <textarea
+                              value={answers[partAnswerKey] || ''}
+                              onChange={(e) => handleAnswerChange(partAnswerKey, e.target.value)}
+                              placeholder={`Your answer for part ${part.partLabel}...`}
+                              rows={3}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-none"
+                            />
+                            {answers[partAnswerKey]?.includes('$') && (
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs text-blue-600 font-medium mb-1">Rendered preview</p>
+                                <LaTeXRenderer text={answers[partAnswerKey]} />
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -356,18 +496,105 @@ export const EnhancedAttemptPage = () => {
 
           {/* Answer Input for non-MCQ and non-Structured */}
           {currentQuestion.questionType !== 'MULTIPLE_CHOICE' &&
-           currentQuestion.questionType !== 'STRUCTURED_WITH_PARTS' && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Your Answer</h3>
-              <StudentMathInput
-                value={answers[currentQuestion.questionNumber] || ''}
-                onChange={(value) => handleAnswerChange(currentQuestion.questionNumber, value)}
-                placeholder="Type your answer here..."
-                showKeyboard={true}
-              />
-              <p className="text-sm text-gray-500 mt-2">
-                You can use the math keyboard to insert mathematical symbols and expressions.
-              </p>
+           currentQuestion.questionType !== 'STRUCTURED_WITH_PARTS' && (() => {
+            const needsDrawing = shouldDraw(currentQuestion, currentQuestion.questionBody);
+            let savedDrawing = null;
+            if (needsDrawing && answers[currentQuestion.questionNumber]) {
+              try {
+                const p = JSON.parse(answers[currentQuestion.questionNumber]);
+                if (p?._type === 'drawing') savedDrawing = p.imageData;
+              } catch { /* not a drawing answer */ }
+            }
+            return (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  Your Answer
+                  {needsDrawing && (
+                    <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                      Draw / Plot
+                    </span>
+                  )}
+                </h3>
+                {needsDrawing ? (
+                  <DrawableCanvas
+                    key={currentQuestion.questionNumber}
+                    initialDrawing={savedDrawing}
+                    onChange={(imageData) =>
+                      handleAnswerChange(currentQuestion.questionNumber, JSON.stringify({ _type: 'drawing', imageData }))
+                    }
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <textarea
+                      value={answers[currentQuestion.questionNumber] || ''}
+                      onChange={(e) => handleAnswerChange(currentQuestion.questionNumber, e.target.value)}
+                      placeholder="Type your answer here..."
+                      rows={4}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-none"
+                    />
+                    {answers[currentQuestion.questionNumber]?.includes('$') && (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-xs text-blue-600 font-medium mb-1">Rendered preview</p>
+                        <LaTeXRenderer text={answers[currentQuestion.questionNumber]} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Assessment-wide tool panels */}
+          {assessment.mathKeyboardEnabled && showMathKeyboard && (
+            <div className="fixed right-0 top-0 h-full w-72 bg-white shadow-2xl border-l border-gray-200 z-40 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-600 text-white shrink-0">
+                <span className="font-semibold text-sm">Maths Keyboard</span>
+                <button
+                  onClick={() => setShowMathKeyboard(false)}
+                  className="p-1 rounded hover:bg-blue-700 text-white"
+                >✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2">
+                <StudentMathKeyboard onInsert={insertIntoFocused} onClose={() => setShowMathKeyboard(false)} />
+              </div>
+            </div>
+          )}
+
+          {assessment.calculatorAllowed && showCalculator && (
+            <div className={`fixed ${showMathKeyboard ? 'right-[19rem]' : 'right-4'} bottom-28 z-40 w-80 transition-all duration-200`}>
+              <StudentCalculator onClose={() => setShowCalculator(false)} />
+            </div>
+          )}
+
+          {/* Floating tool toggle buttons (assessment-wide) */}
+          {(assessment.calculatorAllowed || assessment.mathKeyboardEnabled) && (
+            <div className={`fixed ${showMathKeyboard ? 'right-[19rem]' : 'right-4'} bottom-8 flex flex-col gap-2 z-50 transition-all duration-200`}>
+              {assessment.calculatorAllowed && (
+                <button
+                  onClick={() => setShowCalculator(v => !v)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium transition-colors ${
+                    showCalculator ? 'bg-purple-700 text-white hover:bg-purple-800' : 'bg-purple-600 text-white hover:bg-purple-700'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-2M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01" />
+                  </svg>
+                  Calculator
+                </button>
+              )}
+              {assessment.mathKeyboardEnabled && (
+                <button
+                  onClick={() => setShowMathKeyboard(v => !v)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium transition-colors ${
+                    showMathKeyboard ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  Maths Keyboard
+                </button>
+              )}
             </div>
           )}
 

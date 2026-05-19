@@ -167,6 +167,16 @@ export const AssessmentsPage = ({ user }) => {
     }
   };
 
+  const handleDeleteAssessment = async (id, title) => {
+    if (!window.confirm(`Permanently delete "${title}"?\n\nThis will also remove all student attempts and cannot be undone.`)) return;
+    try {
+      await axios.delete(`${API}/teacher/assessments/${id}`);
+      loadData();
+    } catch (error) {
+      handleApiError(error, "Failed to delete assessment");
+    }
+  };
+
   const getStatusBadge = (status) => {
     const labels = {
       draft: 'Draft',
@@ -725,6 +735,7 @@ export const AssessmentsPage = ({ user }) => {
                               onEdit={() => navigate(`/teacher/assessments/${a.id}/edit`)}
                               onViewSubmissions={() => navigate(`/teacher/assessments/${a.id}`)}
                               onViewEnhanced={() => navigate(`/teacher/assessments/${a.id}/enhanced`)}
+                              onDelete={a.status !== 'started' ? () => handleDeleteAssessment(a.id, a.title || question?.topic || 'this assessment') : undefined}
                             />
                           );
                         })}
