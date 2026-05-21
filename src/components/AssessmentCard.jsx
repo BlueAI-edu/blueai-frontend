@@ -192,40 +192,102 @@ const SubmissionsProgress = ({ submitted, total, flagged }) => {
 
 // ─── Join code block ──────────────────────────────────────────────────────────
 
-const JoinCodeBlock = ({ code, status }) => {
+const CopyButton = ({ text, size = 13 }) => {
   const [copied, setCopied] = useState(false);
   const copy = () => {
-    navigator.clipboard.writeText(code).then(() => {
+    navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
   };
   return (
-    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Join Code</span>
-      <div className="flex items-center gap-1.5">
-        <span
-          className="font-mono text-lg font-bold text-indigo-700 tracking-widest leading-none"
-          data-testid={`join-code-${code}`}
-        >
-          {code}
-        </span>
-        <button
-          onClick={copy}
-          className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-          title="Copy code"
-        >
-          {copied ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          ) : (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-            </svg>
-          )}
-        </button>
+    <button
+      onClick={copy}
+      className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+      title="Copy code"
+    >
+      {copied ? (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+};
+
+// Renders class-specific codes (prominent) + universal code (dimmed).
+// Falls back to the original single-code look when no assignments.
+const JoinCodeBlock = ({ code, status, assignments = [] }) => {
+  if (assignments.length === 0) {
+    return (
+      <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+        <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Join Code</span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="font-mono text-lg font-bold text-indigo-700 tracking-widest leading-none"
+            data-testid={`join-code-${code}`}
+          >
+            {code}
+          </span>
+          <CopyButton text={code} />
+        </div>
+        {status === "started" && (
+          <span className="text-[10px] text-gray-400">/join</span>
+        )}
       </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+      {assignments.map((a) => (
+        <div key={a.id} className="flex items-center gap-1">
+          <div className="flex flex-col items-end">
+            <span
+              className="text-[10px] font-medium text-gray-400 uppercase tracking-wider leading-none mb-0.5 max-w-[120px] truncate"
+              title={a.class_name}
+            >
+              {a.class_name}
+            </span>
+            <div className="flex items-center gap-1">
+              <span
+                className={`font-mono text-base font-bold tracking-widest leading-none ${
+                  a.status === 'open' ? 'text-indigo-700' : 'text-gray-400 line-through'
+                }`}
+                data-testid={`join-code-${a.join_code}`}
+              >
+                {a.join_code}
+              </span>
+              {a.status !== 'open' && (
+                <span className="text-[9px] text-gray-400 font-medium uppercase">closed</span>
+              )}
+            </div>
+          </div>
+          <CopyButton text={a.join_code} size={11} />
+        </div>
+      ))}
+
+      <div className="w-full border-t border-gray-100 pt-1">
+        <div className="flex items-center gap-1 justify-end">
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-medium text-gray-300 uppercase tracking-wider leading-none mb-0.5">
+              Universal
+            </span>
+            <span
+              className="font-mono text-sm font-semibold tracking-widest leading-none text-gray-400"
+              data-testid={`join-code-${code}`}
+            >
+              {code}
+            </span>
+          </div>
+          <CopyButton text={code} size={11} />
+        </div>
+      </div>
+
       {status === "started" && (
         <span className="text-[10px] text-gray-400">/join</span>
       )}
@@ -239,6 +301,7 @@ export const AssessmentCard = ({
   assessment: a,
   question,
   classes = [],
+  assignments = [],
   onStart,
   onClose,
   onReopen,
@@ -327,7 +390,7 @@ export const AssessmentCard = ({
               <TimeDisplay startedAt={a.started_at} />
             )}
           </div>
-          <JoinCodeBlock code={a.join_code} status={a.status} />
+          <JoinCodeBlock code={a.join_code} status={a.status} assignments={assignments} />
         </div>
 
         {/* ── Row 2: title ── */}
