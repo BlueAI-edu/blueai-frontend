@@ -37,6 +37,37 @@ export default function OCRReviewPage() {
     }
   }, [currentPageIndex, pages]);
 
+  const getSelectionPreview = (selection) => {
+    const selected = [];
+    const ambiguous = [];
+
+    (selection?.options || []).forEach((option) => {
+      const label = (option?.label || option?.text || "").trim();
+      if (!label) return;
+      if (option.state === "selected") selected.push(label);
+      if (option.state === "ambiguous") ambiguous.push(label);
+    });
+
+    const parts = [];
+    if (selected.length > 0) parts.push(`Selected: ${selected.join("; ")}`);
+    if (ambiguous.length > 0) parts.push(`Ambiguous: ${ambiguous.join("; ")}`);
+    return parts.join("\n");
+  };
+
+  const getResponseBlockPreview = (responseBlock) => {
+    const componentSelections = responseBlock?.structured_response?.components
+      ?.map((component) => getSelectionPreview(component.selection))
+      .filter(Boolean);
+    const previewParts = [];
+    if (responseBlock?.extracted_text?.trim()) {
+      previewParts.push(responseBlock.extracted_text.trim());
+    }
+    if (componentSelections?.length > 0) {
+      previewParts.push(componentSelections.join("\n"));
+    }
+    return previewParts.join("\n") || "(empty)";
+  };
+
   const getPageAnswerText = (page) => {
     if (page?.approved_ocr_text) return page.approved_ocr_text;
     if (page?.vision_responses?.length > 0) {
@@ -45,7 +76,10 @@ export default function OCRReviewPage() {
           const parts = [];
           if (r.answer_text?.trim()) parts.push(r.answer_text.trim());
           if (r.working_text?.trim()) parts.push(r.working_text.trim());
-          return parts.join("\n\n");
+          const selectionPreview = getSelectionPreview(r.selection);
+          if (selectionPreview) parts.push(selectionPreview);
+          if (parts.length === 0) return "";
+          return `[Q${r.question_ref || ""}] ${parts.join("\n\n")}`;
         })
         .filter(Boolean)
         .join("\n\n");
@@ -489,7 +523,7 @@ export default function OCRReviewPage() {
                       </div>
                     </div>
                     <p className="text-xs text-slate-600 line-clamp-2 font-mono">
-                      {rb.extracted_text || "(empty)"}
+                      {getResponseBlockPreview(rb)}
                     </p>
                     {rb.source_pages?.length > 1 && (
                       <p className="text-xs text-slate-400 mt-1">
