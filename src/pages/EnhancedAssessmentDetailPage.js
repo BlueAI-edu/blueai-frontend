@@ -17,6 +17,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState(null);
+  const [detailAssignments, setDetailAssignments] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -24,8 +25,12 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
 
   const loadData = async () => {
     try {
-      const response = await axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`);
-      setData(response.data);
+      const [assessmentRes, assignmentsRes] = await Promise.all([
+        axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`),
+        axios.get(`${API}/teacher/assessments/${assessmentId}/assignments`).catch(() => ({ data: { assignments: [] } })),
+      ]);
+      setData(assessmentRes.data);
+      setDetailAssignments(assignmentsRes.data.assignments || []);
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -129,6 +134,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
     try {
       const res = await axios.post(`${API}/teacher/assessments/${assessmentId}/assignments`, { class_id: selectedClassId });
       setAssignResult(res.data);
+      loadData();
     } catch (error) {
       handleApiError(error, 'Failed to assign assessment');
     }
@@ -178,7 +184,26 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                 </div>
                 <div>
                   <p><strong>Duration:</strong> {assessment.durationMinutes} minutes</p>
-                  <p><strong>Join Code:</strong> <span className="text-blue-600 font-bold">{assessment.join_code}</span></p>
+                  {detailAssignments.length > 0 ? (
+                    <div>
+                      <strong>Class Join Codes:</strong>
+                      <div className="mt-1 space-y-1">
+                        {detailAssignments.map(a => (
+                          <div key={a.id} className="flex items-center gap-2 text-sm">
+                            <span className="font-mono font-bold text-blue-600">{a.join_code}</span>
+                            <span className="text-gray-500">— {a.class_name}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              a.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {a.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p><strong>Join Code:</strong> <span className="text-blue-600 font-bold">{assessment.join_code}</span></p>
+                  )}
                   <p><strong>Submissions:</strong> {attempts_count}</p>
                 </div>
               </div>

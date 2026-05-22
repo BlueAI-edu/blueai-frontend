@@ -15,6 +15,7 @@ export const AssessmentsPage = ({ user }) => {
   const [questions, setQuestions] = useState([]);
   const [classes, setClasses] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [assignmentsByAssessment, setAssignmentsByAssessment] = useState({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
@@ -45,17 +46,24 @@ export const AssessmentsPage = ({ user }) => {
 
   const loadData = async () => {
     try {
-      const [assessmentsRes, questionsRes, classesRes, templatesRes] =
+      const [assessmentsRes, questionsRes, classesRes, templatesRes, assignmentsRes] =
         await Promise.all([
           axios.get(`${API}/teacher/assessments`),
           axios.get(`${API}/teacher/questions`),
           axios.get(`${API}/teacher/classes`),
           axios.get(`${API}/teacher/templates`),
+          axios.get(`${API}/teacher/assignments`).catch(() => ({ data: { assignments: [] } })),
         ]);
       setAssessments(assessmentsRes.data);
       setQuestions(questionsRes.data);
       setClasses(classesRes.data.classes || []);
       setTemplates(templatesRes.data.templates || []);
+      const grouped = {};
+      for (const a of (assignmentsRes.data.assignments || [])) {
+        if (!grouped[a.assessment_id]) grouped[a.assessment_id] = [];
+        grouped[a.assessment_id].push(a);
+      }
+      setAssignmentsByAssessment(grouped);
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -729,6 +737,7 @@ export const AssessmentsPage = ({ user }) => {
                               assessment={a}
                               question={question}
                               classes={classes}
+                              assignments={assignmentsByAssessment[a.id] || []}
                               onStart={() => handleStart(a.id)}
                               onClose={() => handleClose(a.id)}
                               onReopen={() => handleReopen(a.id)}

@@ -43,6 +43,10 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     class_id: null
   });
 
+  const [selectedClassIds, setSelectedClassIds] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+
   const [showAIBulk, setShowAIBulk] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState(0);
@@ -174,6 +178,21 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     }
   }, [assessmentId]);
 
+  useEffect(() => {
+    const fetchClasses = async () => {
+      setClassesLoading(true);
+      try {
+        const res = await axios.get(`${API}/teacher/classes`);
+        setClasses(res.data.classes || []);
+      } catch (e) {
+        // non-fatal — teacher can still see the empty state
+      } finally {
+        setClassesLoading(false);
+      }
+    };
+    fetchClasses();
+  }, []);
+
   const loadAssessment = async () => {
     try {
       const response = await axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`);
@@ -213,6 +232,20 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const updateField = useCallback((field, value) => {
     setAssessmentData(prev => ({ ...prev, [field]: value }));
   }, []);
+
+  const toggleClass = useCallback((classId) => {
+    setSelectedClassIds(prev =>
+      prev.includes(classId) ? prev.filter(id => id !== classId) : [...prev, classId]
+    );
+  }, []);
+
+  const createAssignments = async (newAssessmentId) => {
+    await Promise.all(
+      selectedClassIds.map(classId =>
+        axios.post(`${API}/teacher/assessments/${newAssessmentId}/assignments`, { class_id: classId })
+      )
+    );
+  };
 
   const addQuestion = useCallback(() => {
     setAssessmentData(prev => {
@@ -291,6 +324,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       return false;
     }
 
+    if (!isEdit && selectedClassIds.length === 0) {
+      showNotification('Please assign this assessment to at least one class', 'error');
+      setCurrentStep(2);
+      return false;
+    }
+
     if (assessmentData.questions.length === 0) {
       showNotification('Please add at least one question', 'error');
       return false;
@@ -350,6 +389,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
           const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
           const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
           const newId = response.data.assessment.id;
+          await createAssignments(newId);
           showNotification('Assessment created as draft!', 'success');
           navigate(`/teacher/assessments/${newId}/enhanced`);
         }
@@ -377,6 +417,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
           const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
           const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
           finalAssessmentId = response.data.assessment.id;
+          await createAssignments(finalAssessmentId);
         } else {
           await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
             questions: assessmentData.questions,
@@ -603,12 +644,45 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assign to Classes *
+                <span className="ml-1 font-normal text-gray-400 text-xs">— at least one required</span>
+              </label>
+              {classesLoading ? (
+                <p className="text-sm text-gray-400">Loading classes...</p>
+              ) : classes.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                  No classes yet. <a href="/teacher/classes" className="underline font-medium">Create a class first</a>, then come back.
+                </div>
+              ) : (
+                <div className={`border rounded-lg divide-y max-h-48 overflow-y-auto ${selectedClassIds.length === 0 ? 'border-red-300' : 'border-gray-200'}`}>
+                  {classes.map(cls => (
+                    <label key={cls.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        checked={selectedClassIds.includes(cls.id)}
+                        onChange={() => toggleClass(cls.id)}
+                      />
+                      <span className="text-sm text-gray-800 flex-1">{cls.class_name}</span>
+                      <span className="text-xs text-gray-400">{cls.student_count} student{cls.student_count !== 1 ? 's' : ''}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedClassIds.length === 0 && classes.length > 0 && (
+                <p className="mt-1 text-xs text-red-500">Select at least one class to continue.</p>
+              )}
+            </div>
+
             <div className="flex justify-between pt-4 border-t">
               <button onClick={() => setCurrentStep(1)} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">← Back</button>
               <button
                 onClick={() => {
                   if (!assessmentData.title.trim()) { showNotification('Assessment title is required', 'error'); return; }
                   if (!assessmentData.subject) { showNotification('Subject is required', 'error'); return; }
+                  if (selectedClassIds.length === 0) { showNotification('Please assign this assessment to at least one class', 'error'); return; }
                   setCurrentStep(3);
                 }}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -778,9 +852,47 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assign to Classes *
+                <span className="ml-1 font-normal text-gray-400 text-xs">— at least one required</span>
+              </label>
+              {classesLoading ? (
+                <p className="text-sm text-gray-400">Loading classes...</p>
+              ) : classes.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                  No classes yet. <a href="/teacher/classes" className="underline font-medium">Create a class first</a>, then come back.
+                </div>
+              ) : (
+                <div className={`border rounded-lg divide-y max-h-48 overflow-y-auto ${selectedClassIds.length === 0 ? 'border-red-300' : 'border-gray-200'}`}>
+                  {classes.map(cls => (
+                    <label key={cls.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        checked={selectedClassIds.includes(cls.id)}
+                        onChange={() => toggleClass(cls.id)}
+                      />
+                      <span className="text-sm text-gray-800 flex-1">{cls.class_name}</span>
+                      <span className="text-xs text-gray-400">{cls.student_count} student{cls.student_count !== 1 ? 's' : ''}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {selectedClassIds.length === 0 && classes.length > 0 && (
+                <p className="mt-1 text-xs text-red-500">Select at least one class to continue.</p>
+              )}
+            </div>
+
             <div className="flex justify-between pt-4 border-t">
               <button onClick={() => setCurrentStep(1)} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">← Back</button>
-              <button onClick={() => setCurrentStep(3)} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button
+                onClick={() => {
+                  if (selectedClassIds.length === 0) { showNotification('Please assign this assessment to at least one class', 'error'); return; }
+                  setCurrentStep(3);
+                }}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
                 Next: Add Questions →
               </button>
             </div>

@@ -25,6 +25,7 @@ const AdminDashboard = lazy(() => import('./components/AdminPages').then(m => ({
 const AnalyticsPage = lazy(() => import('./components/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 const ClassesPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.ClassesPage })));
 const ClassDetailPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.ClassDetailPage })));
+const StudentDetailPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.StudentDetailPage })));
 const CSVImportPage = lazy(() => import('./components/CSVImportPage').then(m => ({ default: m.CSVImportPage })));
 const OCRUploadPage = lazy(() => import('./components/OCRUploadPage').then(m => ({ default: m.default || m.OCRUploadPage })));
 const OCRReviewPage = lazy(() => import('./components/OCRReviewPage').then(m => ({ default: m.default || m.OCRReviewPage })));
@@ -76,6 +77,7 @@ function App() {
         <Route path="/teacher/classes/import" element={<LazyProtectedRoute>{(user) => <CSVImportPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/classes/:classId" element={<LazyProtectedRoute>{(user) => <ClassDetailPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/classes/:classId/import" element={<LazyProtectedRoute>{(user) => <CSVImportPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/students/:studentId" element={<LazyProtectedRoute>{(user) => <StudentDetailPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/analytics" element={<LazyProtectedRoute>{(user) => <AnalyticsPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/submissions/:submissionId" element={<LazyProtectedRoute>{(user) => <SubmissionDetailPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/profile" element={<LazyProtectedRoute>{(user) => <ProfilePage user={user} />}</LazyProtectedRoute>} />
