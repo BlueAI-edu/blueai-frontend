@@ -14,6 +14,7 @@ const EnhancedAssessmentBuilderPage = lazy(() => import('./pages/EnhancedAssessm
 const EnhancedAttemptPage = lazy(() => import('./pages/EnhancedAttemptPage').then(m => ({ default: m.EnhancedAttemptPage })));
 const EnhancedAssessmentDetailPage = lazy(() => import('./pages/EnhancedAssessmentDetailPage').then(m => ({ default: m.EnhancedAssessmentDetailPage })));
 const EnhancedSubmissionDetailPage = lazy(() => import('./pages/EnhancedSubmissionDetailPage').then(m => ({ default: m.EnhancedSubmissionDetailPage })));
+const AssessmentAnalyticsPage = lazy(() => import('./pages/AssessmentAnalyticsPage').then(m => ({ default: m.AssessmentAnalyticsPage })));
 
 const AssessmentsPage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.AssessmentsPage })));
 const AssessmentDetailPage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.AssessmentDetailPage })));
@@ -71,6 +72,7 @@ function App() {
         <Route path="/teacher/assessments/:assessmentId/edit" element={<LazyProtectedRoute>{(user) => <EnhancedAssessmentBuilderPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/assessments/:assessmentId" element={<LazyProtectedRoute>{(user) => <AssessmentDetailPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/assessments/:assessmentId/enhanced" element={<LazyProtectedRoute>{(user) => <EnhancedAssessmentDetailPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/assessments/:assessmentId/analytics" element={<LazyProtectedRoute>{(user) => <AssessmentAnalyticsPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/submissions/:attemptId/enhanced" element={<LazyProtectedRoute>{(user) => <EnhancedSubmissionDetailPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/assessments/:assessmentId/security-report" element={<LazyProtectedRoute>{(user) => <SecurityReportPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/classes" element={<LazyProtectedRoute>{(user) => <ClassesPage user={user} />}</LazyProtectedRoute>} />
