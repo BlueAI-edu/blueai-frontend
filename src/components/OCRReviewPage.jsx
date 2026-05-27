@@ -13,6 +13,14 @@ import {
   getReviewRequiredCount,
 } from "@/utils/ocrHelpers";
 
+const VISUAL_RESPONSE_TYPES = new Set([
+  "graph_reading",
+  "graph_plotting_line_drawing",
+  "labelled_diagram",
+  "mixed_format",
+  "table_completion",
+]);
+
 export default function OCRReviewPage() {
   const navigate = useNavigate();
   const { submissionId } = useParams();
@@ -54,16 +62,83 @@ export default function OCRReviewPage() {
     return parts.join("\n");
   };
 
+  const getListTexts = (items) => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        return (item?.text || item?.label || item?.kind || "").trim();
+      })
+      .filter(Boolean);
+  };
+
+  const getVisualResponsePreview = (response) => {
+    const parts = [];
+
+    if (response?.diagram) {
+      const labels = getListTexts(response.diagram.labels);
+      const annotations = getListTexts(response.diagram.annotations);
+      if (labels.length > 0) parts.push(`Diagram labels: ${labels.join("; ")}`);
+      if (annotations.length > 0) {
+        parts.push(`Diagram annotations: ${annotations.join("; ")}`);
+      }
+      if (labels.length === 0 && annotations.length === 0) {
+        parts.push("Diagram response region preserved");
+      }
+    }
+
+    if (response?.graph) {
+      const points = Array.isArray(response.graph.points) ? response.graph.points : [];
+      const lines = Array.isArray(response.graph.drawn_lines)
+        ? response.graph.drawn_lines
+        : [];
+      const markings = getListTexts(response.graph.markings);
+      if (points.length > 0) parts.push(`Graph points detected: ${points.length}`);
+      if (lines.length > 0) {
+        const lineKinds = getListTexts(lines);
+        parts.push(
+          `Graph lines/curves detected: ${
+            lineKinds.length > 0 ? lineKinds.join("; ") : lines.length
+          }`,
+        );
+      }
+      if (markings.length > 0) parts.push(`Graph markings: ${markings.join("; ")}`);
+      if (points.length === 0 && lines.length === 0 && markings.length === 0) {
+        parts.push("Graph response region preserved");
+      }
+    }
+
+    if (response?.table) {
+      const rows = Array.isArray(response.table.rows) ? response.table.rows : [];
+      const cells = Array.isArray(response.table.cells) ? response.table.cells : [];
+      if (rows.length > 0 || cells.length > 0) {
+        parts.push(`Table entries detected: ${cells.length || rows.length}`);
+      } else {
+        parts.push("Table response structure preserved");
+      }
+    }
+
+    if (parts.length === 0 && response?.visual_region_refs?.length > 0) {
+      parts.push("Visual response region preserved");
+    }
+
+    return parts.join("\n");
+  };
+
   const getResponseBlockPreview = (responseBlock) => {
-    const componentSelections = responseBlock?.structured_response?.components
-      ?.map((component) => getSelectionPreview(component.selection))
+    const componentPreviews = responseBlock?.structured_response?.components
+      ?.map((component) =>
+        [getSelectionPreview(component.selection), getVisualResponsePreview(component)]
+          .filter(Boolean)
+          .join("\n"),
+      )
       .filter(Boolean);
     const previewParts = [];
     if (responseBlock?.extracted_text?.trim()) {
       previewParts.push(responseBlock.extracted_text.trim());
     }
-    if (componentSelections?.length > 0) {
-      previewParts.push(componentSelections.join("\n"));
+    if (componentPreviews?.length > 0) {
+      previewParts.push(componentPreviews.join("\n"));
     }
     return previewParts.join("\n") || "(empty)";
   };
@@ -78,6 +153,8 @@ export default function OCRReviewPage() {
           if (r.working_text?.trim()) parts.push(r.working_text.trim());
           const selectionPreview = getSelectionPreview(r.selection);
           if (selectionPreview) parts.push(selectionPreview);
+          const visualPreview = getVisualResponsePreview(r);
+          if (visualPreview) parts.push(visualPreview);
           if (parts.length === 0) return "";
           return `[Q${r.question_ref || ""}] ${parts.join("\n\n")}`;
         })
@@ -85,6 +162,71 @@ export default function OCRReviewPage() {
         .join("\n\n");
     }
     return page?.raw_ocr_text || "";
+  };
+
+  const isVisualResponse = (response) =>
+    VISUAL_RESPONSE_TYPES.has(response?.response_type) ||
+    Boolean(response?.diagram || response?.graph || response?.table) ||
+    response?.visual_region_refs?.length > 0;
+
+  const getNormalizedRegion = (response) => {
+    const region = response?.response_region || response?.bbox;
+    if (region?.width && region?.height) return region;
+
+    const visualRef = response?.visual_region_refs?.find(
+      (ref) => ref?.bbox?.width && ref?.bbox?.height,
+    );
+    if (visualRef) return visualRef.bbox;
+
+    const sourceRegion = response?.source_regions?.find(
+      (ref) => ref?.bbox?.width && ref?.bbox?.height,
+    );
+    return sourceRegion?.bbox || null;
+  };
+
+  const getVisualResponsesForPage = (page) =>
+    (page?.vision_responses || [])
+      .filter(isVisualResponse)
+      .map((response) => ({
+        response,
+        region: getNormalizedRegion(response),
+        preview: getVisualResponsePreview(response),
+      }));
+
+  const RegionImagePreview = ({ pageNumber, region, label }) => {
+    const imageUrl = `${API_URL}/api/ocr/submissions/${submissionId}/image/${pageNumber}`;
+
+    if (!region) {
+      return (
+        <div className="border border-slate-200 rounded-md overflow-hidden bg-white">
+          <img src={imageUrl} alt={label} className="w-full max-h-48 object-contain" />
+        </div>
+      );
+    }
+
+    const x = Math.max(0, Math.min(1, Number(region.x) || 0));
+    const y = Math.max(0, Math.min(1, Number(region.y) || 0));
+    const width = Math.max(0.01, Math.min(1 - x, Number(region.width) || 1));
+    const height = Math.max(0.01, Math.min(1 - y, Number(region.height) || 1));
+
+    return (
+      <div
+        className="relative w-full overflow-hidden rounded-md border border-slate-200 bg-white"
+        style={{ aspectRatio: `${width} / ${height}` }}
+      >
+        <img
+          src={imageUrl}
+          alt={label}
+          className="absolute max-w-none object-fill"
+          style={{
+            left: `${-(x / width) * 100}%`,
+            top: `${-(y / height) * 100}%`,
+            width: `${100 / width}%`,
+            height: `${100 / height}%`,
+          }}
+        />
+      </div>
+    );
   };
 
   const fetchSubmission = async () => {
@@ -267,6 +409,7 @@ export default function OCRReviewPage() {
 
   const currentPage = pages[currentPageIndex];
   const currentPageType = currentPage?.page_type;
+  const visualResponses = getVisualResponsesForPage(currentPage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -428,7 +571,7 @@ export default function OCRReviewPage() {
           <Card className="overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Extracted Text</CardTitle>
+                <CardTitle>Extracted Response</CardTitle>
                 {currentPage?.is_approved && (
                   <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300">
                     &#10003; Approved
@@ -437,6 +580,43 @@ export default function OCRReviewPage() {
               </div>
             </CardHeader>
             <CardContent>
+              {visualResponses.length > 0 && (
+                <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Visual response evidence
+                    </p>
+                    <Badge variant="secondary">{visualResponses.length}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {visualResponses.map(({ response, region, preview }, index) => (
+                      <div
+                        key={`${response.question_ref || "visual"}-${index}`}
+                        className="rounded-md bg-white p-2 border border-slate-200"
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-slate-700">
+                            Q{response.question_ref || "?"}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {response.response_type?.replaceAll("_", " ")}
+                          </span>
+                        </div>
+                        <RegionImagePreview
+                          pageNumber={currentPage?.page_number}
+                          region={region}
+                          label={`Visual response for question ${response.question_ref || ""}`}
+                        />
+                        {preview && (
+                          <p className="mt-2 whitespace-pre-line text-xs text-slate-500">
+                            {preview}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <textarea
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
