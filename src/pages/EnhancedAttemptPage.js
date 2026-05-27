@@ -23,6 +23,7 @@ export const EnhancedAttemptPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
@@ -35,7 +36,7 @@ export const EnhancedAttemptPage = () => {
     startedAt: attempt?.started_at ?? attempt?.joined_at,
     // Enhanced assessments store durationMinutes (camelCase); classic fallback to duration_minutes.
     durationMinutes: assessment?.durationMinutes ?? assessment?.duration_minutes,
-    enabled: !showFeedback,
+    enabled: !showFeedback && !submitted,
     onExpire: () => handleSubmit(true),
   });
 
@@ -43,14 +44,14 @@ export const EnhancedAttemptPage = () => {
     attemptId,
     data: { answers },
     endpoint: `/public/enhanced-attempt/${attemptId}/autosave`,
-    enabled: !!attempt && !showFeedback,
+    enabled: !!attempt && !showFeedback && !submitted,
     mode: 'debounce',
     delay: 3000,
   });
 
   const security = useFullscreenSecurity({
     attemptId,
-    enabled: !showFeedback,
+    enabled: !showFeedback && !submitted,
     onLockout: async () => {
       try {
         await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
@@ -78,7 +79,7 @@ export const EnhancedAttemptPage = () => {
       document.webkitFullscreenElement ||
       document.mozFullScreenElement ||
       document.msFullscreenElement;
-    if (showFeedback && fullscreenEl) {
+    if ((showFeedback || submitted) && fullscreenEl) {
       const exit =
         document.exitFullscreen ||
         document.webkitExitFullscreen ||
@@ -86,7 +87,7 @@ export const EnhancedAttemptPage = () => {
         document.msExitFullscreen;
       exit?.call(document)?.catch(() => {});
     }
-  }, [showFeedback]);
+  }, [showFeedback, submitted]);
 
   const loadAttempt = async () => {
     try {
@@ -123,15 +124,13 @@ export const EnhancedAttemptPage = () => {
     setSubmitting(true);
     setShowSubmitConfirm(false);
     try {
-      const response = await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
+      await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
         answers,
-        autoSubmitted: autoSubmit
+        autoSubmitted: autoSubmit,
       });
-      setAttempt(response.data.attempt);
-      if (response.data.assessment) {
-        setAssessment(response.data.assessment);
-      }
-      setShowFeedback(true);
+      // Answers are saved; marking happens in the background on the server.
+      // Show the thank-you page immediately — no waiting required.
+      setSubmitted(true);
     } catch (error) {
       handleApiError(error, 'Failed to submit assessment');
       setSubmitting(false);
@@ -227,6 +226,32 @@ export const EnhancedAttemptPage = () => {
         <div className="text-center">
           <p className="text-xl text-gray-800">No questions found</p>
           <p className="text-gray-600 mt-2">This assessment doesn't have any questions.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-10 text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Assessment Submitted</h1>
+          <p className="text-gray-500 mb-6">
+            Your answers have been saved successfully.
+            {assessment?.title && (
+              <span className="block mt-1 font-medium text-gray-700">{assessment.title}</span>
+            )}
+          </p>
+          <div className="bg-blue-50 rounded-lg px-5 py-4 text-sm text-blue-700 mb-8">
+            Your teacher will review your results and release feedback when ready.
+            You can safely close this window.
+          </div>
+          <p className="text-xs text-gray-400">You may now close this tab.</p>
         </div>
       </div>
     );
