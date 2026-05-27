@@ -17,6 +17,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState(null);
+  const [detailAssignments, setDetailAssignments] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -24,8 +25,12 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
 
   const loadData = async () => {
     try {
-      const response = await axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`);
-      setData(response.data);
+      const [assessmentRes, assignmentsRes] = await Promise.all([
+        axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`),
+        axios.get(`${API}/teacher/assessments/${assessmentId}/assignments`).catch(() => ({ data: { assignments: [] } })),
+      ]);
+      setData(assessmentRes.data);
+      setDetailAssignments(assignmentsRes.data.assignments || []);
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -129,6 +134,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
     try {
       const res = await axios.post(`${API}/teacher/assessments/${assessmentId}/assignments`, { class_id: selectedClassId });
       setAssignResult(res.data);
+      loadData();
     } catch (error) {
       handleApiError(error, 'Failed to assign assessment');
     }
@@ -178,12 +184,40 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                 </div>
                 <div>
                   <p><strong>Duration:</strong> {assessment.durationMinutes} minutes</p>
-                  <p><strong>Join Code:</strong> <span className="text-blue-600 font-bold">{assessment.join_code}</span></p>
+                  {detailAssignments.length > 0 ? (
+                    <div>
+                      <strong>Class Join Codes:</strong>
+                      <div className="mt-1 space-y-1">
+                        {detailAssignments.map(a => (
+                          <div key={a.id} className="flex items-center gap-2 text-sm">
+                            <span className="font-mono font-bold text-blue-600">{a.join_code}</span>
+                            <span className="text-gray-500">— {a.class_name}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              a.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {a.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p><strong>Join Code:</strong> <span className="text-blue-600 font-bold">{assessment.join_code}</span></p>
+                  )}
                   <p><strong>Submissions:</strong> {attempts_count}</p>
                 </div>
               </div>
             </div>
-            <div className="ml-4 shrink-0">
+            <div className="ml-4 shrink-0 flex flex-col gap-2">
+              <button
+                onClick={() => navigate(`/teacher/assessments/${assessmentId}/analytics`)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Analytics
+              </button>
               <button
                 onClick={openAssignModal}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"

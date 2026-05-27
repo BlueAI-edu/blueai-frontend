@@ -143,8 +143,13 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
               <tr>
                 <th className="border px-3 py-2 bg-gray-50 text-left sticky left-0">Student</th>
                 {heatmapData.assessments?.map((a, idx) => (
-                  <th key={idx} className="border px-3 py-2 bg-gray-50 text-center text-xs">
-                    {a.subject?.substring(0, 8) || `A${idx + 1}`}
+                  <th
+                    key={idx}
+                    className="border px-3 py-2 bg-gray-50 text-center text-xs max-w-[80px]"
+                    title={a.title || a.subject || `Assessment ${idx + 1}`}
+                  >
+                    {(a.title || a.subject || `A${idx + 1}`).substring(0, 10)}
+                    {(a.title || a.subject || '').length > 10 ? '…' : ''}
                   </th>
                 ))}
               </tr>
@@ -210,7 +215,7 @@ const AssessmentInsightsPanel = ({ assessments }) => {
 
   // Difficulty comparison
   const difficultyData = assessments?.map(a => ({
-    name: a.subject?.substring(0, 12) || 'Assessment',
+    name: (a.title || a.subject)?.substring(0, 12) || 'Assessment',
     difficulty: Math.round((a.difficulty_index || 0) * 100),
     average: a.average_percentage || 0
   })) || [];
@@ -236,7 +241,7 @@ const AssessmentInsightsPanel = ({ assessments }) => {
               <option value="">Select an assessment to view details</option>
               {assessments.map(a => (
                 <option key={a.assessment_id} value={a.assessment_id}>
-                  {a.subject} - {a.total_submissions} submissions
+                  {a.title || a.subject} - {a.total_submissions} submissions
                 </option>
               ))}
             </select>
@@ -695,11 +700,27 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
   const { analytics, total_submissions } = mathData;
   const { overview, performance_by_type, working_quality, common_mistakes, recommendations } = analytics;
 
+  // Human-readable labels for answer_type / questionType keys
+  const TYPE_LABELS = {
+    SHORT_ANSWER: 'Short Answer',
+    LONG_RESPONSE: 'Long Answer',
+    NUMERIC: 'Numeric',
+    MULTIPLE_CHOICE: 'Multiple Choice',
+    MULTI_SELECT: 'Multi-Select',
+    STRUCTURED_WITH_PARTS: 'Structured',
+    STRUCTURED_PART: 'Sub-Part',
+    // Legacy classic answer_type keys
+    maths: 'Maths (LaTeX)',
+    numeric: 'Numeric',
+    mixed: 'Mixed',
+    text: 'Written',
+  };
+
   // Prepare data for charts
   const performanceData = Object.entries(performance_by_type || {}).map(([type, data]) => ({
-    name: type === 'maths' ? 'Math' : type === 'numeric' ? 'Numeric' : type === 'mixed' ? 'Mixed' : 'Text',
-    avgScore: data.avg_score.toFixed(1),
-    passRate: data.pass_rate.toFixed(1),
+    name: TYPE_LABELS[type] || type,
+    avgScore: parseFloat(data.avg_score.toFixed(1)),
+    passRate: parseFloat(data.pass_rate.toFixed(1)),
     count: data.count
   }));
 
@@ -728,7 +749,7 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
             >
               <option value="all">All Classes</option>
               {classes?.map(cls => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
+                <option key={cls.id} value={cls.id}>{cls.class_name || cls.name}</option>
               ))}
             </select>
           </div>
@@ -742,7 +763,7 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
               <option value="all">All Assessments</option>
               {assessments?.map(assess => (
                 <option key={assess.assessment_id} value={assess.assessment_id}>
-                  {assess.subject} ({assess.total_submissions} submissions)
+                  {assess.title || assess.subject} ({assess.total_submissions} submissions)
                 </option>
               ))}
             </select>
@@ -779,12 +800,11 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
             <BarChart data={performanceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
-              <YAxis yAxisId="left" orientation="left" stroke={COLORS.blue} />
-              <YAxis yAxisId="right" orientation="right" stroke={COLORS.green} />
-              <Tooltip />
+              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip formatter={(value) => `${value}%`} />
               <Legend />
-              <Bar yAxisId="left" dataKey="avgScore" fill={COLORS.blue} name="Avg Score (%)" />
-              <Bar yAxisId="right" dataKey="passRate" fill={COLORS.green} name="Pass Rate (%)" />
+              <Bar dataKey="avgScore" fill={COLORS.blue} name="Avg Score (%)" />
+              <Bar dataKey="passRate" fill={COLORS.green} name="Pass Rate (%)" />
             </BarChart>
           </ResponsiveContainer>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
