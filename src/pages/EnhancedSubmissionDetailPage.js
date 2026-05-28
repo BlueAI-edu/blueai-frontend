@@ -12,6 +12,8 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [runSave, saving] = useAsync();
+  const [runDownload, downloading] = useAsync();
+  const [runRegenerate, regenerating] = useAsync();
   const [data, setData] = useState(null);
   
   // Feedback state
@@ -75,6 +77,35 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
       loadData();
     },
     (error) => handleApiError(error, 'Failed to save feedback')
+  );
+
+  const handleDownloadPDF = () => runDownload(
+    async () => {
+      const response = await axios.get(`${API}/teacher/submissions/${attemptId}/download-pdf`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const studentName = data?.attempt?.student_name || 'Student';
+      const subject = data?.assessment?.subject || 'Assessment';
+      link.download = `${studentName}_${subject}_Feedback.pdf`.replace(/\s+/g, '_');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    },
+    (error) => handleApiError(error, 'PDF generation failed. Please retry.')
+  );
+
+  const handleRegeneratePDF = () => runRegenerate(
+    async () => {
+      await axios.post(`${API}/teacher/submissions/${attemptId}/regenerate-pdf`);
+      showSuccess('PDF regenerated successfully!');
+      loadData();
+    },
+    (error) => handleApiError(error, 'Failed to regenerate PDF')
   );
 
   if (loading) {
@@ -335,14 +366,32 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
           </div>
         </div>
 
-        {/* Save Button */}
-        <div className="flex justify-end gap-3">
+        {/* Actions */}
+        <div className="flex flex-wrap justify-end gap-3">
           <button
             onClick={() => navigate(`/teacher/assessments/${assessment.id}`)}
             className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Cancel
           </button>
+          {attempt.status === 'marked' && (
+            <>
+              <button
+                onClick={handleRegeneratePDF}
+                disabled={regenerating}
+                className="px-6 py-3 border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50 font-medium"
+              >
+                {regenerating ? 'Regenerating...' : 'Regenerate PDF'}
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloading}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              >
+                {downloading ? 'Downloading...' : 'Download PDF'}
+              </button>
+            </>
+          )}
           <button
             onClick={handleSave}
             disabled={saving}
