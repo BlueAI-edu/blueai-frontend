@@ -11,7 +11,7 @@ export const CSVImportPage = ({ user }) => {
   const fileInputRef = useRef(null);
   
   const [step, setStep] = useState('upload'); // upload, preview, importing, complete
-  const [csvContent, setCsvContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState('');
   const [preview, setPreview] = useState(null);
   const [importResult, setImportResult] = useState(null);
@@ -39,12 +39,10 @@ export const CSVImportPage = ({ user }) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const ALLOWED_CSV_TYPES = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
     const MAX_CSV_SIZE = 2 * 1024 * 1024; // 2MB
 
-    const validType = ALLOWED_CSV_TYPES.includes(file.type) || file.name.endsWith('.csv');
-    if (!validType) {
-      setError('Please select a CSV file');
+    if (!file.name.endsWith('.csv')) {
+      setError('Please select a CSV file (.csv)');
       return;
     }
 
@@ -53,18 +51,13 @@ export const CSVImportPage = ({ user }) => {
       return;
     }
 
+    setSelectedFile(file);
     setFileName(file.name);
     setError('');
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setCsvContent(event.target.result);
-    };
-    reader.readAsText(file);
   };
 
   const handlePreview = async () => {
-    if (!csvContent) {
+    if (!selectedFile) {
       setError('Please select a CSV file first');
       return;
     }
@@ -73,8 +66,10 @@ export const CSVImportPage = ({ user }) => {
     setError('');
 
     try {
-      const response = await axios.post(`${API}/teacher/students/csv-preview`, {
-        csv_content: csvContent
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const response = await axios.post(`${API}/teacher/students/csv-preview`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       setPreview(response.data);
       setStep('preview');
@@ -239,7 +234,7 @@ export const CSVImportPage = ({ user }) => {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={handlePreview}
-                disabled={!csvContent || loading}
+                disabled={!selectedFile || loading}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid="preview-btn"
               >
@@ -420,7 +415,7 @@ export const CSVImportPage = ({ user }) => {
               <button
                 onClick={() => {
                   setStep('upload');
-                  setCsvContent('');
+                  setSelectedFile(null);
                   setFileName('');
                   setPreview(null);
                   setImportResult(null);
