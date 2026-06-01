@@ -19,6 +19,7 @@ import {
   FileText,
   CheckSquare,
   BarChart3,
+  ShieldCheck,
   ChevronDown,
   Menu,
   X,
@@ -128,6 +129,20 @@ export const Navbar = ({ user, onLogout }) => {
                     </button>
                   );
                 })}
+                {user?.role === 'admin' && (
+                  <button
+                    onClick={() => navigate('/admin/dashboard')}
+                    data-testid="nav-admin"
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      location.pathname.startsWith('/admin')
+                        ? 'text-purple-700 bg-purple-50'
+                        : 'text-purple-600 hover:text-purple-800 hover:bg-purple-50'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Admin
+                  </button>
+                )}
               </nav>
             </div>
 
@@ -168,6 +183,16 @@ export const Navbar = ({ user, onLogout }) => {
                     <User className="w-4 h-4 mr-2" />
                     Profile & Settings
                   </DropdownMenuItem>
+                  {user?.role === 'admin' && (
+                    <DropdownMenuItem
+                      onClick={() => navigate('/admin/dashboard')}
+                      data-testid="dropdown-admin"
+                      className="text-purple-700 focus:text-purple-700 focus:bg-purple-50"
+                    >
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                      Admin Panel
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
@@ -229,6 +254,25 @@ export const Navbar = ({ user, onLogout }) => {
                   </button>
                 );
               })}
+
+              {/* Admin link — mobile, only for admins */}
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    navigate('/admin/dashboard');
+                    setMobileOpen(false);
+                  }}
+                  data-testid="mobile-nav-admin"
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    location.pathname.startsWith('/admin')
+                      ? 'text-purple-700 bg-purple-50'
+                      : 'text-purple-600 hover:bg-purple-50'
+                  }`}
+                >
+                  <ShieldCheck className="w-5 h-5" />
+                  Admin Panel
+                </button>
+              )}
 
               {/* Mobile profile block */}
               <div className="pt-3 mt-3 border-t border-gray-100">
