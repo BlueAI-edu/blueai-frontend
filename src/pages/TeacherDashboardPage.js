@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { Navbar } from '../components/Navbar';
+import UsageBanner from '../components/UsageBanner';
 import {
   ClipboardList, Upload, Eye, PenLine, BarChart3,
   AlertTriangle, CheckCircle2, ChevronRight, RefreshCw,
@@ -191,6 +192,8 @@ export const TeacherDashboard = ({ user }) => {
       <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        <UsageBanner />
 
         {/* ── Hero panel ── */}
         <div className="relative overflow-hidden rounded-2xl shadow-sm px-6 sm:px-8 py-8 sm:py-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-10"
