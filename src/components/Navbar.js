@@ -15,7 +15,6 @@ import {
   FileQuestion,
   ClipboardList,
   Users,
-  FileText,
   CheckSquare,
   BarChart3,
   ShieldCheck,
@@ -31,7 +30,6 @@ const NAV_ITEMS = [
   { label: 'Questions', path: '/teacher/questions', icon: FileQuestion },
   { label: 'Assessments', path: '/teacher/assessments', icon: ClipboardList },
   { label: 'Classes', path: '/teacher/classes', icon: Users },
-  { label: 'Submissions', path: '/teacher/assessments', icon: FileText },
   { label: 'Marking', path: '/teacher/ocr-upload', icon: CheckSquare },
   { label: 'Analytics', path: '/teacher/analytics', icon: BarChart3 },
 ];

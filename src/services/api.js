@@ -136,6 +136,8 @@ export const authApi = {
   loginWithMicrosoft: (accessToken) =>
     client.post('/auth/microsoft', {}, { headers: { Authorization: `Bearer ${accessToken}` } }),
   updateProfile: (data) => client.put('/auth/profile', data),
+  exportMyData: () => client.get('/auth/export', { responseType: 'blob' }),
+  deleteMyAccount: () => client.delete('/auth/account'),
 };
 
 // Default export for direct use when only one-off calls are needed

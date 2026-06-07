@@ -15,6 +15,10 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
   });
   const [runSave, saving] = useAsync();
   const [stats, setStats] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,6 +63,35 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
       },
       (e) => handleApiError(e, "Failed to update profile"),
     );
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await authApi.exportMyData();
+      const url = URL.createObjectURL(new Blob([res.data], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "blueai-data-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      handleApiError(err, "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteText !== "DELETE") return;
+    setDeleting(true);
+    try {
+      await authApi.deleteMyAccount();
+      navigate("/teacher/login");
+    } catch (err) {
+      handleApiError(err, "Account deletion failed");
+      setDeleting(false);
+    }
   };
 
   return (
@@ -170,6 +203,61 @@ export const ProfilePage = ({ user, onProfileUpdate }) => {
                   {user.auth_provider || "Email"}
                 </p>
               </div>
+            </div>
+
+            {/* GDPR / Data rights */}
+            <div className="mt-8 pt-6 border-t">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Your Data</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Under UK GDPR you have the right to access and export your data, or to request permanent deletion of your account.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleExport}
+                  disabled={exporting}
+                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {exporting ? "Preparing export…" : "Export my data"}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  Delete my account
+                </button>
+              </div>
+
+              {showDeleteConfirm && (
+                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm font-semibold text-red-800 mb-1">This action is permanent and cannot be undone.</p>
+                  <p className="text-sm text-red-700 mb-3">
+                    All your assessments, questions, classes, student data, and submissions will be deleted immediately.
+                    Type <strong>DELETE</strong> to confirm.
+                  </p>
+                  <input
+                    type="text"
+                    value={deleteText}
+                    onChange={(e) => setDeleteText(e.target.value)}
+                    placeholder="Type DELETE to confirm"
+                    className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm mb-3 focus:ring-2 focus:ring-red-500 outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={deleteText !== "DELETE" || deleting}
+                      className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40"
+                    >
+                      {deleting ? "Deleting…" : "Permanently delete account"}
+                    </button>
+                    <button
+                      onClick={() => { setShowDeleteConfirm(false); setDeleteText(""); }}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
