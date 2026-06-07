@@ -1,106 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { authApi } from '@/services/api';
 import { GoogleLogin } from '@react-oauth/google';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/msalConfig';
 
-// ─── Design tokens (matches landing page) ─────────────────────────────────────
-const T = {
-  inkBlack:     '#05060f',
-  blue:         '#1d4ed8',
-  blueHover:    '#1e40af',
-  blueLight:    '#dbeafe',
-  blueText:     '#1e40af',
-  cloudWhite:   '#ffffff',
-  whisperGray:  '#f8f8f8',
-  stoneGray:    '#696a6f',
-  platinumGray: '#d7d7d9',
-  errorRed:     '#dc2626',
-  errorRedBg:   '#fef2f2',
-  shadowXl:     'rgba(0,19,41,0.01) 0px 10px 32px 0px, rgba(0,19,41,0.02) 0px 2px 0px 0px, rgba(0,19,41,0.02) 0px 0px 24px 0px',
-  shadowSm:     'rgba(5,6,15,0.04) 0px 2px 4px 0px, rgba(5,6,15,0.02) 0px 0px 5px 0px',
-};
-
-const inputStyle = {
-  width: '100%',
-  border: `1px solid ${T.platinumGray}`,
-  borderRadius: 10,
-  padding: '11px 14px',
-  fontSize: 14,
-  color: T.inkBlack,
-  outline: 'none',
-  fontFamily: 'Inter, system-ui, sans-serif',
-  background: T.cloudWhite,
-  boxSizing: 'border-box',
-  transition: 'border-color 0.15s',
-};
-
-const labelStyle = {
-  display: 'block',
-  fontSize: 13,
-  fontWeight: 500,
-  color: T.inkBlack,
-  marginBottom: 6,
-};
-
-const btnPrimary = {
-  width: '100%',
-  background: T.blue,
-  color: T.cloudWhite,
-  border: 'none',
-  borderRadius: '100px',
-  padding: '12px 24px',
-  fontSize: 14,
-  fontWeight: 500,
-  cursor: 'pointer',
-  fontFamily: 'Inter, system-ui, sans-serif',
-  transition: 'background 0.15s',
-};
+const INPUT_CLS =
+  'w-full border border-[#d7d7d9] rounded-[10px] px-[14px] py-[11px] text-sm ' +
+  'text-[#05060f] bg-white outline-none transition-colors box-border ' +
+  'focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20';
 
 const CheckIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.blue}
-    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+    stroke="#1d4ed8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
-// ─── Shared page shell ────────────────────────────────────────────────────────
 const Shell = ({ children }) => (
-  <div style={{
-    minHeight: '100vh',
-    background: T.whisperGray,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px 16px',
-    fontFamily: 'Inter, system-ui, sans-serif',
-  }}>
-    {/* Logo */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
-      <div style={{ width: 34, height: 34, borderRadius: 9, background: T.blue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: T.cloudWhite, fontWeight: 700, fontSize: 15 }}>B</span>
+  <div className="min-h-screen bg-[#f8f8f8] flex flex-col items-center justify-center px-4 py-6 font-[Inter,system-ui,sans-serif]">
+    <div className="flex items-center gap-2 mb-7">
+      <div className="w-[34px] h-[34px] rounded-[9px] bg-blue-700 flex items-center justify-center">
+        <span className="text-white font-bold text-[15px]">B</span>
       </div>
-      <span style={{ fontWeight: 700, fontSize: 17, color: T.inkBlack, letterSpacing: '-0.3px' }}>BlueAI</span>
+      <span className="font-bold text-[17px] text-[#05060f] tracking-[-0.3px]">BlueAI</span>
     </div>
 
-    {/* Card */}
-    <div style={{
-      background: T.cloudWhite,
-      borderRadius: 20,
-      boxShadow: T.shadowXl,
-      width: '100%',
-      maxWidth: 420,
-      padding: '32px',
-    }}>
+    <div className="bg-white rounded-[20px] shadow-[rgba(0,19,41,0.01)_0px_10px_32px_0px,rgba(0,19,41,0.02)_0px_2px_0px_0px,rgba(0,19,41,0.02)_0px_0px_24px_0px] w-full max-w-[420px] p-8">
       {children}
     </div>
 
-    {/* Footer note */}
-    <p style={{ marginTop: 20, fontSize: 12, color: T.stoneGray, textAlign: 'center' }}>
+    <p className="mt-5 text-xs text-[#696a6f] text-center">
       Teacher portal · BlueAI Assessment Platform
     </p>
   </div>
@@ -118,7 +49,7 @@ const ForgotPasswordView = ({ onBack }) => {
     setLoading(true);
     setError('');
     try {
-      await axios.post(`${API}/auth/forgot-password`, { email: resetEmail });
+      await authApi.requestPasswordReset({ email: resetEmail });
       setSent(true);
     } catch {
       setError('Failed to send reset email. Please try again.');
@@ -130,19 +61,19 @@ const ForgotPasswordView = ({ onBack }) => {
   if (sent) {
     return (
       <Shell>
-        <div style={{ textAlign: 'center', padding: '8px 0' }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: T.blueLight, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+        <div className="text-center py-2">
+          <div className="w-[52px] h-[52px] rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-5">
             <CheckIcon />
           </div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, letterSpacing: '-0.3px', margin: '0 0 8px' }}>Check your email</h1>
-          <p style={{ fontSize: 14, color: T.stoneGray, lineHeight: 1.65, margin: '0 0 24px' }}>
+          <h1 className="text-[22px] font-bold text-[#05060f] tracking-[-0.3px] mb-2">
+            Check your email
+          </h1>
+          <p className="text-sm text-[#696a6f] leading-[1.65] mb-6">
             If an account exists for that address, we've sent a password reset link.
           </p>
           <button
             onClick={() => { setSent(false); onBack(); }}
-            style={{ ...btnPrimary, width: 'auto', padding: '10px 28px' }}
-            onMouseEnter={e => e.currentTarget.style.background = T.blueHover}
-            onMouseLeave={e => e.currentTarget.style.background = T.blue}
+            className="bg-blue-700 text-white border-none rounded-full px-7 py-[10px] text-sm font-medium cursor-pointer hover:bg-blue-800 transition-colors"
             data-testid="back-to-login-btn"
           >
             Back to Sign In
@@ -154,16 +85,20 @@ const ForgotPasswordView = ({ onBack }) => {
 
   return (
     <Shell>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, letterSpacing: '-0.3px', margin: '0 0 6px' }}>Reset your password</h1>
-        <p style={{ fontSize: 14, color: T.stoneGray, lineHeight: 1.65, margin: 0 }}>
+      <div className="mb-6">
+        <h1 className="text-[22px] font-bold text-[#05060f] tracking-[-0.3px] mb-1.5">
+          Reset your password
+        </h1>
+        <p className="text-sm text-[#696a6f] leading-[1.65] m-0">
           Enter your email and we'll send you a reset link.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label style={labelStyle}>Email address</label>
+          <label className="block text-[13px] font-medium text-[#05060f] mb-1.5">
+            Email address
+          </label>
           <input
             data-testid="reset-email-input"
             type="email"
@@ -171,14 +106,13 @@ const ForgotPasswordView = ({ onBack }) => {
             value={resetEmail}
             onChange={e => setResetEmail(e.target.value)}
             placeholder="you@school.org"
-            style={inputStyle}
-            onFocus={e => e.currentTarget.style.borderColor = T.blue}
-            onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+            className={INPUT_CLS}
           />
         </div>
 
         {error && (
-          <div data-testid="reset-error" style={{ background: T.errorRedBg, color: T.errorRed, fontSize: 13, padding: '10px 14px', borderRadius: 10, lineHeight: 1.5 }}>
+          <div data-testid="reset-error"
+            className="bg-red-50 text-red-600 text-[13px] px-[14px] py-[10px] rounded-[10px] leading-[1.5]">
             {error}
           </div>
         )}
@@ -187,9 +121,7 @@ const ForgotPasswordView = ({ onBack }) => {
           data-testid="send-reset-btn"
           type="submit"
           disabled={loading}
-          style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}
-          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.blueHover; }}
-          onMouseLeave={e => e.currentTarget.style.background = T.blue}
+          className={`w-full bg-blue-700 text-white border-none rounded-full px-6 py-3 text-sm font-medium cursor-pointer hover:bg-blue-800 transition-colors ${loading ? 'opacity-70' : ''}`}
         >
           {loading ? 'Sending…' : 'Send Reset Link'}
         </button>
@@ -198,9 +130,7 @@ const ForgotPasswordView = ({ onBack }) => {
           type="button"
           onClick={onBack}
           data-testid="cancel-reset-btn"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: T.stoneGray, fontFamily: 'inherit', padding: '4px 0' }}
-          onMouseEnter={e => e.currentTarget.style.color = T.inkBlack}
-          onMouseLeave={e => e.currentTarget.style.color = T.stoneGray}
+          className="bg-transparent border-none cursor-pointer text-[13px] font-medium text-[#696a6f] hover:text-[#05060f] transition-colors py-1 px-0"
         >
           ← Back to Sign In
         </button>
@@ -236,11 +166,10 @@ export const Login = () => {
     setLoading(true);
     setError('');
     try {
-      const endpoint = isSignUp ? '/auth/register' : '/auth/login';
       const payload  = isSignUp
         ? { email, password, name, school_name: schoolName }
         : { email, password };
-      await axios.post(`${API}${endpoint}`, payload);
+      await (isSignUp ? authApi.register(payload) : authApi.login(payload));
     } catch (err) {
       setError(getApiErrorMessage(err, 'Authentication failed'));
       setLoading(false);
@@ -253,9 +182,7 @@ export const Login = () => {
     setLoading(true);
     setError('');
     try {
-      await axios.post(`${API}/auth/google`, {}, {
-        headers: { Authorization: `Bearer ${credentialResponse.credential}` },
-      });
+      await authApi.loginWithGoogle(credentialResponse.credential);
     } catch (err) {
       setError(getApiErrorMessage(err, 'Google authentication failed'));
       setLoading(false);
@@ -269,9 +196,7 @@ export const Login = () => {
     setError('');
     try {
       const msalResponse = await instance.loginPopup(loginRequest);
-      await axios.post(`${API}/auth/microsoft`, {}, {
-        headers: { Authorization: `Bearer ${msalResponse.accessToken}` },
-      });
+      await authApi.loginWithMicrosoft(msalResponse.accessToken);
     } catch (err) {
       if (err.errorCode === 'user_cancelled') { setLoading(false); return; }
       setError(getApiErrorMessage(err, 'Microsoft authentication failed'));
@@ -290,36 +215,30 @@ export const Login = () => {
   return (
     <Shell>
       {/* Heading */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: T.inkBlack, letterSpacing: '-0.3px', margin: '0 0 4px' }}>
+      <div className="mb-6">
+        <h1 className="text-[22px] font-bold text-[#05060f] tracking-[-0.3px] mb-1">
           {isSignUp ? 'Create your account' : 'Welcome back'}
         </h1>
-        <p style={{ fontSize: 14, color: T.stoneGray, margin: 0, lineHeight: 1.6 }}>
+        <p className="text-sm text-[#696a6f] m-0 leading-[1.6]">
           {isSignUp ? 'Start your BlueAI teacher account.' : 'Sign in to your teacher portal.'}
         </p>
       </div>
 
       {/* Tab row */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${T.platinumGray}`, marginBottom: 24 }}>
-        {[{ label: 'Sign In', signup: false, testId: 'signin-tab' }, { label: 'Sign Up', signup: true, testId: 'signup-tab' }].map(tab => (
+      <div className="flex border-b border-[#d7d7d9] mb-6">
+        {[
+          { label: 'Sign In', signup: false, testId: 'signin-tab' },
+          { label: 'Sign Up', signup: true,  testId: 'signup-tab'  },
+        ].map(tab => (
           <button
             key={tab.label}
             data-testid={tab.testId}
             onClick={() => switchMode(tab.signup)}
-            style={{
-              flex: 1,
-              background: 'none',
-              border: 'none',
-              borderBottom: isSignUp === tab.signup ? `2px solid ${T.blue}` : '2px solid transparent',
-              padding: '0 0 12px',
-              fontSize: 14,
-              fontWeight: 500,
-              color: isSignUp === tab.signup ? T.blue : T.stoneGray,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'color 0.15s',
-              marginBottom: -1,
-            }}
+            className={`flex-1 bg-transparent border-none pb-3 text-sm font-medium cursor-pointer transition-colors -mb-px border-b-2 ${
+              isSignUp === tab.signup
+                ? 'border-blue-700 text-blue-700'
+                : 'border-transparent text-[#696a6f]'
+            }`}
           >
             {tab.label}
           </button>
@@ -327,11 +246,11 @@ export const Login = () => {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleEmailAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
         {isSignUp && (
           <>
             <div>
-              <label style={labelStyle}>Full name</label>
+              <label className="block text-[13px] font-medium text-[#05060f] mb-1.5">Full name</label>
               <input
                 data-testid="name-input"
                 type="text"
@@ -339,15 +258,13 @@ export const Login = () => {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Jane Smith"
-                style={inputStyle}
-                onFocus={e => e.currentTarget.style.borderColor = T.blue}
-                onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+                className={INPUT_CLS}
               />
             </div>
             <div>
-              <label style={labelStyle}>
+              <label className="block text-[13px] font-medium text-[#05060f] mb-1.5">
                 School / Organisation{' '}
-                <span style={{ fontWeight: 400, color: T.stoneGray }}>(optional)</span>
+                <span className="font-normal text-[#696a6f]">(optional)</span>
               </label>
               <input
                 data-testid="school-input"
@@ -355,16 +272,14 @@ export const Login = () => {
                 value={schoolName}
                 onChange={e => setSchoolName(e.target.value)}
                 placeholder="Greenfield Academy"
-                style={inputStyle}
-                onFocus={e => e.currentTarget.style.borderColor = T.blue}
-                onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+                className={INPUT_CLS}
               />
             </div>
           </>
         )}
 
         <div>
-          <label style={labelStyle}>Email address</label>
+          <label className="block text-[13px] font-medium text-[#05060f] mb-1.5">Email address</label>
           <input
             data-testid="email-input"
             type="email"
@@ -372,23 +287,19 @@ export const Login = () => {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@school.org"
-            style={inputStyle}
-            onFocus={e => e.currentTarget.style.borderColor = T.blue}
-            onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+            className={INPUT_CLS}
           />
         </div>
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[13px] font-medium text-[#05060f]">Password</label>
             {!isSignUp && (
               <button
                 type="button"
                 data-testid="forgot-password-link"
                 onClick={() => setShowForgotPassword(true)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: T.blue, fontFamily: 'inherit', padding: 0 }}
-                onMouseEnter={e => e.currentTarget.style.color = T.blueHover}
-                onMouseLeave={e => e.currentTarget.style.color = T.blue}
+                className="bg-transparent border-none cursor-pointer text-xs font-medium text-blue-700 hover:text-blue-800 transition-colors p-0"
               >
                 Forgot password?
               </button>
@@ -402,14 +313,13 @@ export const Login = () => {
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
-            style={inputStyle}
-            onFocus={e => e.currentTarget.style.borderColor = T.blue}
-            onBlur={e => e.currentTarget.style.borderColor = T.platinumGray}
+            className={INPUT_CLS}
           />
         </div>
 
         {error && (
-          <div data-testid="auth-error" style={{ background: T.errorRedBg, color: T.errorRed, fontSize: 13, padding: '10px 14px', borderRadius: 10, lineHeight: 1.5 }}>
+          <div data-testid="auth-error"
+            className="bg-red-50 text-red-600 text-[13px] px-[14px] py-[10px] rounded-[10px] leading-[1.5]">
             {error}
           </div>
         )}
@@ -418,24 +328,22 @@ export const Login = () => {
           data-testid="email-auth-btn"
           type="submit"
           disabled={loading}
-          style={{ ...btnPrimary, marginTop: 4, opacity: loading ? 0.7 : 1 }}
-          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = T.blueHover; }}
-          onMouseLeave={e => e.currentTarget.style.background = T.blue}
+          className={`w-full bg-blue-700 text-white border-none rounded-full px-6 py-3 text-sm font-medium cursor-pointer hover:bg-blue-800 transition-colors mt-1 ${loading ? 'opacity-70' : ''}`}
         >
           {loading ? 'Please wait…' : isSignUp ? 'Create Account' : 'Sign In'}
         </button>
       </form>
 
       {/* Divider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-        <div style={{ flex: 1, height: 1, background: T.platinumGray }} />
-        <span style={{ fontSize: 12, color: T.stoneGray, whiteSpace: 'nowrap' }}>or continue with</span>
-        <div style={{ flex: 1, height: 1, background: T.platinumGray }} />
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-[#d7d7d9]" />
+        <span className="text-xs text-[#696a6f] whitespace-nowrap">or continue with</span>
+        <div className="flex-1 h-px bg-[#d7d7d9]" />
       </div>
 
       {/* Social buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div data-testid="google-login-btn" style={{ display: 'flex', justifyContent: 'center' }}>
+      <div className="flex flex-col gap-2.5">
+        <div data-testid="google-login-btn" className="flex justify-center">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setError('Google sign-in failed')}
@@ -451,25 +359,7 @@ export const Login = () => {
           data-testid="microsoft-login-btn"
           onClick={handleMicrosoftLogin}
           disabled={loading}
-          style={{
-            width: '100%',
-            background: T.cloudWhite,
-            color: T.inkBlack,
-            border: `1px solid ${T.platinumGray}`,
-            borderRadius: '100px',
-            padding: '11px 24px',
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            transition: 'border-color 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = T.stoneGray}
-          onMouseLeave={e => e.currentTarget.style.borderColor = T.platinumGray}
+          className="w-full bg-white text-[#05060f] border border-[#d7d7d9] rounded-full px-6 py-[11px] text-sm font-medium cursor-pointer hover:border-[#696a6f] transition-colors flex items-center justify-center gap-2.5"
         >
           <svg width="18" height="18" viewBox="0 0 21 21">
             <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
@@ -482,15 +372,13 @@ export const Login = () => {
       </div>
 
       {/* Switch mode */}
-      <p style={{ textAlign: 'center', fontSize: 13, color: T.stoneGray, marginTop: 20, marginBottom: 0 }}>
+      <p className="text-center text-[13px] text-[#696a6f] mt-5 mb-0">
         {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
         <button
           type="button"
           data-testid="toggle-auth-mode"
           onClick={() => switchMode(!isSignUp)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: T.blue, fontFamily: 'inherit', padding: 0 }}
-          onMouseEnter={e => e.currentTarget.style.color = T.blueHover}
-          onMouseLeave={e => e.currentTarget.style.color = T.blue}
+          className="bg-transparent border-none cursor-pointer text-[13px] font-medium text-blue-700 hover:text-blue-800 transition-colors p-0"
         >
           {isSignUp ? 'Sign In' : 'Sign Up'}
         </button>

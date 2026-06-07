@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 // ─── Resize handle definitions ────────────────────────────────────────────────
 const HANDLES = [

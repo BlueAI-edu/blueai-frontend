@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { API } from '@/config';
+import { useState, useEffect, useCallback } from 'react';
+import { teacherApi } from '@/services/api';
 
 const ACCOUNT_TYPE_LABELS = {
   free_tester: 'Free Trial',
@@ -42,7 +41,7 @@ export default function UsageBanner() {
 
   const loadQuota = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/teacher/usage`);
+      const res = await teacherApi.getUsage();
       setQuota(res.data);
     } catch {
       setError(true);

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import 'mathlive';
 import LaTeXRenderer from './LaTeXRenderer';
 import MathKeyboard from './MathKeyboard';

@@ -938,7 +938,7 @@ export const LandingPage = () => {
             {[
               { heading: 'Product',   links: [{ label: 'Features', action: () => scrollTo('features') }, { label: 'How It Works', action: () => scrollTo('how-it-works') }, { label: 'Use Cases', action: () => scrollTo('use-cases') }] },
               { heading: 'Access',    links: [{ label: 'Student Join', action: () => navigate('/join') }, { label: 'Teacher Sign In', action: () => navigate('/teacher/login') }, { label: 'Join Early Access', action: () => openModal('Join Early Access') }, { label: 'Request a Demo', action: () => openModal('Request a Demo') }] },
-              { heading: 'Legal',     links: [{ label: 'Privacy Policy', action: null }, { label: 'Terms of Service', action: null }, { label: 'hello@blueai.app', action: null, href: 'mailto:hello@blueai.app' }] },
+              { heading: 'Legal',     links: [{ label: 'Privacy Policy', action: () => navigate('/privacy') }, { label: 'Terms of Service', action: () => navigate('/terms') }, { label: 'hello@blueai.app', action: null, href: 'mailto:hello@blueai.app' }] },
             ].map(col => (
               <div key={col.heading}>
                 <h4 style={{ fontSize: 12, fontWeight: 600, color: T.cloudWhite, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{col.heading}</h4>

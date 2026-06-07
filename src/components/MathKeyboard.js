@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 const MathKeyboard = ({ onInsert, onClose }) => {
   const [activeTab, setActiveTab] = useState('basic');

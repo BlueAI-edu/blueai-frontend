@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import DiagramRenderer from '../DiagramRenderer';
 import DiagramCropModal from './DiagramCropModal';
 import LaTeXRenderer from '../LaTeXRenderer';

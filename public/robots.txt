@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /teacher/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /attempt/
+Disallow: /enhanced-attempt/
+
+Allow: /
+Allow: /join

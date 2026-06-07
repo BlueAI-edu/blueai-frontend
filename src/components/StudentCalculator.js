@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 const StudentCalculator = ({ mode = 'basic', onClose }) => {
   const [display, setDisplay] = useState('0');
