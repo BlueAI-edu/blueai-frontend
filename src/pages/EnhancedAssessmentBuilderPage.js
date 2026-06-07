@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
+import { LoadingSpinner } from '@/components/common';
 
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
 const AIBulkGenerator = lazy(() => import('../components/EnhancedAssessmentBuilder/AIBulkGenerator'));
 const OCRExtractionReview = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRExtractionReview'));
+const OCRUploadStep = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRUploadStep'));
 
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();
@@ -505,7 +507,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {currentStep === 1 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <Suspense fallback={<div className="p-4 text-center text-gray-500">Loading...</div>}>
+            <Suspense fallback={<div className="p-4 flex justify-center"><LoadingSpinner /></div>}>
               <AssessmentModeSelector
                 selectedMode={assessmentData.assessmentMode}
                 onModeChange={(mode) => updateField('assessmentMode', mode)}
@@ -922,121 +924,23 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             </div>
 
             {assessmentData.assessmentMode === OCR_GCSE_MODE && ocrReviewState === 'uploading' && (
-              <div className="bg-white rounded-lg shadow p-6 space-y-5">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Upload Exam Documents</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Upload the question paper to extract questions automatically. Adding the mark scheme enables AI to pre-fill mark schemes for each question. PDF files only.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Question Paper */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Question Paper PDF <span className="text-gray-400 font-normal">(primary)</span></label>
-                    <label className={`flex flex-col items-center justify-center w-full py-6 border-2 border-dashed rounded-lg transition-colors ${
-                      extracting ? 'cursor-not-allowed opacity-60' :
-                      questionPaperFile ? 'border-green-400 bg-green-50 hover:bg-green-100 cursor-pointer' :
-                      'border-orange-300 bg-orange-50 hover:border-orange-400 hover:bg-orange-100 cursor-pointer'
-                    }`}>
-                      <span className="text-3xl mb-1">{questionPaperFile ? '✅' : '📄'}</span>
-                      <span className="font-medium text-sm text-gray-800 text-center px-2">
-                        {questionPaperFile ? questionPaperFile.name : 'Click to upload question paper'}
-                      </span>
-                      <span className="text-xs text-gray-500 mt-1">PDF only — up to 50 MB</span>
-                      <input type="file" accept=".pdf" className="hidden" disabled={extracting} onChange={handleQuestionPaperChange} />
-                    </label>
-                    {questionPaperError && (
-                      <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{questionPaperError}</p>
-                    )}
-                    {questionPaperFile && !extracting && (
-                      <button onClick={() => setQuestionPaperFile(null)} className="mt-1 text-xs text-gray-400 hover:text-red-500 underline">Remove</button>
-                    )}
-                  </div>
-
-                  {/* Mark Scheme */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Mark Scheme PDF <span className="text-gray-400 font-normal">(optional — pre-fills mark schemes)</span></label>
-                    <label className={`flex flex-col items-center justify-center w-full py-6 border-2 border-dashed rounded-lg transition-colors ${
-                      extracting ? 'cursor-not-allowed opacity-60' :
-                      markSchemeFile ? 'border-green-400 bg-green-50 hover:bg-green-100 cursor-pointer' :
-                      'border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100 cursor-pointer'
-                    }`}>
-                      <span className="text-3xl mb-1">{markSchemeFile ? '✅' : '📋'}</span>
-                      <span className="font-medium text-sm text-gray-800 text-center px-2">
-                        {markSchemeFile ? markSchemeFile.name : 'Click to upload mark scheme'}
-                      </span>
-                      <span className="text-xs text-gray-500 mt-1">PDF only — enables mark scheme pre-fill</span>
-                      <input type="file" accept=".pdf" className="hidden" disabled={extracting} onChange={handleMarkSchemeChange} />
-                    </label>
-                    {markSchemeError && (
-                      <p className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{markSchemeError}</p>
-                    )}
-                    {markSchemeFile && !extracting && (
-                      <button onClick={() => setMarkSchemeFile(null)} className="mt-1 text-xs text-gray-400 hover:text-red-500 underline">Remove</button>
-                    )}
-                  </div>
-                </div>
-
-                {!questionPaperFile && markSchemeFile && (
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-700">
-                      ⚠️ No question paper uploaded. AI will infer questions from the mark scheme only — question text will be placeholder text that you must fill in manually after extraction.
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-sm text-gray-500">
-                    {questionPaperFile && markSchemeFile ? '✓ Question paper + mark scheme ready' :
-                     questionPaperFile ? '✓ Question paper ready' :
-                     markSchemeFile ? '⚠ Mark scheme only' : 'No files selected'}
-                  </span>
-                  <button
-                    onClick={handleExtract}
-                    disabled={extracting || (!questionPaperFile && !markSchemeFile)}
-                    className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
-                  >
-                    {extracting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Extracting…
-                      </>
-                    ) : (
-                      '🔍 Extract Questions'
-                    )}
-                  </button>
-                </div>
-
-                {extracting && (
-                  <div className="pt-1">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Extracting questions from PDF…</span>
-                      <span>{extractProgress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-orange-500 h-2 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${extractProgress}%` }}
-                      />
-                    </div>
-                    {extractStuck && (
-                      <p className="mt-2 text-xs font-medium text-amber-700 flex items-center gap-1.5">
-                        <span>⚠</span>
-                        Large papers can take a while — do not refresh this page or your upload will be lost.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {extractError && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{extractError}</p>
-                )}
-
-                {!extracting && !questionPaperFile && !markSchemeFile && (
-                  <p className="text-sm text-gray-400 text-center">Upload at least one document above, then click Extract Questions to begin.</p>
-                )}
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading…</div>}>
+                <OCRUploadStep
+                  questionPaperFile={questionPaperFile}
+                  markSchemeFile={markSchemeFile}
+                  questionPaperError={questionPaperError}
+                  markSchemeError={markSchemeError}
+                  extractError={extractError}
+                  extracting={extracting}
+                  extractProgress={extractProgress}
+                  extractStuck={extractStuck}
+                  onQuestionPaperChange={handleQuestionPaperChange}
+                  onMarkSchemeChange={handleMarkSchemeChange}
+                  onExtract={handleExtract}
+                  onRemoveQuestionPaper={() => setQuestionPaperFile(null)}
+                  onRemoveMarkScheme={() => setMarkSchemeFile(null)}
+                />
+              </Suspense>
             )}
 
             {/* ── OCR Review step ── */}

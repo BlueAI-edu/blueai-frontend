@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import axios from 'axios';
 import { Toaster } from '@/components/ui/toaster';
+import { PageLoader } from '@/components/common';
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const Login = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.Login })));
@@ -36,12 +37,6 @@ const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m =
 
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
-
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="text-lg">Loading...</div>
-  </div>
-);
 
 const LazyProtectedRoute = ({ children, adminOnly = false }) => {
   const ProtectedRouteComponent = ProtectedRoute;

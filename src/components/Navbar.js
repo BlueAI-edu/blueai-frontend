@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import { API } from '@/config';
+import { authApi } from '@/services/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -64,7 +63,7 @@ export const Navbar = ({ user, onLogout }) => {
       return;
     }
     try {
-      await axios.post(`${API}/auth/logout`);
+      await authApi.logout();
     } catch (_) {}
     navigate('/teacher/login');
   };
