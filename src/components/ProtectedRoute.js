@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import { API } from '@/config';
+import { authApi } from '@/services/api';
+import { PageLoader } from '@/components/common';
 
 export const ProtectedRoute = ({ children, adminOnly = false }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
@@ -12,7 +12,7 @@ export const ProtectedRoute = ({ children, adminOnly = false }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get(`${API}/auth/me`);
+        const response = await authApi.getMe();
         setUser(response.data);
         
         if (adminOnly && response.data.role !== 'admin') {
@@ -31,7 +31,7 @@ export const ProtectedRoute = ({ children, adminOnly = false }) => {
   }, [location, navigate, adminOnly]);
 
   if (isAuthenticated === null) {
-    return <div className="flex items-center justify-center min-h-screen"><div className="text-lg">Loading...</div></div>;
+    return <PageLoader />;
   }
 
   if (!isAuthenticated) {

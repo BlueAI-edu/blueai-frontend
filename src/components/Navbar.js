@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import { API } from '@/config';
+import { authApi } from '@/services/api';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -16,7 +15,6 @@ import {
   FileQuestion,
   ClipboardList,
   Users,
-  FileText,
   CheckSquare,
   BarChart3,
   ShieldCheck,
@@ -32,7 +30,6 @@ const NAV_ITEMS = [
   { label: 'Questions', path: '/teacher/questions', icon: FileQuestion },
   { label: 'Assessments', path: '/teacher/assessments', icon: ClipboardList },
   { label: 'Classes', path: '/teacher/classes', icon: Users },
-  { label: 'Submissions', path: '/teacher/assessments', icon: FileText },
   { label: 'Marking', path: '/teacher/ocr-upload', icon: CheckSquare },
   { label: 'Analytics', path: '/teacher/analytics', icon: BarChart3 },
 ];
@@ -64,7 +61,7 @@ export const Navbar = ({ user, onLogout }) => {
       return;
     }
     try {
-      await axios.post(`${API}/auth/logout`);
+      await authApi.logout();
     } catch (_) {}
     navigate('/teacher/login');
   };

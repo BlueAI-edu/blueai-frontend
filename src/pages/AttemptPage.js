@@ -14,6 +14,7 @@ import { useAutosave } from '../hooks/use-autosave';
 import { useFullscreenSecurity } from '../hooks/use-fullscreen-security';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
+import { PageLoader } from '@/components/common';
 
 export const AttemptPage = () => {
   const { attemptId } = useParams();
@@ -133,7 +134,7 @@ export const AttemptPage = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen" data-testid="loading-attempt">Loading...</div>;
+    return <div data-testid="loading-attempt"><PageLoader /></div>;
   }
 
   if (!attempt || !question) {

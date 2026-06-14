@@ -3,8 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import axios from 'axios';
 import { Toaster } from '@/components/ui/toaster';
+import { PageLoader } from '@/components/common';
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage = lazy(() => import('./pages/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
 const Login = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.Login })));
 const JoinPage = lazy(() => import('./pages/JoinPage').then(m => ({ default: m.JoinPage })));
 const AttemptPage = lazy(() => import('./pages/AttemptPage').then(m => ({ default: m.AttemptPage })));
@@ -37,12 +40,6 @@ const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m =
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="text-lg">Loading...</div>
-  </div>
-);
-
 const LazyProtectedRoute = ({ children, adminOnly = false }) => {
   const ProtectedRouteComponent = ProtectedRoute;
   return (
@@ -59,6 +56,8 @@ function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/join" element={<JoinPage />} />
         <Route path="/attempt/:attemptId" element={<AttemptPage />} />
         <Route path="/enhanced-attempt/:attemptId" element={<EnhancedAttemptPage />} />

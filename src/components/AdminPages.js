@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
 import { Navbar } from './Navbar';
+import { LoadingSpinner } from '@/components/common';
 
 const ACCOUNT_TYPES = ['free_tester', 'paid', 'extended', 'pilot', 'internal'];
 const ACCOUNT_TYPE_LABELS = {
@@ -269,7 +270,7 @@ export const AdminDashboard = ({ user }) => {
               Teachers ({teachers.length})
             </h3>
             {loading ? (
-              <div className="text-center py-8">Loading...</div>
+              <div className="text-center py-8"><LoadingSpinner /></div>
             ) : teachers.length === 0 ? (
               <p className="text-gray-600 text-center py-8">No teachers yet</p>
             ) : (
@@ -322,7 +323,7 @@ export const AdminDashboard = ({ user }) => {
               All Assessments ({assessments.length})
             </h3>
             {loading ? (
-              <div className="text-center py-8">Loading...</div>
+              <div className="text-center py-8"><LoadingSpinner /></div>
             ) : assessments.length === 0 ? (
               <p className="text-gray-600 text-center py-8">No assessments yet</p>
             ) : (
