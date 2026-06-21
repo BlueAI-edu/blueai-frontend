@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authApi } from '@/services/api';
+import { BlueAILogo } from '../components/ui/BlueAI-logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -97,10 +98,7 @@ export const Navbar = ({ user, onLogout }) => {
                 className="flex items-center gap-2 shrink-0"
                 data-testid="nav-logo"
               >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">B</span>
-                </div>
-                <span className="text-xl font-bold text-gray-900 hidden sm:block">BlueAI</span>
+                <BlueAILogo className="h-8 w-auto" />
               </button>
 
               {/* Desktop Nav Links */}

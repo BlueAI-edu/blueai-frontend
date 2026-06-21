@@ -219,7 +219,7 @@ Use $ for maths: $x^2 + 3x - 10 = 0$"
             <ul className="list-disc list-inside space-y-1">
               <li>Show each step clearly - you can earn marks even if your final answer is wrong</li>
               <li>Write formulas before substituting numbers</li>
-              <li>Use the section buttons to organize your work</li>
+              <li>Use the section buttons to organise your work</li>
               <li>Check your units and significant figures</li>
               <li>Use math symbols ($x^2$) for better clarity</li>
             </ul>

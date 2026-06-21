@@ -14,6 +14,7 @@ import { useAutosave } from '../hooks/use-autosave';
 import { useFullscreenSecurity } from '../hooks/use-fullscreen-security';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
+import { hasAnswer } from '@/lib/utils';
 
 export const EnhancedAttemptPage = () => {
   const { attemptId } = useParams();
@@ -154,16 +155,6 @@ export const EnhancedAttemptPage = () => {
     setCurrentQuestionIndex(prev => prev > 0 ? prev - 1 : prev);
   }, []);
 
-  // Returns true if an answer value (string or drawing JSON) counts as answered.
-  const hasAnswer = useCallback((val) => {
-    if (!val) return false;
-    try {
-      const parsed = JSON.parse(val);
-      return parsed?._type === 'drawing' && !!parsed.imageData;
-    } catch {
-      return !!val.trim();
-    }
-  }, []);
 
   const answerProgress = useMemo(() => {
     if (!assessment?.questions) return { answeredCount: 0, totalItems: 0 };

@@ -70,7 +70,7 @@ const StructuredQuestionBuilder = ({ parts, onPartsChange, questionNumber }) => 
       <div className="flex justify-between items-center">
         <div>
           <h4 className="font-semibold text-gray-900">Question {questionNumber} Parts</h4>
-          <p className="text-sm text-gray-600">Add sub-parts (a, b, c...) - auto-labeled</p>
+          <p className="text-sm text-gray-600">Add sub-parts (a, b, c...) - auto-labelled</p>
         </div>
         <div className="text-right">
           <div className="text-sm text-gray-600">Total Marks</div>

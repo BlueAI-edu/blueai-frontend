@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ReactComponent as LogoSVG } from '../logo.svg';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -118,25 +119,14 @@ const PathIcon = ({ d, size = 20, color = T.stoneGray }) => (
 );
 
 const LogoMark = ({ size = 32, dark = false }) => (
-  <div style={{
-    width: size,
-    height: size,
-    borderRadius: Math.round(size * 0.25),
-    background: dark ? T.cloudWhite : T.violet,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  }}>
-    <svg width={Math.round(size * 0.72)} height={Math.round(size * 0.72)} viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <path d="M5 19.5L14 4l9 15.5" stroke={dark ? T.violet : T.cloudWhite} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M9 15.5h10" stroke={dark ? T.violet : T.cloudWhite} strokeWidth="3" strokeLinecap="round" />
-      <circle cx="14" cy="21" r="2.5" fill={dark ? T.violet : T.cloudWhite} />
-    </svg>
-  </div>
+  <LogoSVG
+    style={{
+      height: size,
+      width: 'auto',
+      filter: dark ? 'brightness(0) invert(1)' : 'none',
+    }}
+  />
 );
-
 // ─── Waitlist Modal ───────────────────────────────────────────────────────────
 const WaitlistModal = ({ onClose, interestType = 'Join Early Access' }) => {
   const [form, setForm] = useState({ name: '', email: '', role: '', school: '', interest: interestType });
@@ -382,7 +372,6 @@ export const LandingPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <LogoMark />
-            <span style={{ fontWeight: 700, fontSize: 16, color: T.inkBlack, letterSpacing: '-0.3px' }}>BlueAI Assess</span>
           </div>
 
           {/* Desktop nav */}
@@ -928,7 +917,6 @@ export const LandingPage = () => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                 <LogoMark size={28} dark />
-                <span style={{ fontWeight: 700, fontSize: 15, color: T.cloudWhite }}>BlueAI Assess</span>
               </div>
               <p style={{ fontSize: 13, color: T.stoneGray, lineHeight: 1.7, maxWidth: 260, margin: 0 }}>
                 AI-supported assessment and feedback for teachers. Built for real classroom workflows.

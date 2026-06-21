@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatTime } from '../hooks/use-timer';
+import { hasAnswer } from '../lib/utils';
 
 const QuestionSidebar = ({
   assessment,
@@ -72,10 +73,10 @@ const QuestionSidebar = ({
           if (isStructured) {
             isAnswered = q.parts.every(part => {
               const partKey = `${q.questionNumber}-${part.partLabel}`;
-              return answers[partKey]?.trim();
+              return hasAnswer(answers[partKey]);
             });
           } else {
-            isAnswered = answers[q.questionNumber]?.trim();
+            isAnswered = hasAnswer(answers[q.questionNumber]);
           }
 
           return (

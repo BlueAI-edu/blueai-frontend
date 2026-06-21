@@ -73,7 +73,7 @@ function setupDevServer(config) {
       // 🔑 Check header against Supervisor password
       const key = req.get("x-api-key");
       if (!SUP_PASS || key !== SUP_PASS) {
-        return res.status(401).json({ error: "Unauthorized" });
+        return res.status(401).json({ error: "Unauthorised" });
       }
 
       const { changes } = req.body;
