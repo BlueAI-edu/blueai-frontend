@@ -31,6 +31,8 @@ export const EnhancedAttemptPage = () => {
   const [showMathKeyboard, setShowMathKeyboard] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
+  const [submitProgress, setSubmitProgress] = useState(0);
+  const [submitStage, setSubmitStage] = useState('');
 
   const { timeLeft } = useTimer({
     // Per-student timing: count down from when the student personally joined.
@@ -122,21 +124,46 @@ export const EnhancedAttemptPage = () => {
   };
 
   const performSubmit = async (autoSubmit = false) => {
-    setSubmitting(true);
-    setShowSubmitConfirm(false);
-    try {
-      await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
-        answers,
-        autoSubmitted: autoSubmit,
-      });
-      // Answers are saved; marking happens in the background on the server.
-      // Show the thank-you page immediately — no waiting required.
-      setSubmitted(true);
-    } catch (error) {
-      handleApiError(error, 'Failed to submit assessment');
-      setSubmitting(false);
+  setSubmitting(true);
+  setSubmitProgress(0);
+  setSubmitStage('Preparing your answers...');
+  setShowSubmitConfirm(false);
+
+  // Simulate progress stages while request is in flight
+  const stages = [
+    { pct: 15, label: 'Preparing your answers...' },
+    { pct: 35, label: 'Saving your responses...' },
+    { pct: 60, label: 'Uploading to server...' },
+    { pct: 80, label: 'Almost there, please wait...' },
+    { pct: 90, label: 'Finalising submission...' },
+  ];
+
+  let stageIndex = 0;
+  const interval = setInterval(() => {
+    if (stageIndex < stages.length) {
+      setSubmitProgress(stages[stageIndex].pct);
+      setSubmitStage(stages[stageIndex].label);
+      stageIndex++;
     }
-  };
+  }, 600);
+
+  try {
+    await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
+      answers,
+      autoSubmitted: autoSubmit,
+    });
+    clearInterval(interval);
+    setSubmitProgress(100);
+    setSubmitStage('Submitted successfully!');
+    setTimeout(() => setSubmitted(true), 600);
+  } catch (error) {
+    clearInterval(interval);
+    handleApiError(error, 'Failed to submit assessment');
+    setSubmitting(false);
+    setSubmitProgress(0);
+    setSubmitStage('');
+  }
+};
 
   const toggleFlag = useCallback((index) => {
     setFlaggedQuestions(prev => {
@@ -649,7 +676,47 @@ export const EnhancedAttemptPage = () => {
           </div>
         </div>
       </div>
+      {/* Submission Loading Overlay */}
+      {submitting && (
+        <div className="fixed inset-0 bg-white z-50 flex items-center justify-center p-6">
+          <div className="max-w-sm w-full text-center">
+            {/* Animated icon */}
+            <div className="w-20 h-20 mx-auto mb-6 relative">
+              <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
+              <div
+                className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
 
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Submitting your assessment</h2>
+            <p className="text-gray-500 mb-6 text-sm">
+              Please <span className="font-semibold text-gray-700">do not close this tab</span> until submission is complete.
+            </p>
+
+            {/* Progress bar */}
+            <div className="w-full bg-gray-100 rounded-full h-3 mb-3 overflow-hidden">
+              <div
+                className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500 ease-out"
+                style={{ width: `${submitProgress}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-gray-400 mb-4">
+              <span>{submitStage}</span>
+              <span>{submitProgress}%</span>
+            </div>
+
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+              ⚠️ Closing this page now may cause your answers to be lost.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Submit Confirmation Modal */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
