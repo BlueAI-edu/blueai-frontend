@@ -7,7 +7,7 @@ import AIBulkGenerator from './AIBulkGenerator';
 import MixedMathEditor from '../MixedMathEditor';
 import DiagramRenderer from '../DiagramRenderer';
 
-const LONG_RESPONSE_MIN_MARKS = 6;
+const LONG_RESPONSE_MIN_MARKS = 1;
 const LONG_RESPONSE_MAX_MARKS = 15;
 
 const QuestionEditor = ({
@@ -218,24 +218,21 @@ const QuestionEditor = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Marks
                           {question.questionType === 'LONG_RESPONSE' && (
-                            <span className="ml-1 text-xs text-blue-600 font-normal">(6–15 required)</span>
+                            <span className="ml-1 text-xs text-blue-600 font-normal">(1–15)</span>
                           )}
                         </label>
-                        <input
-                          type="number"
-                          min={getMarksConfig().min}
-                          max={getMarksConfig().max}
+                        <select
                           value={question.maxMarks || 1}
                           onChange={(e) => handleMarksChange(e.target.value)}
-                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                            marksOutOfRange ? 'border-red-400 bg-red-50' : ''
-                          }`}
-                        />
-                        {marksOutOfRange && (
-                          <p className="mt-1 text-xs text-red-600">
-                            Long response questions must be {LONG_RESPONSE_MIN_MARKS}–{LONG_RESPONSE_MAX_MARKS} marks.
-                          </p>
-                        )}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          {Array.from(
+                            { length: getMarksConfig().max - getMarksConfig().min + 1 },
+                            (_, i) => i + getMarksConfig().min
+                          ).map((n) => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Answer Type</label>

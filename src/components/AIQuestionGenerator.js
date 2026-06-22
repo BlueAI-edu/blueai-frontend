@@ -296,15 +296,16 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
           {/* Number of Questions */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
-            <input
-              type="number"
-              min="1"
-              max="10"
+            <select
               value={formData.num_questions}
               onChange={(e) => handleChange('num_questions', parseInt(e.target.value))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               data-testid="ai-num-questions"
-            />
+            >
+              {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
           </div>
 
           {/* Include Diagrams */}
