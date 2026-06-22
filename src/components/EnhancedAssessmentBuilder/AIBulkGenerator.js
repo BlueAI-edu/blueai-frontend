@@ -176,27 +176,29 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
         {/* Number of Questions */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Questions</label>
-          <input
-            type="number"
-            min="3"
-            max="20"
+          <select
             value={formData.num_questions}
-            onChange={(e) => handleChange('num_questions', parseInt(e.target.value) || 5)}
+            onChange={(e) => handleChange('num_questions', parseInt(e.target.value))}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+          >
+            {Array.from({ length: 18 }, (_, i) => i + 3).map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
         </div>
 
         {/* Total Marks */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Total Marks</label>
-          <input
-            type="number"
-            min="10"
-            max="100"
+          <select
             value={formData.total_marks}
-            onChange={(e) => handleChange('total_marks', parseInt(e.target.value) || 40)}
+            onChange={(e) => handleChange('total_marks', parseInt(e.target.value))}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
+          >
+            {Array.from({ length: 19 }, (_, i) => (i + 1) * 5).map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
         </div>
       </div>
 
