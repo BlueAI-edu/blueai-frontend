@@ -243,14 +243,15 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                               Marks for part {part.partLabel}:
                             </label>
                             <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min="0"
-                                max={part.maxMarks}
+                              <select
                                 value={questionScores[partKey] || 0}
                                 onChange={(e) => handleScoreChange(partKey, e.target.value)}
                                 className="w-20 px-3 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                              />
+                              >
+                                {Array.from({ length: part.maxMarks + 1 }, (_, i) => (
+                                  <option key={i} value={i}>{i}</option>
+                                ))}
+                              </select>
                               <span className="text-sm text-gray-600">out of {part.maxMarks}</span>
                             </div>
                           </div>
@@ -300,14 +301,15 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                           Marks Awarded:
                         </label>
                         <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max={question.maxMarks}
+                          <select
                             value={questionScores[question.questionNumber] || 0}
                             onChange={(e) => handleScoreChange(question.questionNumber, e.target.value)}
                             className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          />
+                          >
+                            {Array.from({ length: question.maxMarks + 1 }, (_, i) => (
+                              <option key={i} value={i}>{i}</option>
+                            ))}
+                          </select>
                           <span className="text-gray-600">out of {question.maxMarks}</span>
                         </div>
                       </div>
