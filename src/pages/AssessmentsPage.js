@@ -20,6 +20,7 @@ export const AssessmentsPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState("assessments"); // assessments, templates
   const [visibleCount, setVisibleCount] = useState(10);
   const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "review_needed" | "submissions"
+  const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [formData, setFormData] = useState({
     question_id: "",
     class_id: "",
@@ -63,6 +64,11 @@ export const AssessmentsPage = ({ user }) => {
       }
       setAssignmentsByAssessment(grouped);
       setLoading(false);
+      const dashboardRes = await teacherApi.getDashboard().catch((err) => {
+        console.log('Dashboard error:', err);
+        return { data: {} };
+      });
+      setTotalSubmissions(dashboardRes.data.total_submissions ?? 0);
     } catch (error) {
       setLoading(false);
     }
@@ -219,7 +225,7 @@ export const AssessmentsPage = ({ user }) => {
           loading={loading}
           totalAssessments={assessments.length}
           liveAssessments={assessments.filter((a) => a.status === "started").length}
-          totalSubmissions={assessments.reduce((s, a) => s + (a.submission_count || 0), 0) || null}
+          totalSubmissions={totalSubmissions}
           reviewNeeded={assessments.filter((a) => a.status === "review_needed").length}
           activeFilter={statusFilter}
           onFilterAll={() => { setActiveTab("assessments"); setStatusFilter("all"); scrollToList(); }}
