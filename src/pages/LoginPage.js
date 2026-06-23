@@ -5,6 +5,7 @@ import { authApi } from '@/services/api';
 import { GoogleLogin } from '@react-oauth/google';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '@/msalConfig';
+import { ReactComponent as LogoSVG } from '../logo.svg';
 
 const INPUT_CLS =
   'w-full border border-[#d7d7d9] rounded-[10px] px-[14px] py-[11px] text-sm ' +
@@ -20,11 +21,8 @@ const CheckIcon = () => (
 
 const Shell = ({ children }) => (
   <div className="min-h-screen bg-[#f8f8f8] flex flex-col items-center justify-center px-4 py-6 font-[Inter,system-ui,sans-serif]">
-    <div className="flex items-center gap-2 mb-7">
-      <div className="w-[34px] h-[34px] rounded-[9px] bg-blue-700 flex items-center justify-center">
-        <span className="text-white font-bold text-[15px]">B</span>
-      </div>
-      <span className="font-bold text-[17px] text-[#05060f] tracking-[-0.3px]">BlueAI</span>
+    <div className="mb-7">
+      <LogoSVG style={{ height: 34, width: 'auto' }} />
     </div>
 
     <div className="bg-white rounded-[20px] shadow-[rgba(0,19,41,0.01)_0px_10px_32px_0px,rgba(0,19,41,0.02)_0px_2px_0px_0px,rgba(0,19,41,0.02)_0px_0px_24px_0px] w-full max-w-[420px] p-8">

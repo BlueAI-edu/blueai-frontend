@@ -160,7 +160,7 @@ export const AssessmentStatsRow = ({
         iconBg="bg-sky-50"
         iconColor="text-sky-600"
         label="Total Submissions"
-        value={totalSubmissions ?? "—"}
+        value={totalSubmissions ?? 0}
         supportingText="This term"
         active={activeFilter === "submissions"}
         onClick={onFilterSubmissions}

@@ -317,29 +317,29 @@ export const TeacherDashboard = ({ user }) => {
             <>
               {[
                 {
-                  label: 'Total Assessments', value: stats?.total_assessments || 0,
+                  label: 'Total Assessments', value: stats?.total_assessments ?? 0,
                   sub: 'Across all classes', icon: ClipboardList,
                   iconBg: 'bg-blue-50 group-hover:bg-blue-100', iconColor: 'text-blue-600',
                   hoverBorder: 'hover:border-blue-200', chevronHover: 'group-hover:text-blue-400',
                   route: '/teacher/assessments', testId: 'stat-assessments',
                 },
                 {
-                  label: 'Total Submissions', value: stats?.total_submissions || 0,
-                  sub: 'Submitted by students', icon: Upload,
+                  label: 'Live Assessments', value: stats?.live_assessments ?? 0,
+                  sub: 'Currently active', icon: BarChart3,
+                  iconBg: 'bg-green-50 group-hover:bg-green-100', iconColor: 'text-green-600',
+                  hoverBorder: 'hover:border-green-200', chevronHover: 'group-hover:text-green-400',
+                  route: '/teacher/assessments?filter=live', testId: 'stat-live',
+                },
+                {
+                  label: 'Total Submissions', value: stats?.total_submissions ?? 0,
+                  sub: 'This term', icon: Upload,
                   iconBg: 'bg-purple-50 group-hover:bg-purple-100', iconColor: 'text-purple-600',
                   hoverBorder: 'hover:border-purple-200', chevronHover: 'group-hover:text-purple-400',
                   route: '/teacher/assessments', testId: 'stat-submissions',
                 },
                 {
-                  label: 'Marked', value: stats?.marked || 0,
-                  sub: 'Fully marked', icon: CheckCircle2,
-                  iconBg: 'bg-green-50 group-hover:bg-green-100', iconColor: 'text-green-600',
-                  hoverBorder: 'hover:border-green-200', chevronHover: 'group-hover:text-green-400',
-                  route: '/teacher/assessments?filter=marked', testId: 'stat-marked',
-                },
-                {
                   label: 'Needs Review', value: needsReview,
-                  sub: 'Awaiting your review', icon: AlertTriangle,
+                  sub: 'Requires attention', icon: AlertTriangle,
                   iconBg: 'bg-orange-50 group-hover:bg-orange-100', iconColor: 'text-orange-500',
                   hoverBorder: 'hover:border-orange-200', chevronHover: 'group-hover:text-orange-400',
                   route: '/teacher/assessments?filter=review', testId: 'stat-needs-review',

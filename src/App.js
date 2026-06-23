@@ -41,12 +41,11 @@ axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 const LazyProtectedRoute = ({ children, adminOnly = false }) => {
-  const ProtectedRouteComponent = ProtectedRoute;
   return (
     <Suspense fallback={<PageLoader />}>
-      <ProtectedRouteComponent adminOnly={adminOnly}>
-        {children}
-      </ProtectedRouteComponent>
+      <ProtectedRoute adminOnly={adminOnly}>
+        {(user) => children(user)}
+      </ProtectedRoute>
     </Suspense>
   );
 };
