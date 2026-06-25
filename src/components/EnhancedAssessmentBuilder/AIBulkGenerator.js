@@ -3,6 +3,7 @@ import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
+import { SUBJECT_GROUPS } from '@/pages/EnhancedAssessmentBuilderPage';
 
 const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
   const [runGenerate, generating] = useAsync();
@@ -23,7 +24,6 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
   });
   const [error, setError] = useState('');
 
-  const subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'English', 'History'];
   const keyStages = ['KS3', 'KS4', 'KS5'];
   const examBoards = ['AQA', 'Edexcel', 'OCR', 'WJEC', 'CIE'];
   const tiers = ['Foundation', 'Higher', 'Intermediate'];
@@ -95,8 +95,14 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
             onChange={(e) => handleChange('subject', e.target.value)}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+            {SUBJECT_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.subjects.map((subject) => (
+                  <option key={subject} value={subject}>{subject}</option>
+                ))}
+              </optgroup>
+            ))}
+            </select>
         </div>
 
         {/* Key Stage */}
