@@ -102,6 +102,8 @@ export const TeacherDashboard = ({ user }) => {
   const [ocrHealth, setOcrHealth]           = useState(null);
   const [ocrLoading, setOcrLoading]         = useState(true);
 
+  const [allAssessments, setAllAssessments] = useState([]);
+
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     setStatsError(false);
@@ -128,7 +130,9 @@ export const TeacherDashboard = ({ user }) => {
       const sorted = [...all].sort((a, b) =>
         new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
       );
+      setAllAssessments(sorted);             
       setRecentAssessments(sorted.slice(0, 6));
+
 
       // Build priority queue from OCR-relevant statuses
       const reviewStatuses = ['ocr_in_review', 'low_confidence', 'needs_review'];
@@ -185,7 +189,9 @@ export const TeacherDashboard = ({ user }) => {
   };
 
   const firstName   = user?.name?.split(' ')[0] || 'Teacher';
-  const needsReview = stats?.needs_review ?? stats?.unmarked ?? 0;
+  const needsReview = allAssessments.filter(
+          a => (a.status || '').toLowerCase() === 'review_needed'
+          ).length;
 
   return (
     <div className="min-h-screen bg-[#f7f8fb]">
