@@ -588,54 +588,62 @@ export const EnhancedAttemptPage = () => {
           })()}
 
           {/* Assessment-wide tool panels */}
+          {/* ── Maths & Science Keyboard (right-panel, draggable) ──────────────────── */}
           {assessment.mathKeyboardEnabled && showMathKeyboard && (
-            <div className="fixed right-0 top-0 h-full w-72 bg-white shadow-2xl border-l border-gray-200 z-40 flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-600 text-white shrink-0">
-                <span className="font-semibold text-sm">Maths Keyboard</span>
-                <button
-                  onClick={() => setShowMathKeyboard(false)}
-                  className="p-1 rounded hover:bg-blue-700 text-white"
-                >✕</button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-2">
-                <StudentMathKeyboard onInsert={insertIntoFocused} onClose={() => setShowMathKeyboard(false)} />
-              </div>
-            </div>
+            <StudentMathKeyboard
+              onInsert={insertIntoFocused}
+              onClose={() => setShowMathKeyboard(false)}
+            />
           )}
 
+          {/* ── Scientific Calculator (bottom-left, draggable) ──────────────────────── */}
           {assessment.calculatorAllowed && showCalculator && (
-            <div className={`fixed ${showMathKeyboard ? 'right-[19rem]' : 'right-4'} bottom-28 z-40 w-80 transition-all duration-200`}>
-              <StudentCalculator onClose={() => setShowCalculator(false)} />
-            </div>
+            <StudentCalculator
+              onClose={() => setShowCalculator(false)}
+              defaultPosition={{ x: 16, y: null }} 
+              />
           )}
 
-          {/* Floating tool toggle buttons (assessment-wide) */}
+          {/* ── Floating toggle buttons (fixed bottom-right, never move) ───────────── */}
           {(assessment.calculatorAllowed || assessment.mathKeyboardEnabled) && (
-            <div className={`fixed ${showMathKeyboard ? 'right-[19rem]' : 'right-4'} bottom-8 flex flex-col gap-2 z-50 transition-all duration-200`}>
+            <div className="fixed right-4 bottom-8 flex flex-col gap-2 z-50">
               {assessment.calculatorAllowed && (
                 <button
                   onClick={() => setShowCalculator(v => !v)}
+                  title={showCalculator ? 'Hide calculator' : 'Open scientific calculator'}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium transition-colors ${
-                    showCalculator ? 'bg-purple-700 text-white hover:bg-purple-800' : 'bg-purple-600 text-white hover:bg-purple-700'
+                    showCalculator
+                      ? 'bg-purple-800 text-white ring-2 ring-purple-400'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
                 >
+                  {/* Calculator icon */}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-2M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                      d="M9 7H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-2M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01" />
                   </svg>
                   Calculator
+                  {showCalculator && <span className="text-xs opacity-70">(drag to move)</span>}
                 </button>
               )}
+
               {assessment.mathKeyboardEnabled && (
                 <button
                   onClick={() => setShowMathKeyboard(v => !v)}
+                  title={showMathKeyboard ? 'Hide keyboard' : 'Open maths & science keyboard'}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium transition-colors ${
-                    showMathKeyboard ? 'bg-blue-700 text-white hover:bg-blue-800' : 'bg-blue-600 text-white hover:bg-blue-700'
+                    showMathKeyboard
+                      ? 'bg-blue-800 text-white ring-2 ring-blue-400'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
+                  {/* Keyboard icon */}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
                   Maths Keyboard
+                  {showMathKeyboard && <span className="text-xs opacity-70">(drag to move)</span>}
                 </button>
               )}
             </div>
