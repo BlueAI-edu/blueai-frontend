@@ -12,6 +12,53 @@ const AIBulkGenerator = lazy(() => import('../components/EnhancedAssessmentBuild
 const OCRExtractionReview = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRExtractionReview'));
 const OCRUploadStep = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRUploadStep'));
 
+export const SUBJECT_GROUPS = [
+  {
+    label: 'Science',
+    subjects: ['Science', 'Combined Science', 'Biology', 'Chemistry', 'Physics'],
+  },
+  {
+    label: 'Mathematics',
+    subjects: ['Mathematics', 'Further Mathematics', 'Statistics'],
+  },
+  {
+    label: 'English',
+    subjects: ['English Language', 'English Literature', 'English'],
+  },
+  {
+    label: 'Humanities',
+    subjects: ['History', 'Geography', 'Religious Studies', 'Citizenship'],
+  },
+  {
+    label: 'Modern Foreign Languages',
+    subjects: ['French', 'Spanish', 'German', 'Italian', 'Mandarin', 'Arabic', 'Latin'],
+  },
+  {
+    label: 'Computer Science & Technology',
+    subjects: ['Computer Science', 'ICT', 'Design and Technology', 'Engineering'],
+  },
+  {
+    label: 'Business & Social Sciences',
+    subjects: ['Business Studies', 'Economics', 'Accounting', 'Psychology', 'Sociology', 'Politics'],
+  },
+  {
+    label: 'Arts & Creative Subjects',
+    subjects: ['Art and Design', 'Photography', 'Drama', 'Music', 'Media Studies', 'Film Studies'],
+  },
+  {
+    label: 'PE & Health',
+    subjects: ['Physical Education', 'Health and Social Care', 'Food Preparation and Nutrition'],
+  },
+  {
+    label: 'Vocational / Applied',
+    subjects: ['BTEC Science', 'BTEC Business', 'BTEC ICT', 'Applied Science', 'Travel and Tourism'],
+  },
+  {
+    label: 'Other',
+    subjects: ['Other'],
+  },
+];
+
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();
   const { assessmentId } = useParams();
@@ -552,18 +599,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   onChange={(e) => updateField('subject', e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option>Mathematics</option>
-                  <option>Physics</option>
-                  <option>Chemistry</option>
-                  <option>Biology</option>
-                  <option>Combined Science</option>
-                  <option>English Language</option>
-                  <option>English Literature</option>
-                  <option>History</option>
-                  <option>Geography</option>
-                  <option>Computer Science</option>
-                  <option>Business Studies</option>
-                  <option>Economics</option>
+                  {SUBJECT_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.subjects.map((subject) => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -611,14 +653,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
-              <input
-                type="number"
-                min="1"
-                max="120"
+              <select
                 value={assessmentData.durationMinutes}
-                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value) || 90)}
+                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value={1}>1 min</option>
+                {Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(mins => (
+                  <option key={mins} value={mins}>{mins} mins</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -718,12 +762,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   onChange={(e) => updateField('subject', e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option>Mathematics</option>
-                  <option>Physics</option>
-                  <option>Chemistry</option>
-                  <option>Biology</option>
-                  <option>English</option>
-                  <option>History</option>
+                  {SUBJECT_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.subjects.map((subject) => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -772,14 +817,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
-              <input
-                type="number"
-                min="1"
-                max="120"
+              <select
                 value={assessmentData.durationMinutes}
-                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value) || 45)}
+                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value={1}>1 min</option>
+                {Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(mins => (
+                  <option key={mins} value={mins}>{mins} mins</option>
+                ))}
+              </select>
             </div>
 
             <div>

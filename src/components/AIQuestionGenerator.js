@@ -5,8 +5,8 @@ import LaTeXRenderer from './LaTeXRenderer';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
+import { SUBJECT_GROUPS } from '@/pages/EnhancedAssessmentBuilderPage';
 
-const subjects = ['Maths', 'Physics', 'Chemistry', 'Biology', 'Combined Science', 'English Lang', 'English Lit', 'Geography', 'History'];
 const keyStages = ['KS3', 'KS4', 'KS5'];
 const examBoards = ['AQA', 'Edexcel', 'OCR', 'WJEC'];
 const tiers = ['Foundation', 'Higher', 'N/A'];
@@ -28,7 +28,7 @@ const diagramOptions = [
 
 const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [formData, setFormData] = useState({
-    subject: 'Maths',
+    subject: 'Mathematics',
     key_stage: 'KS4',
     exam_board: 'AQA',
     tier: 'Higher',
@@ -56,7 +56,7 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
 
     // Auto-enable LaTeX for maths/science
     if (field === 'subject') {
-      const mathSubjects = ['Maths', 'Physics', 'Chemistry', 'Combined Science'];
+      const mathSubjects = ['Mathematics', 'Further Mathematics', 'Statistics', 'Physics', 'Chemistry', 'Combined Science', 'Science'];
       setFormData(prev => ({
         ...prev,
         [field]: value,
@@ -185,7 +185,13 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               data-testid="ai-subject"
             >
-              {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+              {SUBJECT_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.subjects.map((subject) => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
 
@@ -281,16 +287,17 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
 
           {/* Marks */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Marks (1-20)</label>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              value={formData.marks}
-              onChange={(e) => handleChange('marks', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              data-testid="ai-marks"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Marks</label>
+              <select
+                value={formData.marks}
+                onChange={(e) => handleChange('marks', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                data-testid="ai-marks"
+              >
+                {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+                  <option key={n} value={n}>{n} mark{n !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
           </div>
 
           {/* Number of Questions */}
