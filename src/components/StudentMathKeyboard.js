@@ -221,6 +221,85 @@ const SYMBOLS = {
     { label: 'red. half-eq', insert: '[species] + [n]e⁻ → [products]', tip: 'Reduction half-equation', template: true },
   ],
 
+  trig: [
+    // Core functions
+    { label: 'sin(x)',   insert: 'sin([x])',       tip: 'Sine', template: true },
+    { label: 'cos(x)',   insert: 'cos([x])',        tip: 'Cosine', template: true },
+    { label: 'tan(x)',   insert: 'tan([x])',        tip: 'Tangent', template: true },
+    { label: 'sin⁻¹(x)', insert: 'sin⁻¹([x])',    tip: 'Arcsin (inverse sine)', template: true },
+    { label: 'cos⁻¹(x)', insert: 'cos⁻¹([x])',    tip: 'Arccos (inverse cosine)', template: true },
+    { label: 'tan⁻¹(x)', insert: 'tan⁻¹([x])',    tip: 'Arctan (inverse tangent)', template: true },
+    // Reciprocal functions
+    { label: 'cosec(x)', insert: 'cosec([x])',     tip: 'Cosecant = 1/sin(x)', template: true },
+    { label: 'sec(x)',   insert: 'sec([x])',        tip: 'Secant = 1/cos(x)', template: true },
+    { label: 'cot(x)',   insert: 'cot([x])',        tip: 'Cotangent = 1/tan(x)', template: true },
+    // Hyperbolic
+    { label: 'sinh(x)',  insert: 'sinh([x])',       tip: 'Hyperbolic sine', template: true },
+    { label: 'cosh(x)',  insert: 'cosh([x])',       tip: 'Hyperbolic cosine', template: true },
+    { label: 'tanh(x)',  insert: 'tanh([x])',       tip: 'Hyperbolic tangent', template: true },
+    // Identities (read-only reference inserts)
+    { label: 'sin²+cos²=1', insert: 'sin²(x) + cos²(x) = 1',              tip: 'Pythagorean identity' },
+    { label: 'tan=sin/cos',  insert: 'tan(x) = sin(x)/cos(x)',             tip: 'Tan identity' },
+    { label: '1+tan²=sec²',  insert: '1 + tan²(x) = sec²(x)',              tip: 'Pythagorean identity 2' },
+    { label: 'sin2A',        insert: 'sin(2A) = 2sin(A)cos(A)',            tip: 'Double angle — sine' },
+    { label: 'cos2A (1)',    insert: 'cos(2A) = cos²(A) - sin²(A)',        tip: 'Double angle — cosine form 1' },
+    { label: 'cos2A (2)',    insert: 'cos(2A) = 2cos²(A) - 1',             tip: 'Double angle — cosine form 2' },
+    { label: 'cos2A (3)',    insert: 'cos(2A) = 1 - 2sin²(A)',             tip: 'Double angle — cosine form 3' },
+    { label: 'tan2A',        insert: 'tan(2A) = 2tan(A) / (1 - tan²(A))', tip: 'Double angle — tangent' },
+    { label: 'sinA±sinB',    insert: 'sin(A) + sin(B) = 2sin((A+B)/2)cos((A-B)/2)', tip: 'Sum-to-product' },
+    { label: 'Sine rule',    insert: 'a/sin(A) = b/sin(B) = c/sin(C)',     tip: 'Sine rule' },
+    { label: 'Cosine rule',  insert: 'a² = b² + c² - 2bc·cos(A)',          tip: 'Cosine rule' },
+    { label: 'Area = ½absinC', insert: 'Area = ½ab·sin(C)',                tip: 'Triangle area' },
+    // Radians
+    { label: 'π rad',  insert: 'π',   tip: 'π radians = 180°' },
+    { label: '°↔rad',  insert: '[θ]° = [θ] × π/180 rad', tip: 'Degrees to radians', template: true },
+    { label: 'rad↔°',  insert: '[θ] rad = [θ] × 180/π °', tip: 'Radians to degrees', template: true },
+  ],
+
+  calculus: [
+    // ── Differentiation notation ────────────────────────────────────────────
+    { label: 'dy/dx',       insert: 'dy/dx',                          tip: 'First derivative' },
+    { label: 'd²y/dx²',     insert: 'd²y/dx²',                        tip: 'Second derivative' },
+    { label: 'f\'(x)',      insert: "f'(x)",                          tip: "f prime of x" },
+    { label: 'f\'\'(x)',    insert: "f''(x)",                         tip: 'Second derivative' },
+    { label: 'd/dx[f]',     insert: 'd/dx[[f(x)]]',                   tip: 'Derivative operator', template: true },
+    { label: '∂f/∂x',       insert: '∂f/∂x',                          tip: 'Partial derivative' },
+    // ── Differentiation rules ───────────────────────────────────────────────
+    { label: 'Power rule',  insert: "d/dx[xⁿ] = nxⁿ⁻¹",              tip: 'Power rule' },
+    { label: 'Const rule',  insert: "d/dx[c] = 0",                    tip: 'Constant rule' },
+    { label: 'Sum rule',    insert: "d/dx[f + g] = f'(x) + g'(x)",   tip: 'Sum rule', template: false },
+    { label: 'Product rule',insert: "d/dx[u·v] = u'v + uv'",         tip: 'Product rule' },
+    { label: 'Quotient rule',insert:"d/dx[u/v] = (u'v - uv') / v²",  tip: 'Quotient rule' },
+    { label: 'Chain rule',  insert: "dy/dx = dy/du · du/dx",          tip: 'Chain rule' },
+    { label: 'Chain (alt)', insert: "d/dx[f(g(x))] = f'(g(x))·g'(x)",tip: 'Chain rule (function form)' },
+    // ── Common derivatives ──────────────────────────────────────────────────
+    { label: 'd(sin)/dx',  insert: "d/dx[sin(x)] = cos(x)",           tip: 'Derivative of sin' },
+    { label: 'd(cos)/dx',  insert: "d/dx[cos(x)] = -sin(x)",          tip: 'Derivative of cos' },
+    { label: 'd(tan)/dx',  insert: "d/dx[tan(x)] = sec²(x)",          tip: 'Derivative of tan' },
+    { label: 'd(eˣ)/dx',   insert: "d/dx[eˣ] = eˣ",                  tip: 'Derivative of eˣ' },
+    { label: 'd(ln x)/dx', insert: "d/dx[ln(x)] = 1/x",              tip: 'Derivative of ln(x)' },
+    { label: 'd(aˣ)/dx',   insert: "d/dx[aˣ] = aˣ·ln(a)",            tip: 'Derivative of aˣ' },
+    // ── Integration notation ────────────────────────────────────────────────
+    { label: '∫ f dx',      insert: '∫ [f(x)] dx',                    tip: 'Indefinite integral', template: true },
+    { label: '∫[a→b] f dx', insert: '∫[a to b] [f(x)] dx',           tip: 'Definite integral', template: true },
+    { label: '+ C',         insert: ' + C',                           tip: 'Constant of integration' },
+    // ── Integration rules ───────────────────────────────────────────────────
+    { label: 'Power rule ∫', insert: '∫ xⁿ dx = xⁿ⁺¹/(n+1) + C  (n ≠ -1)', tip: 'Power rule (integration)' },
+    { label: '∫ eˣ dx',     insert: '∫ eˣ dx = eˣ + C',              tip: 'Integral of eˣ' },
+    { label: '∫ 1/x dx',    insert: '∫ 1/x dx = ln|x| + C',          tip: 'Integral of 1/x' },
+    { label: '∫ sin dx',    insert: '∫ sin(x) dx = -cos(x) + C',     tip: 'Integral of sin' },
+    { label: '∫ cos dx',    insert: '∫ cos(x) dx = sin(x) + C',      tip: 'Integral of cos' },
+    { label: 'Integ. by parts', insert: '∫ u dv = uv - ∫ v du',      tip: 'Integration by parts' },
+    { label: 'IBP (full)',  insert: '∫ u·v\' dx = u·v - ∫ v·u\' dx', tip: 'Integration by parts (expanded)' },
+    { label: 'Sub. rule',   insert: '∫ f(g(x))·g\'(x) dx = ∫ f(u) du  where u = g(x)', tip: 'Integration by substitution' },
+    // ── Limits ──────────────────────────────────────────────────────────────
+    { label: 'lim',         insert: 'lim(x → [a]) [f(x)]',            tip: 'Limit', template: true },
+    { label: 'lim → ∞',    insert: 'lim(x → ∞) [f(x)]',              tip: 'Limit as x → infinity', template: true },
+    { label: "L'Hôpital",  insert: "lim f/g = lim f'/g'  (0/0 or ∞/∞ form)", tip: "L'Hôpital's rule" },
+    // ── Fundamental theorem ─────────────────────────────────────────────────
+    { label: 'FTC',         insert: '∫[a to b] f(x) dx = F(b) - F(a)  where F\'(x) = f(x)', tip: 'Fundamental Theorem of Calculus' },
+  ],
+
   physics: [
     // SI Units
     { label: 'm/s',    insert: ' m s⁻¹',  tip: 'Metres per second' },
@@ -262,6 +341,8 @@ const TABS = [
   { id: 'fractions',  label: 'a/b',     icon: '➗' },
   { id: 'algebra',    label: 'Algebra', icon: '𝑥²' },
   { id: 'functions',  label: 'f(x)',    icon: '∫' },
+  { id: 'trig',       label: 'Trig',    icon: '📐' },
+  { id: 'calculus',   label: 'Calc',    icon: "d/dx" },
   { id: 'comparison', label: '≤≥',      icon: '=' },
   { id: 'greek',      label: 'αβγ',     icon: 'α' },
   { id: 'vectors',    label: 'Vectors', icon: '→' },
@@ -276,6 +357,8 @@ const TAB_TIPS = {
   fractions:  'Replace [a] and [b] placeholders with your values after inserting.',
   algebra:    'Template buttons (tmpl) include [...] placeholders — replace them with your values.',
   functions:  'Replace [...] with your argument after inserting a function.',
+  trig:       'Identities and rules insert as full expressions ready to edit. Reciprocal and hyperbolic functions included.',
+  calculus:   'Differentiation rules, integration rules, IBP, substitution, and limits — all as plain-text expressions.',
   comparison: 'Comparison symbols are inserted with spaces on both sides.',
   greek:      'Click any Greek letter to insert it at your cursor.',
   vectors:    'Replace [...] placeholders with your components.',
