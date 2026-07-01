@@ -6,9 +6,10 @@ import { handleApiError } from '@/lib/handle-error';
 import { Navbar } from './Navbar';
 import { LoadingSpinner } from '@/components/common';
 
-const ACCOUNT_TYPES = ['free_tester', 'paid', 'extended', 'pilot', 'internal'];
+const ACCOUNT_TYPES = ['free_tester', 'beta_tester', 'paid', 'extended', 'pilot', 'internal'];
 const ACCOUNT_TYPE_LABELS = {
   free_tester: 'Free Trial',
+  beta_tester: 'Beta Tester',
   paid: 'Paid',
   extended: 'Extended',
   pilot: 'Pilot',
@@ -16,6 +17,7 @@ const ACCOUNT_TYPE_LABELS = {
 };
 const ACCOUNT_TYPE_COLORS = {
   free_tester: 'bg-gray-100 text-gray-700',
+  beta_tester: 'bg-orange-100 text-orange-700',
   paid: 'bg-green-100 text-green-700',
   extended: 'bg-blue-100 text-blue-700',
   pilot: 'bg-purple-100 text-purple-700',
@@ -78,6 +80,19 @@ function UsageEditModal({ entry, onClose, onSave }) {
       onSave();
     } catch (e) {
       setError(e.response?.data?.detail || 'Failed to reset');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSetBeta = async () => {
+    if (!window.confirm(`Upgrade ${user.name} to Beta Tester tier with default beta limits and a fresh 30-day trial?`)) return;
+    setSaving(true);
+    try {
+      await axios.post(`${API}/admin/usage/${user.user_id}/set-beta`);
+      onSave();
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Failed to set beta tier');
     } finally {
       setSaving(false);
     }
@@ -154,13 +169,22 @@ function UsageEditModal({ entry, onClose, onSave }) {
         </div>
 
         <div className="px-6 py-4 border-t flex items-center justify-between">
-          <button
-            onClick={handleReset}
-            disabled={saving}
-            className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
-          >
-            Reset Usage Counters
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSetBeta}
+              disabled={saving}
+              className="text-sm text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
+            >
+              Set Beta Tier
+            </button>
+            <button
+              onClick={handleReset}
+              disabled={saving}
+              className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+            >
+              Reset Usage Counters
+            </button>
+          </div>
           <div className="flex gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
               Cancel
@@ -187,6 +211,13 @@ export const AdminDashboard = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [usageLoading, setUsageLoading] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+
+  // Activity log state
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activitySummary, setActivitySummary] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityFilter, setActivityFilter] = useState({ user_id: '', user_email: '', errors_only: false, since_hours: 24 });
+
   const navigate = useNavigate();
 
   const loadData = useCallback(async () => {
@@ -216,13 +247,37 @@ export const AdminDashboard = ({ user }) => {
     }
   }, []);
 
+  const loadActivity = useCallback(async (filter = activityFilter) => {
+    setActivityLoading(true);
+    try {
+      const params = new URLSearchParams({
+        since_hours: filter.since_hours,
+        errors_only: filter.errors_only,
+        limit: 200,
+      });
+      if (filter.user_id) params.set('user_id', filter.user_id);
+      if (filter.user_email) params.set('user_email', filter.user_email);
+      const [logsRes, summaryRes] = await Promise.all([
+        axios.get(`${API}/admin/activity/logs?${params}`),
+        axios.get(`${API}/admin/activity/summary?since_hours=${filter.since_hours}`),
+      ]);
+      setActivityLogs(logsRes.data);
+      setActivitySummary(summaryRes.data);
+    } catch {
+      // silent
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [activityFilter]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
     if (activeTab === 'usage') loadUsage();
-  }, [activeTab, loadUsage]);
+    if (activeTab === 'activity') loadActivity();
+  }, [activeTab]); // intentionally omit loadUsage/loadActivity — only re-run when tab changes
 
   const handleRoleChange = async (teacherId, newRole) => {
     try {
@@ -237,6 +292,7 @@ export const AdminDashboard = ({ user }) => {
     { id: 'teachers', label: `Teachers (${teachers.length})` },
     { id: 'assessments', label: `Assessments (${assessments.length})` },
     { id: 'usage', label: 'Usage & Quotas' },
+    { id: 'activity', label: 'Activity Log' },
   ];
 
   return (
@@ -436,6 +492,200 @@ export const AdminDashboard = ({ user }) => {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Activity Log tab */}
+        {activeTab === 'activity' && (
+          <div className="space-y-4">
+            {/* Summary cards */}
+            {activitySummary && (
+              <div className="grid grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Requests', value: activitySummary.total_requests },
+                  { label: 'Errors', value: activitySummary.error_requests },
+                  { label: 'Error Rate', value: `${activitySummary.error_rate_pct}%` },
+                  { label: 'Avg Duration', value: `${activitySummary.avg_duration_ms}ms` },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-white rounded-lg shadow px-4 py-3">
+                    <p className="text-xs text-gray-500">{label}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow px-6 py-4">
+              <div className="flex flex-wrap gap-4 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">User ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. user_abc123"
+                    value={activityFilter.user_id}
+                    onChange={e => setActivityFilter(f => ({ ...f, user_id: e.target.value }))}
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-44 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                  <input
+                    type="text"
+                    placeholder="teacher@school.com"
+                    value={activityFilter.user_email}
+                    onChange={e => setActivityFilter(f => ({ ...f, user_email: e.target.value }))}
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-52 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Time window</label>
+                  <select
+                    value={activityFilter.since_hours}
+                    onChange={e => setActivityFilter(f => ({ ...f, since_hours: Number(e.target.value) }))}
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={1}>Last 1 hour</option>
+                    <option value={6}>Last 6 hours</option>
+                    <option value={24}>Last 24 hours</option>
+                    <option value={72}>Last 3 days</option>
+                    <option value={168}>Last 7 days</option>
+                    <option value={720}>Last 30 days</option>
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={activityFilter.errors_only}
+                    onChange={e => setActivityFilter(f => ({ ...f, errors_only: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  Errors only (4xx/5xx)
+                </label>
+                <button
+                  onClick={() => loadActivity(activityFilter)}
+                  disabled={activityLoading}
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {activityLoading ? 'Loading...' : 'Apply'}
+                </button>
+              </div>
+            </div>
+
+            {/* Log table */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-6 py-3 border-b flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-700">
+                  {activityLogs.length} entries
+                </h3>
+                <button onClick={() => loadActivity(activityFilter)} className="text-xs text-blue-600 hover:text-blue-700">
+                  Refresh
+                </button>
+              </div>
+              {activityLoading ? (
+                <div className="text-center py-10 text-gray-500 text-sm">Loading activity logs...</div>
+              ) : activityLogs.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">No activity logs found for this filter.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-gray-50">
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Timestamp</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Type</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">User / Email</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Method / Event</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Path / Join Code</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Status</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Duration</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">IP</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activityLogs.map((log, i) => {
+                        const isError = log.status_code >= 400;
+                        const isStudent = log.principal_type === 'student';
+                        const displayEmail = log.user_email || log.student_email;
+                        const displayIdentity = isStudent
+                          ? (log.student_email || '—')
+                          : (log.user_id || '—');
+                        return (
+                          <tr key={log.log_id || i} className={`border-b hover:bg-gray-50 ${isError ? 'bg-red-50' : ''}`}>
+                            <td className="py-1.5 px-3 text-gray-500 whitespace-nowrap">
+                              {new Date(log.timestamp).toLocaleString()}
+                            </td>
+                            <td className="py-1.5 px-3">
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                isStudent ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {isStudent ? 'Student' : 'Teacher'}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-3 max-w-[180px]" title={displayEmail || displayIdentity}>
+                              <p className="font-mono text-gray-700 truncate">{displayIdentity}</p>
+                              {displayEmail && !isStudent && (
+                                <p className="text-gray-400 truncate">{displayEmail}</p>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-3">
+                              {isStudent ? (
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  log.event === 'join_success' ? 'bg-green-100 text-green-700' :
+                                  log.event === 'join_failed' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>{log.event || '—'}</span>
+                              ) : (
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  log.method === 'GET' ? 'bg-blue-100 text-blue-700' :
+                                  log.method === 'POST' ? 'bg-green-100 text-green-700' :
+                                  log.method === 'PUT' ? 'bg-yellow-100 text-yellow-700' :
+                                  log.method === 'DELETE' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>{log.method}</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-3 font-mono text-gray-800 max-w-[200px] truncate"
+                                title={log.path || log.join_code}>
+                              {isStudent
+                                ? (log.join_code ? <span className="font-bold">{log.join_code}</span> : '—')
+                                : log.path}
+                            </td>
+                            <td className="py-1.5 px-3">
+                              <span className={`font-medium ${isError ? 'text-red-600' : 'text-green-700'}`}>
+                                {log.status_code}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-3 text-gray-500">{log.duration_ms}ms</td>
+                            <td className="py-1.5 px-3 text-gray-400">{log.client_ip || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Top paths */}
+            {activitySummary?.top_paths?.length > 0 && (
+              <div className="bg-white rounded-lg shadow px-6 py-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Top Endpoints</h4>
+                <div className="space-y-2">
+                  {activitySummary.top_paths.slice(0, 10).map(({ path, count }) => (
+                    <div key={path} className="flex items-center gap-3">
+                      <span className="font-mono text-xs text-gray-700 flex-1 truncate">{path}</span>
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{count} requests</span>
+                      <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 rounded-full"
+                          style={{ width: `${Math.round((count / activitySummary.top_paths[0].count) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
