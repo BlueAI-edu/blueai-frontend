@@ -594,10 +594,10 @@ export const AdminDashboard = ({ user }) => {
                     <thead>
                       <tr className="border-b bg-gray-50">
                         <th className="text-left py-2 px-3 text-gray-600 font-medium">Timestamp</th>
-                        <th className="text-left py-2 px-3 text-gray-600 font-medium">User</th>
-                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Email</th>
-                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Method</th>
-                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Path</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Type</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">User / Email</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Method / Event</th>
+                        <th className="text-left py-2 px-3 text-gray-600 font-medium">Path / Join Code</th>
                         <th className="text-left py-2 px-3 text-gray-600 font-medium">Status</th>
                         <th className="text-left py-2 px-3 text-gray-600 font-medium">Duration</th>
                         <th className="text-left py-2 px-3 text-gray-600 font-medium">IP</th>
@@ -606,28 +606,51 @@ export const AdminDashboard = ({ user }) => {
                     <tbody>
                       {activityLogs.map((log, i) => {
                         const isError = log.status_code >= 400;
+                        const isStudent = log.principal_type === 'student';
+                        const displayEmail = log.user_email || log.student_email;
+                        const displayIdentity = isStudent
+                          ? (log.student_email || '—')
+                          : (log.user_id || '—');
                         return (
                           <tr key={log.log_id || i} className={`border-b hover:bg-gray-50 ${isError ? 'bg-red-50' : ''}`}>
                             <td className="py-1.5 px-3 text-gray-500 whitespace-nowrap">
                               {new Date(log.timestamp).toLocaleString()}
                             </td>
-                            <td className="py-1.5 px-3 font-mono text-gray-700 max-w-[140px] truncate" title={log.user_id}>
-                              {log.user_id}
-                            </td>
-                            <td className="py-1.5 px-3 text-gray-600 max-w-[180px] truncate" title={log.user_email || ''}>
-                              {log.user_email || <span className="text-gray-300">—</span>}
-                            </td>
                             <td className="py-1.5 px-3">
                               <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                                log.method === 'GET' ? 'bg-blue-100 text-blue-700' :
-                                log.method === 'POST' ? 'bg-green-100 text-green-700' :
-                                log.method === 'PUT' ? 'bg-yellow-100 text-yellow-700' :
-                                log.method === 'DELETE' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>{log.method}</span>
+                                isStudent ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {isStudent ? 'Student' : 'Teacher'}
+                              </span>
                             </td>
-                            <td className="py-1.5 px-3 font-mono text-gray-800 max-w-[280px] truncate" title={log.path}>
-                              {log.path}
+                            <td className="py-1.5 px-3 max-w-[180px]" title={displayEmail || displayIdentity}>
+                              <p className="font-mono text-gray-700 truncate">{displayIdentity}</p>
+                              {displayEmail && !isStudent && (
+                                <p className="text-gray-400 truncate">{displayEmail}</p>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-3">
+                              {isStudent ? (
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  log.event === 'join_success' ? 'bg-green-100 text-green-700' :
+                                  log.event === 'join_failed' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>{log.event || '—'}</span>
+                              ) : (
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                  log.method === 'GET' ? 'bg-blue-100 text-blue-700' :
+                                  log.method === 'POST' ? 'bg-green-100 text-green-700' :
+                                  log.method === 'PUT' ? 'bg-yellow-100 text-yellow-700' :
+                                  log.method === 'DELETE' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>{log.method}</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-3 font-mono text-gray-800 max-w-[200px] truncate"
+                                title={log.path || log.join_code}>
+                              {isStudent
+                                ? (log.join_code ? <span className="font-bold">{log.join_code}</span> : '—')
+                                : log.path}
                             </td>
                             <td className="py-1.5 px-3">
                               <span className={`font-medium ${isError ? 'text-red-600' : 'text-green-700'}`}>
