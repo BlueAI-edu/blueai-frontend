@@ -187,7 +187,7 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
             onChange={(e) => handleChange('num_questions', parseInt(e.target.value))}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            {Array.from({ length: 18 }, (_, i) => i + 3).map(n => (
+            {Array.from({ length: 18 }, (_, i) => i + 1).map(n => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
@@ -201,7 +201,7 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode }) => {
             onChange={(e) => handleChange('total_marks', parseInt(e.target.value))}
             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
           >
-            {Array.from({ length: 19 }, (_, i) => (i + 1) * 5).map(n => (
+            {Array.from({ length: 20 }, (_, i) => i === 0 ? 1 : i * 5).map(n => (
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
