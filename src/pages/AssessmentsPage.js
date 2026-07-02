@@ -6,7 +6,6 @@ import { Navbar } from "@/components/Navbar";
 import { AssessmentHero } from "@/components/AssessmentHero";
 import { AssessmentCard, AssessmentCardSkeleton, AssessmentEmptyState } from "@/components/AssessmentCard";
 import { AssessmentStatsRow } from "@/components/AssessmentStatsRow";
-import { AssessmentQueuePanel } from "@/components/AssessmentQueuePanel";
 
 export const AssessmentsPage = ({ user }) => {
   const [assessments, setAssessments] = useState([]);
@@ -19,8 +18,9 @@ export const AssessmentsPage = ({ user }) => {
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [activeTab, setActiveTab] = useState("assessments"); // assessments, templates
   const [visibleCount, setVisibleCount] = useState(10);
-  const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "review_needed" | "submissions"
+  const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "submissions"
   const [totalSubmissions, setTotalSubmissions] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
   const [formData, setFormData] = useState({
     question_id: "",
     class_id: "",
@@ -69,6 +69,8 @@ export const AssessmentsPage = ({ user }) => {
         return { data: {} };
       });
       setTotalSubmissions(dashboardRes.data.total_submissions ?? 0);
+      const reviewRes = await teacherApi.getNeedsReview().catch(() => ({ data: {} }));
+      setReviewCount(reviewRes.data.total_count ?? 0);
     } catch (error) {
       setLoading(false);
     }
@@ -226,12 +228,12 @@ export const AssessmentsPage = ({ user }) => {
           totalAssessments={assessments.length}
           liveAssessments={assessments.filter((a) => a.status === "started").length}
           totalSubmissions={totalSubmissions}
-          reviewNeeded={assessments.filter((a) => a.status === "review_needed").length}
+          reviewNeeded={reviewCount}
           activeFilter={statusFilter}
           onFilterAll={() => { setActiveTab("assessments"); setStatusFilter("all"); scrollToList(); }}
           onFilterLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
           onFilterSubmissions={() => { setActiveTab("assessments"); setStatusFilter("submissions"); scrollToList(); }}
-          onFilterReview={() => { setActiveTab("assessments"); setStatusFilter("review_needed"); scrollToList(); }}
+          onFilterReview={() => navigate("/teacher/dashboard")}
         />
 
         {/* Tab toolbar — template-mode gets its own CTA here */}
@@ -673,7 +675,6 @@ export const AssessmentsPage = ({ user }) => {
             {(() => {
               const FILTER_STATUS_MAP = {
                 started: "started",
-                review_needed: "review_needed",
                 submissions: "closed",
               };
               const activeStatus = FILTER_STATUS_MAP[statusFilter];
@@ -684,7 +685,6 @@ export const AssessmentsPage = ({ user }) => {
               const FILTER_LABELS = {
                 all: "All Assessments",
                 started: "Live Assessments",
-                review_needed: "Review Needed",
                 submissions: "With Submissions",
               };
 
@@ -769,20 +769,6 @@ export const AssessmentsPage = ({ user }) => {
               );
             })()}
             </div>{/* end main column */}
-
-            {/* ── Sidebar: Assessment Queue ── */}
-            <div className="w-full lg:w-72 xl:w-80 flex-shrink-0">
-              <AssessmentQueuePanel
-                assessments={assessments}
-                loading={loading}
-                onNavigate={(path) => navigate(path)}
-                onFilterReview={(filter) => {
-                  setStatusFilter(filter);
-                  scrollToList();
-                }}
-                onCreateEnhanced={() => navigate("/teacher/assessments/create")}
-              />
-            </div>
           </div>
         )}
       </div>
