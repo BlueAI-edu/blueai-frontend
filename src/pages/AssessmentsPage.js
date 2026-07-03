@@ -14,19 +14,12 @@ export const AssessmentsPage = ({ user }) => {
   const [templates, setTemplates] = useState([]);
   const [assignmentsByAssessment, setAssignmentsByAssessment] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [activeTab, setActiveTab] = useState("assessments"); // assessments, templates
   const [visibleCount, setVisibleCount] = useState(10);
   const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "submissions"
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
-  const [formData, setFormData] = useState({
-    question_id: "",
-    class_id: "",
-    duration_minutes: "",
-    auto_close: false,
-  });
   const [templateFormData, setTemplateFormData] = useState({
     name: "",
     description: "",
@@ -76,29 +69,6 @@ export const AssessmentsPage = ({ user }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await teacherApi.createAssessment({
-        question_id: formData.question_id,
-        class_id: formData.class_id || null,
-        duration_minutes: formData.duration_minutes
-          ? parseInt(formData.duration_minutes)
-          : null,
-        auto_close: formData.auto_close,
-      });
-      setShowForm(false);
-      setFormData({
-        question_id: "",
-        class_id: "",
-        duration_minutes: "",
-        auto_close: false,
-      });
-      loadData();
-    } catch (error) {
-      handleApiError(error, "Failed to create assessment");
-    }
-  };
 
   const handleCreateTemplate = async (e) => {
     e.preventDefault();
@@ -218,7 +188,6 @@ export const AssessmentsPage = ({ user }) => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <AssessmentHero
           onCreateEnhanced={() => navigate("/teacher/assessments/create")}
-          onClassicMode={() => setShowForm(true)}
           liveCount={assessments.filter((a) => a.status === "started").length}
           onOpenLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
         />
@@ -551,127 +520,6 @@ export const AssessmentsPage = ({ user }) => {
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             {/* ── Main column ── */}
             <div className="flex-1 min-w-0">
-            {showForm && (
-              <div
-                className="bg-white p-6 rounded-lg shadow mb-6"
-                data-testid="assessment-form"
-              >
-                <h3 className="text-xl font-semibold mb-4">
-                  Create Assessment
-                </h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select Question
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.question_id}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          question_id: e.target.value,
-                        })
-                      }
-                      required
-                      data-testid="question-select"
-                    >
-                      <option value="">-- Select a question --</option>
-                      {questions.map((q) => (
-                        <option key={q.id} value={q.id}>
-                          {q.subject} - {q.topic}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Phase 4: Class Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Link to Class (Optional)
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.class_id}
-                      onChange={(e) =>
-                        setFormData({ ...formData, class_id: e.target.value })
-                      }
-                      data-testid="class-select"
-                    >
-                      <option value="">
-                        -- No class (students enter name) --
-                      </option>
-                      {classes.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.class_name} {c.subject ? `(${c.subject})` : ""} -{" "}
-                          {c.student_count} students
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      If linked, students will select their name from a dropdown
-                      instead of typing it.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Duration (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.duration_minutes}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          duration_minutes: e.target.value,
-                        })
-                      }
-                      placeholder="Optional - leave empty for no time limit"
-                      min="1"
-                      data-testid="duration-input"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="auto_close"
-                      checked={formData.auto_close}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          auto_close: e.target.checked,
-                        })
-                      }
-                      data-testid="auto-close-checkbox"
-                    />
-                    <label
-                      htmlFor="auto_close"
-                      className="text-sm text-gray-700"
-                    >
-                      Auto-close when time expires
-                    </label>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-                      data-testid="create-assessment-submit"
-                    >
-                      Create Assessment
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowForm(false)}
-                      className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300"
-                      data-testid="cancel-assessment-btn"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
             {(() => {
               const FILTER_STATUS_MAP = {
                 started: "started",
@@ -715,7 +563,6 @@ export const AssessmentsPage = ({ user }) => {
                   {assessments.length === 0 ? (
                     <AssessmentEmptyState
                       onCreateEnhanced={() => navigate("/teacher/assessments/create")}
-                      onClassicMode={() => setShowForm(true)}
                     />
                   ) : filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-8 bg-white border border-dashed border-gray-200 rounded-xl text-center">

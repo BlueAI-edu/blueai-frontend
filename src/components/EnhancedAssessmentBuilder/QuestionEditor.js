@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import QuestionTypeSelector from './QuestionTypeSelector';
 import MCQEditor from './MCQEditor';
 import StructuredQuestionBuilder from './StructuredQuestionBuilder';
 import StimulusUploader from './StimulusUploader';
-import AIBulkGenerator from './AIBulkGenerator';
 import MixedMathEditor from '../MixedMathEditor';
 import DiagramRenderer from '../DiagramRenderer';
 
@@ -18,22 +17,8 @@ const QuestionEditor = ({
   assessmentMode,
   assessmentId
 }) => {
-  const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'ai'
-
   const updateQuestion = (field, value) => {
     onQuestionChange(questionIndex, { ...question, [field]: value });
-  };
-
-  const handleAIQuestionsGenerated = (questions) => {
-    if (questions && questions.length > 0) {
-      const aiQuestion = questions[0];
-      onQuestionChange(questionIndex, {
-        ...question,
-        ...aiQuestion,
-        questionNumber: question.questionNumber
-      });
-      setActiveTab('manual');
-    }
   };
 
   const initializeMCQOptions = () => {
@@ -102,35 +87,8 @@ const QuestionEditor = ({
         </button>
       </div>
 
-      {/* Manual/AI Tabs */}
-      <div className="border-b">
-        <div className="flex">
-          <button
-            onClick={() => setActiveTab('manual')}
-            className={`flex-1 px-4 py-3 font-medium transition-colors ${
-              activeTab === 'manual'
-                ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                : 'bg-gray-50 text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            ✍️ Write Manually
-          </button>
-          <button
-            onClick={() => setActiveTab('ai')}
-            className={`flex-1 px-4 py-3 font-medium transition-colors ${
-              activeTab === 'ai'
-                ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                : 'bg-gray-50 text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            🤖 Generate with AI
-          </button>
-        </div>
-      </div>
-
       <div className="p-4 space-y-4">
-        {activeTab === 'manual' ? (
-          <>
+        <>
             {/* Question Type Selector */}
             {!question.questionType && (
               <div>
@@ -292,18 +250,6 @@ const QuestionEditor = ({
               </>
             )}
           </>
-        ) : (
-          /* AI Generation Tab */
-          <div>
-            <AIBulkGenerator
-              onQuestionsGenerated={handleAIQuestionsGenerated}
-              assessmentMode={assessmentMode}
-            />
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-              AI will generate a question based on your specifications. You can edit it after generation.
-            </div>
-          </div>
-        )}
       </div>
 
     </div>
