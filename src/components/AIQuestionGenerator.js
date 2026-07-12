@@ -103,7 +103,7 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
     });
   };
 
-  const handleSaveSelected = async () => {
+ const handleSaveSelected = async () => {
     const questionsToSave = generatedQuestions.filter((_, index) => selectedQuestions.has(index));
 
     try {
@@ -128,7 +128,10 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
           diagram_prompt: q.diagram_prompt,
           quality_score: q.quality_score,
           quality_notes: q.quality_notes,
-          calculator_allowed: q.calculator_allowed || formData.calculator_allowed
+          calculator_allowed: q.calculator_allowed || formData.calculator_allowed,
+          // MCQ fields — only populated when AI generates a MULTIPLE_CHOICE question
+          question_type: q.question_type || null,
+          options: Array.isArray(q.options) && q.options.length > 0 ? q.options : null,
         });
       }
 
@@ -139,7 +142,7 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
       setError('Failed to save questions');
     }
   };
-
+  
   return (
     <div className="space-y-6">
       {/* Generation Form */}
