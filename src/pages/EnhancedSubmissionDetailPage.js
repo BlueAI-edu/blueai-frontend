@@ -21,6 +21,9 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   const [www, setWww] = useState('');
   const [ebi, setEbi] = useState('');
   const [overallFeedback, setOverallFeedback] = useState('');
+  // Manual diagram/graph marking progress: keys the teacher has entered a mark
+  // for this session (drives the red→green outlines and the jump panel)
+  const [touchedManual, setTouchedManual] = useState(() => new Set());
 
   useEffect(() => {
     loadData();
@@ -55,6 +58,20 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
       ...prev,
       [questionNumber]: parseInt(score) || 0
     }));
+    // Entering a mark for a manual diagram/graph item turns its outline green
+    setTouchedManual(prev => {
+      const key = String(questionNumber);
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const scrollToQuestion = (key) => {
+    // Part keys like "12-i" live inside the parent question card
+    const qn = String(key).split('-')[0];
+    document.getElementById(`question-card-${qn}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const calculateTotalScore = () => {
@@ -130,12 +147,101 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   const { attempt, assessment } = data;
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
   const answers = attempt.answers || {};
+  // Numeric ordering (2 < 3-a < 11) — server sorts too; this covers attempts
+  // marked before the ordering fix
+  const keyOrder = (k) => {
+    const m = String(k).match(/^(\d+)(?:-(.+))?$/);
+    return m ? [parseInt(m[1], 10), m[2] || ''] : [Number.MAX_SAFE_INTEGER, String(k)];
+  };
+  const manualQuestions = [...(attempt.manual_marking_questions || [])].sort((a, b) => {
+    const [na, sa] = keyOrder(a);
+    const [nb, sb] = keyOrder(b);
+    return na !== nb ? na - nb : String(sa).localeCompare(String(sb));
+  });
+  // Strict mode blocks release until marked; review mode means the AI has
+  // drafted marks and the teacher double-checks
+  const isBlockingMode = Boolean(attempt.manual_marking_required);
+
+  // Per-question manual-marking state for outlines and the jump panel
+  const manualKeysFor = (qn) =>
+    manualQuestions.filter((k) => String(k) === String(qn) || String(k).startsWith(`${qn}-`));
+  const pendingCount = manualQuestions.filter((k) => !touchedManual.has(String(k))).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={user} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Manual diagram/graph marking gate — feedback release is blocked
+            server-side until the teacher enters marks and saves. */}
+        {manualQuestions.length > 0 && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4 mb-6" data-testid="manual-marking-banner">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden="true">✏️</span>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-amber-900">
+                  {isBlockingMode
+                    ? 'Manual marking required before feedback can be released'
+                    : 'Diagram/graph answers — double-check the AI marks'}
+                </h3>
+                <p className="text-sm text-amber-800 mt-1">
+                  {isBlockingMode
+                    ? 'The questions below contain a diagram or graph and have not been auto-marked. Click one to jump to it, enter its marks, and save — feedback release stays blocked until you do.'
+                    : 'The AI has marked the diagram/graph answers below. Click one to jump to it, check the mark against the student’s answer, adjust if needed, and save before releasing feedback.'}
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {manualQuestions.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => scrollToQuestion(k)}
+                      className={`px-2 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                        touchedManual.has(String(k))
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-red-100 text-red-700 hover:bg-red-200'
+                      }`}
+                    >
+                      {touchedManual.has(String(k)) ? '✓' : '✏️'} Q{k}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating jump panel — stays in view while scrolling so the teacher
+            can hop between the diagram/graph questions that still need marks */}
+        {manualQuestions.length > 0 && (
+          <div className="hidden md:block fixed right-4 top-28 z-40 w-44 bg-white border-2 border-amber-300 rounded-xl shadow-lg" data-testid="manual-marking-jump-panel">
+            <div className="px-3 py-2 border-b border-amber-100 bg-amber-50 rounded-t-[10px]">
+              <p className="text-xs font-semibold text-amber-900">
+                {isBlockingMode ? 'Manual marking' : 'Double-check marks'}
+              </p>
+              <p className="text-[11px] text-amber-700">
+                {pendingCount === 0
+                  ? (isBlockingMode ? 'All entered — now Save ↓' : 'All checked — now Save ↓')
+                  : `${pendingCount} of ${manualQuestions.length} remaining`}
+              </p>
+            </div>
+            <div className="p-2 max-h-72 overflow-y-auto flex flex-wrap gap-1.5">
+              {manualQuestions.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => scrollToQuestion(k)}
+                  title={`Jump to question ${k}`}
+                  className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                    touchedManual.has(String(k))
+                      ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                      : 'bg-red-100 text-red-700 hover:bg-red-200'
+                  }`}
+                >
+                  {touchedManual.has(String(k)) ? '✓' : ''} Q{k}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="flex justify-between items-start">
@@ -168,14 +274,37 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         <div className="space-y-6 mb-6">
           {assessment.questions?.map((question, index) => {
             const isStructured = question.questionType === 'STRUCTURED_WITH_PARTS' && question.parts && question.parts.length > 0;
-            
+            // Red outline until every manual diagram/graph item in this
+            // question has a mark entered, then green
+            const qManualKeys = manualKeysFor(question.questionNumber);
+            const needsManual = qManualKeys.length > 0;
+            const manualDone = needsManual && qManualKeys.every((k) => touchedManual.has(String(k)));
+            const outline = needsManual
+              ? manualDone
+                ? 'border-2 border-green-500'
+                : 'border-2 border-red-500'
+              : '';
+
             return (
-              <div key={question.questionNumber} className="bg-white p-6 rounded-lg shadow">
+              <div
+                key={question.questionNumber}
+                id={`question-card-${question.questionNumber}`}
+                className={`bg-white p-6 rounded-lg shadow scroll-mt-24 ${outline}`}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
                     Question {question.questionNumber}
                   </h3>
                   <div className="flex items-center gap-2">
+                    {needsManual && (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        manualDone ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {manualDone
+                          ? '✓ Checked — remember to save'
+                          : isBlockingMode ? '✏️ Mark manually' : '✏️ Double-check AI mark'}
+                      </span>
+                    )}
                     {question.maxMarks && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                         {question.maxMarks} marks
@@ -227,13 +356,50 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                             </div>
                           </div>
 
-                          {/* Mark Scheme for part */}
-                          {part.markScheme && (
-                            <div className="mb-3 p-3 bg-green-50 rounded">
-                              <p className="text-xs text-gray-600 mb-1 font-medium">Mark Scheme:</p>
-                              <div className="prose max-w-none text-sm">
-                                <LaTeXRenderer text={part.markScheme || ''} />
-                              </div>
+                          {/* Mark Scheme for part — includes the enriched fields
+                              captured during mark-scheme PDF extraction */}
+                          {(part.markScheme || part.methodMarks?.length > 0 || part.levelDescriptors?.length > 0 || part.examinerNotes) ? (
+                            <div className="mb-3 p-3 bg-green-50 rounded space-y-2">
+                              {part.markScheme && (
+                                <div>
+                                  <p className="text-xs text-gray-600 mb-1 font-medium">Mark Scheme:</p>
+                                  <div className="prose max-w-none text-sm">
+                                    <LaTeXRenderer text={part.markScheme || ''} />
+                                  </div>
+                                </div>
+                              )}
+                              {part.methodMarks?.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-gray-600 mb-1 font-medium">Method Marks:</p>
+                                  <ul className="list-disc pl-4 text-sm space-y-0.5">
+                                    {part.methodMarks.map((m, i) => (
+                                      <li key={i}><LaTeXRenderer text={String(m)} inline /></li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {part.levelDescriptors?.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-gray-600 mb-1 font-medium">Level Descriptors:</p>
+                                  <ul className="list-disc pl-4 text-sm space-y-0.5">
+                                    {part.levelDescriptors.map((d, i) => (
+                                      <li key={i}><LaTeXRenderer text={String(d)} inline /></li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {part.examinerNotes && (
+                                <div>
+                                  <p className="text-xs text-gray-600 mb-1 font-medium">Examiner Notes:</p>
+                                  <p className="text-sm text-gray-700 italic">{part.examinerNotes}</p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mb-3 p-3 bg-gray-50 border border-dashed border-gray-300 rounded">
+                              <p className="text-xs text-gray-500 italic">
+                                No mark scheme available for this part — mark using your own judgement.
+                              </p>
                             </div>
                           )}
 
@@ -275,12 +441,18 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                     </div>
 
                     {/* Mark Scheme (if available) */}
-                    {question.markScheme && (
+                    {question.markScheme ? (
                       <div className="mb-4 p-4 bg-green-50 rounded-lg">
                         <p className="text-sm text-gray-600 mb-2 font-medium">Mark Scheme:</p>
                         <div className="prose max-w-none text-sm">
                           <LaTeXRenderer text={question.markScheme || ''} />
                         </div>
+                      </div>
+                    ) : !question.modelAnswer && (
+                      <div className="mb-4 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+                        <p className="text-sm text-gray-500 italic">
+                          No mark scheme available for this question — mark using your own judgement.
+                        </p>
                       </div>
                     )}
 

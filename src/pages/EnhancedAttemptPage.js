@@ -4,6 +4,8 @@ import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import DiagramRenderer from '../components/DiagramRenderer';
 import DrawableCanvas, { requiresDrawing } from '../components/DrawableCanvas';
+import GraphPlotInput from '../components/GraphPlotInput';
+import DiagramLabelInput from '../components/DiagramLabelInput';
 import StudentMathKeyboard from '../components/StudentMathKeyboard';
 import StudentCalculator from '../components/StudentCalculator';
 import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
@@ -429,6 +431,7 @@ export const EnhancedAttemptPage = () => {
                   <DrawableCanvas
                     key={sketchKey}
                     initialDrawing={savedSketch}
+                    backgroundImage={currentQuestion.stimulusBlock?.type === 'image' ? currentQuestion.stimulusBlock.content : undefined}
                     onChange={(imageData) =>
                       handleAnswerChange(sketchKey, JSON.stringify({ _type: 'drawing', imageData }))
                     }
@@ -479,6 +482,10 @@ export const EnhancedAttemptPage = () => {
                           <DrawableCanvas
                             key={partAnswerKey}
                             initialDrawing={savedDrawingData}
+                            backgroundImage={
+                              (part.partStimulus?.type === 'image' && part.partStimulus.content)
+                              || (currentQuestion.stimulusBlock?.type === 'image' ? currentQuestion.stimulusBlock.content : undefined)
+                            }
                             onChange={(imageData) =>
                               handleAnswerChange(partAnswerKey, JSON.stringify({ _type: 'drawing', imageData }))
                             }
@@ -548,20 +555,60 @@ export const EnhancedAttemptPage = () => {
                 if (p?._type === 'drawing') savedDrawing = p.imageData;
               } catch { /* not a drawing answer */ }
             }
+            // Structured graph answer (diagram pipeline D4) — takes precedence
+            // over the freehand canvas because it is machine-markable.
+            const graphSpec = currentQuestion.graphSpec;
+            let savedGraph = null;
+            if (graphSpec && answers[currentQuestion.questionNumber]) {
+              try {
+                const p = JSON.parse(answers[currentQuestion.questionNumber]);
+                if (p?._type === 'graph_plot') savedGraph = p;
+              } catch { /* not a graph answer */ }
+            }
+            // Complete-the-diagram labelling (pipeline D5) — also machine-marked.
+            const labelImage = currentQuestion.diagramLabels && currentQuestion.stimulusBlock?.type === 'image'
+              ? currentQuestion.stimulusBlock.content
+              : null;
+            let savedLabels = null;
+            if (labelImage && answers[currentQuestion.questionNumber]) {
+              try {
+                const p = JSON.parse(answers[currentQuestion.questionNumber]);
+                if (p?._type === 'diagram_labels') savedLabels = p;
+              } catch { /* not a labels answer */ }
+            }
             return (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
                   Your Answer
-                  {needsDrawing && (
+                  {needsDrawing && !graphSpec && (
                     <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
                       Draw / Plot
                     </span>
                   )}
                 </h3>
-                {needsDrawing ? (
+                {graphSpec ? (
+                  <GraphPlotInput
+                    key={currentQuestion.questionNumber}
+                    spec={graphSpec}
+                    value={savedGraph}
+                    onChange={(answer) =>
+                      handleAnswerChange(currentQuestion.questionNumber, JSON.stringify(answer))
+                    }
+                  />
+                ) : labelImage ? (
+                  <DiagramLabelInput
+                    key={currentQuestion.questionNumber}
+                    image={labelImage}
+                    value={savedLabels}
+                    onChange={(answer) =>
+                      handleAnswerChange(currentQuestion.questionNumber, JSON.stringify(answer))
+                    }
+                  />
+                ) : needsDrawing ? (
                   <DrawableCanvas
                     key={currentQuestion.questionNumber}
                     initialDrawing={savedDrawing}
+                    backgroundImage={currentQuestion.stimulusBlock?.type === 'image' ? currentQuestion.stimulusBlock.content : undefined}
                     onChange={(imageData) =>
                       handleAnswerChange(currentQuestion.questionNumber, JSON.stringify({ _type: 'drawing', imageData }))
                     }

@@ -1,4 +1,5 @@
 import React from 'react';
+import DiagramLabelInput from '../DiagramLabelInput';
 import QuestionTypeSelector from './QuestionTypeSelector';
 import MCQEditor from './MCQEditor';
 import StructuredQuestionBuilder from './StructuredQuestionBuilder';
@@ -8,6 +9,225 @@ import DiagramRenderer from '../DiagramRenderer';
 
 const LONG_RESPONSE_MIN_MARKS = 1;
 const LONG_RESPONSE_MAX_MARKS = 15;
+
+/**
+ * Auto-marked graph answer configuration (diagram pipeline D4).
+ *
+ * Writes two fields onto the question:
+ *   graphSpec     — { axes } only; safe to send to students (drives the
+ *                   GraphPlotInput widget on the attempt page)
+ *   expectedGraph — { rules } the deterministic grader marks against
+ *                   (services/graph_answer_grader.py)
+ */
+const GraphAnswerEditor = ({ question, updateQuestion }) => {
+  const enabled = Boolean(question.graphSpec);
+  const spec = question.graphSpec || { axes: { x: [-10, 10, 1], y: [-10, 10, 1] } };
+  const rules = question.expectedGraph?.rules || [];
+  const pointsRule = rules.find((r) => r.kind === 'points');
+  const lineRule = rules.find((r) => r.kind === 'line');
+
+  const setAxis = (axis, idx, value) => {
+    const axes = { ...spec.axes, [axis]: [...spec.axes[axis]] };
+    axes[axis][idx] = value === '' ? 0 : parseFloat(value);
+    updateQuestion('graphSpec', { ...spec, axes });
+  };
+
+  const setRules = (nextPointsRule, nextLineRule) => {
+    const nextRules = [nextPointsRule, nextLineRule].filter(Boolean);
+    updateQuestion('expectedGraph', nextRules.length ? { rules: nextRules } : null);
+  };
+
+  const parsePointsText = (text) =>
+    text
+      .split(/\n|;/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.split(',').map((v) => parseFloat(v.trim())))
+      .filter((pair) => pair.length === 2 && pair.every((v) => !Number.isNaN(v)));
+
+  if (!enabled) {
+    return (
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          checked={false}
+          onChange={() => {
+            updateQuestion('graphSpec', { axes: { x: [-10, 10, 1], y: [-10, 10, 1] } });
+          }}
+          className="rounded"
+        />
+        Auto-marked graph answer (student plots points/a line; marked without AI)
+      </label>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-emerald-900">Auto-marked graph answer</span>
+        <button
+          type="button"
+          onClick={() => { updateQuestion('graphSpec', null); updateQuestion('expectedGraph', null); }}
+          className="text-xs text-red-600 hover:underline"
+        >
+          Disable
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {[['x', 0, 'X min'], ['x', 1, 'X max'], ['y', 0, 'Y min'], ['y', 1, 'Y max']].map(([axis, idx, label]) => (
+          <div key={label}>
+            <label className="block text-xs text-gray-600 mb-0.5">{label}</label>
+            <input
+              type="number"
+              value={spec.axes[axis][idx]}
+              onChange={(e) => setAxis(axis, idx, e.target.value)}
+              className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <label className="block text-xs text-gray-600 mb-0.5">
+          Expected points — one per line as <code>x, y</code> (leave empty if only a line is marked)
+        </label>
+        <textarea
+          rows={2}
+          defaultValue={(pointsRule?.points || []).map((p) => p.join(', ')).join('\n')}
+          onBlur={(e) => {
+            const pts = parsePointsText(e.target.value);
+            setRules(
+              pts.length ? { kind: 'points', points: pts, marks: pointsRule?.marks || pts.length, tolerance: 0.5 } : null,
+              lineRule || null
+            );
+          }}
+          placeholder={'1, 3\n2, 5'}
+          className="w-full px-2 py-1 text-sm border border-gray-300 rounded font-mono"
+        />
+        {pointsRule && (
+          <div className="flex items-center gap-2 mt-1">
+            <label className="text-xs text-gray-600">Marks for points:</label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={pointsRule.marks}
+              onChange={(e) => setRules({ ...pointsRule, marks: parseInt(e.target.value) || 1 }, lineRule || null)}
+              className="w-16 px-2 py-0.5 text-sm border border-gray-300 rounded"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <label className="flex items-center gap-2 text-xs text-gray-700">
+          <input
+            type="checkbox"
+            checked={Boolean(lineRule)}
+            onChange={(e) =>
+              setRules(pointsRule || null, e.target.checked ? { kind: 'line', slope: 1, intercept: 0, marks: 2 } : null)
+            }
+            className="rounded"
+          />
+          Expect a straight line <code>y = mx + c</code>
+        </label>
+        {lineRule && (
+          <div className="flex flex-wrap items-center gap-3 pl-5">
+            {[['slope', 'm (slope)'], ['intercept', 'c (intercept)'], ['marks', 'Marks']].map(([field, label]) => (
+              <div key={field} className="flex items-center gap-1">
+                <label className="text-xs text-gray-600">{label}:</label>
+                <input
+                  type="number"
+                  step={field === 'marks' ? 1 : 0.1}
+                  value={lineRule[field]}
+                  onChange={(e) =>
+                    setRules(pointsRule || null, {
+                      ...lineRule,
+                      [field]: field === 'marks' ? (parseInt(e.target.value) || 1) : (parseFloat(e.target.value) || 0),
+                    })
+                  }
+                  className="w-20 px-2 py-0.5 text-sm border border-gray-300 rounded"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="text-xs text-emerald-800">
+        Students see a click-to-plot grid instead of a drawing canvas; their answer is marked
+        deterministically against these values — no AI call, exact and instant.
+      </p>
+    </div>
+  );
+};
+
+/**
+ * Complete-the-diagram marking zones (pipeline D5). Only offered when the
+ * question has an image stimulus. The teacher clicks where each label belongs
+ * and types the accepted answer(s), comma-separated; each pin becomes a
+ * marking zone worth 1 mark. Writes `diagramLabels: true` (student-safe flag)
+ * and `expectedDiagram {zones}` (the grading spec — never shown to students).
+ */
+const DiagramZoneEditor = ({ question, updateQuestion }) => {
+  if (question.stimulusBlock?.type !== 'image') return null;
+
+  const enabled = question.diagramLabels === true;
+  const zones = question.expectedDiagram?.zones || [];
+
+  const setFromLabels = (answer) => {
+    const nextZones = (answer.labels || []).map((l) => ({
+      x: l.x,
+      y: l.y,
+      r: 0.08,
+      marks: 1,
+      accept: l.text.split(',').map((s) => s.trim()).filter(Boolean),
+    }));
+    updateQuestion('expectedDiagram', nextZones.length ? { zones: nextZones } : null);
+  };
+
+  if (!enabled) {
+    return (
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          checked={false}
+          onChange={() => updateQuestion('diagramLabels', true)}
+          className="rounded"
+        />
+        Auto-marked labelling (student labels this question's diagram; marked without AI)
+      </label>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-emerald-900">
+          Complete-the-diagram labelling ({zones.length} zone{zones.length !== 1 ? 's' : ''} · {zones.length} mark{zones.length !== 1 ? 's' : ''})
+        </span>
+        <button
+          type="button"
+          onClick={() => { updateQuestion('diagramLabels', null); updateQuestion('expectedDiagram', null); }}
+          className="text-xs text-red-600 hover:underline"
+        >
+          Disable
+        </button>
+      </div>
+      <DiagramLabelInput
+        image={question.stimulusBlock.content}
+        editMode
+        value={{ labels: zones.map((z) => ({ x: z.x, y: z.y, text: (z.accept || []).join(', ') })) }}
+        onChange={setFromLabels}
+      />
+      <p className="text-xs text-emerald-800">
+        Students see the diagram and place typed labels; each zone scores 1 mark when a matching
+        label (any accepted spelling, case-insensitive) lands within it — no AI call.
+      </p>
+    </div>
+  );
+};
 
 const QuestionEditor = ({
   question,
@@ -247,6 +467,9 @@ const QuestionEditor = ({
                     </select>
                   </div>
                 </div>
+
+                <GraphAnswerEditor question={question} updateQuestion={updateQuestion} />
+                <DiagramZoneEditor question={question} updateQuestion={updateQuestion} />
               </>
             )}
           </>
