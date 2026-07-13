@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import MixedMathEditor from '../MixedMathEditor';
 
 const MCQEditor = ({ options, onOptionsChange, allowMultiSelect, onMultiSelectChange }) => {
   const labels = ['A', 'B', 'C', 'D'];
@@ -62,12 +63,14 @@ const MCQEditor = ({ options, onOptionsChange, allowMultiSelect, onMultiSelectCh
                 <span className="font-bold text-gray-700 text-lg">{labels[index]}</span>
                 <span className="text-xs text-gray-500">Click ✓ to mark correct</span>
               </div>
-              <input
-                type="text"
+              {/* Same maths-aware editor as question text: visual equation
+                  insertion + live rendered preview, so options like
+                  $(x+3)^2 - 4$ are authored and seen as real notation. */}
+              <MixedMathEditor
                 value={option.text}
-                onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
+                onChange={(v) => handleOptionChange(index, 'text', v)}
                 placeholder={`Option ${labels[index]} text...`}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={1}
               />
             </div>
           </div>

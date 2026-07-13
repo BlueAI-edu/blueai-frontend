@@ -298,6 +298,13 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                             Auto-submitted
                           </span>
                         )}
+                        {(submission.manual_marking_required || submission.manual_marking_questions?.length > 0) && !submission.manual_marking_completed_at && (
+                          <span className="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-medium" title={submission.manual_marking_required
+                            ? 'Contains diagram/graph questions that must be marked manually before feedback can be released'
+                            : 'Contains AI-marked diagram/graph answers — double-check before releasing feedback'}>
+                            {submission.manual_marking_required ? '✏️ Needs manual marking' : '✏️ Diagram marks to check'}
+                          </span>
+                        )}
                       </div>
 
                       <div className="text-sm text-gray-600 space-y-1">

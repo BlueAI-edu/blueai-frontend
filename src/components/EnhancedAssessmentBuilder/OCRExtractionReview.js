@@ -248,6 +248,7 @@ const QuestionCard = ({
   onMove, onChange, onRemove,
   pageImages, msPageThumbnails,
   isReviewed, onMarkReviewed,
+  extractionId,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -261,7 +262,13 @@ const QuestionCard = ({
     : null;
 
   const handleCropConfirm = (newStimulus) => {
-    onChange(index, { ...question, stimulusBlock: newStimulus });
+    // Record provenance so the crop can be reproduced from the persisted
+    // extraction page (diagram pipeline D1); bboxPct moves into source.
+    const { bboxPct, ...stimulus } = newStimulus;
+    if (extractionId && question.page_num && bboxPct) {
+      stimulus.source = { extractionId, page: question.page_num, bboxPct };
+    }
+    onChange(index, { ...question, stimulusBlock: stimulus });
     onMarkReviewed(index);
     setCropModalOpen(false);
   };
@@ -585,6 +592,7 @@ const OCRExtractionReview = ({
   pageThumbnails,
   pageImages,
   msPageThumbnails,
+  extractionId,
   onConfirm,
   onBack,
 }) => {
@@ -773,6 +781,7 @@ const OCRExtractionReview = ({
                 msPageThumbnails={msPageThumbnails}
                 isReviewed={reviewedSet.has(realIdx)}
                 onMarkReviewed={markReviewed}
+                extractionId={extractionId}
               />
             );
           })}

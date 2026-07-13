@@ -29,7 +29,8 @@ export const teacherApi = {
   closeAssessment: (id) => client.post(`/teacher/assessments/${id}/close`),
   reopenAssessment: (id) => client.post(`/teacher/assessments/${id}/reopen`),
   publishAssessment: (id) => client.post(`/teacher/assessments/${id}/publish`),
-  getDashboard: () => client.get(`${API}/teacher/dashboard`),
+  getDashboard: () => client.get('/teacher/dashboard'),
+  getNeedsReview: () => client.get('/teacher/submissions/needs-review'),
 
   // Enhanced assessments
   createEnhancedAssessment: (data) => client.post('/teacher/assessments/enhanced', data),

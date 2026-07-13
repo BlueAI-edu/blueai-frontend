@@ -5,45 +5,34 @@ import { API } from '@/config';
 import { Navbar } from '../components/Navbar';
 import UsageBanner from '../components/UsageBanner';
 import {
-  ClipboardList, Upload, Eye, PenLine, BarChart3,
-  AlertTriangle, CheckCircle2, ChevronRight, RefreshCw,
-  FileText, ScanLine, Flag, Plus, ArrowRight, AlertCircle,
+  ClipboardList, Upload, BarChart3, AlertCircle, CheckCircle2,
+  ChevronRight, RefreshCw, FileText, Flag, Plus, ArrowRight, Radio,
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+
+/**
+ * Teacher dashboard — deliberately lean. It answers two questions:
+ * "what needs my attention right now?" (flagged submissions, live assessments)
+ * and "where's my recent work?" (recent assessments). Everything shown is
+ * real data; the old OCR-health chart and priority queue were removed because
+ * they rendered hardcoded or impossible values.
+ */
 
 const Skeleton = ({ className }) => (
   <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
 );
 
+// Real assessment lifecycle statuses only (draft → published → started → closed).
 const StatusBadge = ({ status }) => {
-  const key = (status || '').toLowerCase().replace(/\s+/g, '_');
   const variants = {
-    ocr_in_review:    { label: 'OCR in Review',      cls: 'bg-blue-100 text-blue-700' },
-    marked:           { label: 'Marked',              cls: 'bg-green-100 text-green-700' },
-    low_confidence:   { label: 'Low Confidence',      cls: 'bg-yellow-100 text-yellow-800' },
-    unmarked:         { label: 'Needs Review',        cls: 'bg-orange-100 text-orange-700' },
-    needs_review:     { label: 'Needs Review',         cls: 'bg-orange-100 text-orange-700' },
-    draft:            { label: 'Draft',               cls: 'bg-gray-100 text-gray-600' },
-    ready_to_release: { label: 'Ready to Release',    cls: 'bg-emerald-100 text-emerald-700' },
-    awaiting_upload:  { label: 'Awaiting Upload',     cls: 'bg-purple-100 text-purple-700' },
+    draft:     { label: 'Draft',     cls: 'bg-gray-100 text-gray-600' },
+    published: { label: 'Published', cls: 'bg-blue-100 text-blue-700' },
+    started:   { label: 'Live',      cls: 'bg-green-100 text-green-700' },
+    closed:    { label: 'Closed',    cls: 'bg-slate-200 text-slate-600' },
   };
-  const v = variants[key] || { label: status || 'Unknown', cls: 'bg-gray-100 text-gray-600' };
+  const v = variants[(status || '').toLowerCase()] || { label: status || '—', cls: 'bg-gray-100 text-gray-600' };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${v.cls}`}>
       {v.label}
-    </span>
-  );
-};
-
-const SeverityBadge = ({ severity }) => {
-  const variants = {
-    high:   'bg-red-100 text-red-700',
-    medium: 'bg-orange-100 text-orange-700',
-    low:    'bg-yellow-100 text-yellow-700',
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${variants[(severity || '').toLowerCase()] || variants.low}`}>
-      {severity}
     </span>
   );
 };
@@ -60,124 +49,62 @@ const SectionError = ({ onRetry }) => (
   </div>
 );
 
-const OCRHealthChart = ({ data, accuracy }) => {
-  const chartData = [
-    { name: 'High Confidence', value: data.high,   color: '#22c55e' },
-    { name: 'Medium',          value: data.medium, color: '#a855f7' },
-    { name: 'Low',             value: data.low,    color: '#f59e0b' },
-    { name: 'Failed',          value: Math.max(data.failed, 0.5), color: '#e5e7eb' },
-  ];
-  return (
-    <div className="relative w-32 h-32">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={chartData} cx="50%" cy="50%" innerRadius={42} outerRadius={58} dataKey="value" strokeWidth={0}>
-            {chartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <span className="text-xl font-bold text-gray-900">{accuracy}%</span>
-        <span className="text-[10px] text-gray-500 text-center leading-tight">Overall<br />Accuracy</span>
-      </div>
-    </div>
-  );
-};
-
 export const TeacherDashboard = ({ user }) => {
   const navigate = useNavigate();
 
-  const [stats, setStats]                   = useState(null);
-  const [statsLoading, setStatsLoading]     = useState(true);
-  const [statsError, setStatsError]         = useState(false);
+  const [stats, setStats] = useState(null);
+  const [assessments, setAssessments] = useState([]);
+  const [assessmentsLoading, setAssessmentsLoading] = useState(true);
+  const [assessmentsError, setAssessmentsError] = useState(false);
 
-  const [recentAssessments, setRecentAssessments]       = useState([]);
-  const [assessmentsLoading, setAssessmentsLoading]     = useState(true);
-  const [assessmentsError, setAssessmentsError]         = useState(false);
-
-  const [priorityQueue, setPriorityQueue]   = useState([]);
-  const [queueLoading, setQueueLoading]     = useState(true);
-  const [queueError, setQueueError]         = useState(false);
-
-  const [ocrHealth, setOcrHealth]           = useState(null);
-  const [ocrLoading, setOcrLoading]         = useState(true);
-
-  const [allAssessments, setAllAssessments] = useState([]);
+  const [reviewItems, setReviewItems] = useState([]);
+  const [reviewLoading, setReviewLoading] = useState(true);
+  const [reviewError, setReviewError] = useState(false);
 
   const loadStats = useCallback(async () => {
-    setStatsLoading(true);
-    setStatsError(false);
     try {
       const res = await axios.get(`${API}/teacher/dashboard`);
       setStats(res.data);
     } catch {
-      setStatsError(true);
-    } finally {
-      setStatsLoading(false);
+      // Stats are supplementary; the cards fall back to derived counts.
     }
   }, []);
 
   const loadAssessments = useCallback(async () => {
     setAssessmentsLoading(true);
     setAssessmentsError(false);
-    setQueueLoading(true);
-    setQueueError(false);
     try {
       const res = await axios.get(`${API}/teacher/assessments`);
       const all = Array.isArray(res.data) ? res.data : (res.data?.assessments || []);
-
-      // Sort by updated_at desc, take first 6 for recent assessments
       const sorted = [...all].sort((a, b) =>
         new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
       );
-      setAllAssessments(sorted);             
-      setRecentAssessments(sorted.slice(0, 6));
-
-
-      // Build priority queue from OCR-relevant statuses
-      const reviewStatuses = ['ocr_in_review', 'low_confidence', 'needs_review'];
-      const queueItems = sorted
-        .filter(a => reviewStatuses.includes((a.status || '').toLowerCase().replace(/\s+/g, '_')))
-        .slice(0, 5)
-        .map(a => {
-          const s = (a.status || '').toLowerCase().replace(/\s+/g, '_');
-          return {
-            id:        a.id,
-            title:     s === 'low_confidence' ? 'Low confidence extractions'
-                     : s === 'needs_review'   ? 'Submissions awaiting review'
-                     : 'OCR review required',
-            subtitle:  a.title,
-            scripts:   a.submission_count ?? a.submissions ?? 0,
-            severity:  s === 'low_confidence' ? 'Medium' : s === 'needs_review' ? 'Medium' : 'High',
-          };
-        });
-      setPriorityQueue(queueItems);
-
-      // Derive OCR health metrics from aggregate data
-      const today = new Date().toDateString();
-      const processedToday = sorted.filter(a => {
-        const d = a.updated_at || a.created_at;
-        return d && new Date(d).toDateString() === today;
-      }).length;
-      setOcrHealth({
-        accuracy: 92, high: 92, medium: 6, low: 2, failed: 0,
-        avgTime: '1.2s', correctionRate: '8%', processedToday,
-      });
-      setOcrLoading(false);
+      setAssessments(sorted);
     } catch {
       setAssessmentsError(true);
-      setQueueError(true);
-      setOcrLoading(false);
     } finally {
       setAssessmentsLoading(false);
-      setQueueLoading(false);
+    }
+  }, []);
+
+  const loadReviewQueue = useCallback(async () => {
+    setReviewLoading(true);
+    setReviewError(false);
+    try {
+      const res = await axios.get(`${API}/teacher/submissions/needs-review`);
+      setReviewItems(res.data?.submissions || []);
+    } catch {
+      setReviewError(true);
+    } finally {
+      setReviewLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadStats();
     loadAssessments();
-  }, [loadStats, loadAssessments]);
+    loadReviewQueue();
+  }, [loadStats, loadAssessments, loadReviewQueue]);
 
   const formatTime = (iso) => {
     if (!iso) return '—';
@@ -188,431 +115,221 @@ export const TeacherDashboard = ({ user }) => {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  const firstName   = user?.name?.split(' ')[0] || 'Teacher';
-  const needsReview = allAssessments.filter(
-          a => (a.status || '').toLowerCase() === 'review_needed'
-          ).length;
+  const openSubmission = (item) => {
+    // Enhanced attempts carry answers/questionScores; classic ones carry answer_text.
+    const enhanced = item.answers != null || item.questionScores != null;
+    navigate(enhanced
+      ? `/teacher/submissions/${item.attempt_id}/enhanced`
+      : `/teacher/submissions/${item.attempt_id}`);
+  };
+
+  const firstName = user?.name?.split(' ')[0] || 'Teacher';
+  const liveAssessments = assessments.filter(a => a.status === 'started');
+  const needsReview = reviewItems.length;
+  const recentAssessments = assessments.slice(0, 6);
+
+  const statCards = [
+    {
+      label: 'Assessments', value: stats?.total_assessments ?? assessments.length,
+      icon: ClipboardList, color: 'text-blue-600 bg-blue-50',
+      onClick: () => navigate('/teacher/assessments'), testId: 'stat-assessments',
+    },
+    {
+      label: 'Live now', value: liveAssessments.length,
+      icon: Radio, color: 'text-green-600 bg-green-50',
+      onClick: () => navigate('/teacher/assessments'), testId: 'stat-live',
+    },
+    {
+      label: 'Submissions', value: stats?.total_submissions ?? '—',
+      icon: Upload, color: 'text-purple-600 bg-purple-50',
+      onClick: () => navigate('/teacher/assessments'), testId: 'stat-submissions',
+    },
+    {
+      label: 'Needs review', value: needsReview,
+      icon: Flag, color: 'text-orange-500 bg-orange-50',
+      onClick: null, testId: 'stat-needs-review', // the queue is right below
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#f7f8fb]">
       <Navbar user={user} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
         <UsageBanner />
 
-        {/* ── Hero panel ── */}
-        <div className="relative overflow-hidden rounded-2xl shadow-sm px-6 sm:px-8 py-8 sm:py-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-10"
-          style={{
-            background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%)',
-          }}
-        >
-          {/* Background pattern */}
-          <div className="absolute inset-0 opacity-10" aria-hidden="true">
-            <div className="absolute top-0 left-0 w-72 h-72 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-white rounded-full translate-y-1/2" />
-            <div className="absolute top-1/2 left-1/3 w-32 h-32 bg-white rounded-full -translate-y-1/2" />
-          </div>
-
-          {/* Grid dots pattern */}
-          <div className="absolute inset-0 opacity-5" aria-hidden="true"
-            style={{
-              backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-            }}
-          />
-
-          <div className="relative z-10 flex-1">
-            <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-blue-100 text-xs font-medium px-2.5 py-1 rounded-full mb-4">
-              <ScanLine className="w-3.5 h-3.5" />
-              <span>AI-Powered Marking</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2 leading-tight">
-              Welcome back, {firstName}!
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900" data-testid="dashboard-greeting">
+              Welcome back, {firstName}
             </h1>
-            <p className="text-blue-100 mb-6 text-sm sm:text-base lg:text-lg max-w-xl">
-              Here's an overview of your assessment activity.
-              {needsReview > 0 && (
-                <span className="font-medium text-white"> You have {needsReview} submission{needsReview !== 1 ? 's' : ''} awaiting review.</span>
-              )}
+            <p className="text-sm text-gray-500 mt-1">
+              {needsReview > 0
+                ? `${needsReview} submission${needsReview !== 1 ? 's' : ''} flagged for your review.`
+                : liveAssessments.length > 0
+                  ? `${liveAssessments.length} assessment${liveAssessments.length !== 1 ? 's' : ''} live right now.`
+                  : 'All caught up.'}
             </p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => navigate('/teacher/assessments/create')}
-                className="inline-flex items-center gap-2 bg-white text-blue-700 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-all shadow-lg shadow-blue-900/20 hover:shadow-xl hover:shadow-blue-900/30 hover:-translate-y-0.5 active:translate-y-0"
-                data-testid="hero-create-assessment"
-              >
-                <Plus className="w-4 h-4" /> Create Assessment
-              </button>
-              <button
-                onClick={() => navigate('/teacher/ocr-upload')}
-                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-                data-testid="hero-upload-scripts"
-              >
-                <Upload className="w-4 h-4" /> Upload Scripts
-              </button>
-              <button
-                onClick={() => navigate('/teacher/assessments?filter=review')}
-                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/20 transition-all hover:-translate-y-0.5 active:translate-y-0 relative"
-                data-testid="hero-review-queue"
-              >
-                <Eye className="w-4 h-4" /> Open Review Queue
-                {needsReview > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
-                    {needsReview > 9 ? '9+' : needsReview}
-                  </span>
-                )}
-              </button>
-            </div>
           </div>
-
-          {/* Decorative illustration - OCR/Assessment themed */}
-          <div className="hidden lg:flex items-center justify-center shrink-0 relative" aria-hidden="true">
-            <div className="w-56 h-40 relative">
-              {/* Main card */}
-              <div className="absolute inset-4 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-2xl" />
-
-              {/* Scan line animation */}
-              <div className="absolute top-8 left-8 right-8 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-60"
-                style={{
-                  animation: 'scan 2s ease-in-out infinite',
-                }}
-              />
-
-              {/* Document icon */}
-              <div className="absolute top-6 left-10 w-12 h-16 bg-white/90 rounded-lg shadow-lg flex flex-col items-center justify-center gap-1">
-                <FileText className="w-6 h-6 text-blue-600" />
-                <div className="w-6 h-0.5 bg-gray-200 rounded" />
-                <div className="w-4 h-0.5 bg-gray-200 rounded" />
-              </div>
-
-              {/* Checkmark badge */}
-              <div className="absolute bottom-6 right-8 w-10 h-10 bg-green-500 rounded-xl shadow-lg flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-white" />
-              </div>
-
-              {/* Floating elements */}
-              <div className="absolute top-2 right-4 w-3 h-3 bg-blue-300 rounded-full opacity-60"
-                style={{ animation: 'float 3s ease-in-out infinite' }}
-              />
-              <div className="absolute bottom-4 left-4 w-2 h-2 bg-purple-300 rounded-full opacity-60"
-                style={{ animation: 'float 3s ease-in-out infinite 1s' }}
-              />
-              <div className="absolute top-1/2 -right-2 w-2 h-2 bg-green-300 rounded-full opacity-60"
-                style={{ animation: 'float 3s ease-in-out infinite 0.5s' }}
-              />
-            </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => navigate('/teacher/assessments/create')}
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+              data-testid="hero-create-assessment"
+            >
+              <Plus className="w-4 h-4" /> Create Assessment
+            </button>
+            <button
+              onClick={() => navigate('/teacher/ocr-upload')}
+              className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:border-gray-300 transition-colors"
+              data-testid="hero-upload-scripts"
+            >
+              <Upload className="w-4 h-4" /> Upload Scripts
+            </button>
           </div>
         </div>
 
-        {/* ── Stat cards ── */}
+        {/* ── Stat row ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {statsLoading ? (
-            [0, 1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <Skeleton className="h-3 w-28 mb-3" />
-                <Skeleton className="h-8 w-14 mb-2" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            ))
-          ) : statsError ? (
-            <div className="col-span-4 bg-white rounded-xl border border-gray-100 shadow-sm">
-              <SectionError onRetry={loadStats} />
+          {statCards.map(({ label, value, icon: Icon, color, onClick, testId }) => {
+            const Tag = onClick ? 'button' : 'div';
+            return (
+              <Tag
+                key={label}
+                onClick={onClick || undefined}
+                className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-left flex items-center gap-3 ${onClick ? 'hover:shadow-md transition-shadow' : ''}`}
+                data-testid={testId}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900 leading-none">
+                    {assessmentsLoading && value === 0 ? <Skeleton className="h-6 w-8" /> : value}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">{label}</p>
+                </div>
+              </Tag>
+            );
+          })}
+        </div>
+
+        {/* ── Live assessments strip ── */}
+        {liveAssessments.length > 0 && (
+          <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-5" data-testid="live-assessments">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+              </span>
+              <h2 className="text-base font-semibold text-gray-900">Live now</h2>
             </div>
-          ) : (
-            <>
-              {[
-                {
-                  label: 'Total Assessments', value: stats?.total_assessments ?? 0,
-                  sub: 'Across all classes', icon: ClipboardList,
-                  iconBg: 'bg-blue-50 group-hover:bg-blue-100', iconColor: 'text-blue-600',
-                  hoverBorder: 'hover:border-blue-200', chevronHover: 'group-hover:text-blue-400',
-                  route: '/teacher/assessments', testId: 'stat-assessments',
-                },
-                {
-                  label: 'Live Assessments', value: stats?.live_assessments ?? 0,
-                  sub: 'Currently active', icon: BarChart3,
-                  iconBg: 'bg-green-50 group-hover:bg-green-100', iconColor: 'text-green-600',
-                  hoverBorder: 'hover:border-green-200', chevronHover: 'group-hover:text-green-400',
-                  route: '/teacher/assessments?filter=live', testId: 'stat-live',
-                },
-                {
-                  label: 'Total Submissions', value: stats?.total_submissions ?? 0,
-                  sub: 'This term', icon: Upload,
-                  iconBg: 'bg-purple-50 group-hover:bg-purple-100', iconColor: 'text-purple-600',
-                  hoverBorder: 'hover:border-purple-200', chevronHover: 'group-hover:text-purple-400',
-                  route: '/teacher/assessments', testId: 'stat-submissions',
-                },
-                {
-                  label: 'Needs Review', value: needsReview,
-                  sub: 'Requires attention', icon: AlertTriangle,
-                  iconBg: 'bg-orange-50 group-hover:bg-orange-100', iconColor: 'text-orange-500',
-                  hoverBorder: 'hover:border-orange-200', chevronHover: 'group-hover:text-orange-400',
-                  route: '/teacher/assessments?filter=review', testId: 'stat-needs-review',
-                },
-              ].map(({ label, value, sub, icon: Icon, iconBg, iconColor, hoverBorder, chevronHover, route, testId }) => (
+            <div className="divide-y divide-gray-50">
+              {liveAssessments.slice(0, 4).map(a => (
                 <button
-                  key={label}
-                  onClick={() => navigate(route)}
-                  className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-left ${hoverBorder} hover:shadow-md transition-all group`}
-                  data-testid={testId}
+                  key={a.id}
+                  onClick={() => navigate(`/teacher/assessments/${a.id}`)}
+                  className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-gray-50 rounded-lg px-2 transition-colors group"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">{label}</span>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${iconBg}`}>
-                      <Icon className={`w-4 h-4 ${iconColor}`} />
-                    </div>
-                  </div>
-                  <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
-                  <p className="text-xs text-gray-400">{sub}</p>
-                  <ChevronRight className={`w-4 h-4 text-gray-300 mt-2 transition-colors ${chevronHover}`} />
+                  <span className="text-sm font-medium text-gray-900 truncate flex-1">
+                    {a.title || a.subject || 'Untitled assessment'}
+                  </span>
+                  {a.join_code && (
+                    <span className="font-mono text-xs font-semibold text-green-700 bg-green-50 rounded px-2 py-1 tracking-widest">
+                      {a.join_code}
+                    </span>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
                 </button>
               ))}
-            </>
+            </div>
+          </div>
+        )}
+
+        {/* ── Needs review queue ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-testid="priority-queue">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-gray-900">Needs your review</h2>
+              {!reviewLoading && needsReview > 0 && (
+                <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 bg-orange-500 text-white text-[10px] font-bold rounded-full">
+                  {needsReview}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {reviewLoading ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <Skeleton className="w-8 h-8 rounded-lg" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-40" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : reviewError ? (
+            <SectionError onRetry={loadReviewQueue} />
+          ) : needsReview === 0 ? (
+            <div className="flex items-center gap-3 py-4">
+              <CheckCircle2 className="w-8 h-8 text-green-400 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Nothing waiting on you</p>
+                <p className="text-xs text-gray-400">Submissions the AI is unsure about will appear here.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {reviewItems.slice(0, 6).map(item => (
+                <button
+                  key={item.attempt_id}
+                  onClick={() => openSubmission(item)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                    <Flag className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {item.student_name || 'Student'}
+                      {item.question_subject && item.question_subject !== 'Unknown' && (
+                        <span className="text-gray-400 font-normal"> · {item.question_subject}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {(item.review_reasons || []).slice(0, 2).join(' · ') || 'Flagged by AI marking'}
+                    </p>
+                  </div>
+                  {item.score != null && (
+                    <span className="text-xs font-semibold text-gray-600 shrink-0">{item.score} marks</span>
+                  )}
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
+                </button>
+              ))}
+              {needsReview > 6 && (
+                <p className="text-xs text-gray-400 text-center pt-2">
+                  Showing 6 of {needsReview} — open an assessment to see the rest.
+                </p>
+              )}
+            </div>
           )}
         </div>
 
-        {/* ── Middle section: left 2/3 + right 1/3 ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-          {/* Left column: Quick Actions + Priority Queue */}
-          <div className="lg:col-span-2 space-y-6">
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-semibold text-gray-900">Quick Actions</h2>
-                <button
-                  onClick={() => navigate('/teacher/assessments')}
-                  className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                >
-                  View All Tools <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  {
-                    title: 'Create Question', desc: 'Create and manage questions',
-                    icon: PenLine, bg: 'bg-blue-100 group-hover:bg-blue-200',
-                    color: 'text-blue-600', border: 'hover:border-blue-200 hover:bg-blue-50/30',
-                    route: '/teacher/questions', testId: 'quick-action-create-question',
-                  },
-                  {
-                    title: 'Create Assessment', desc: 'Set up a new assessment',
-                    icon: ClipboardList, bg: 'bg-green-100 group-hover:bg-green-200',
-                    color: 'text-green-600', border: 'hover:border-green-200 hover:bg-green-50/30',
-                    route: '/teacher/assessments/create', testId: 'quick-action-create-assessment',
-                  },
-                  {
-                    title: 'Upload Scripts', desc: 'Scan and extract student answers',
-                    icon: Upload, bg: 'bg-purple-100 group-hover:bg-purple-200',
-                    color: 'text-purple-600', border: 'hover:border-purple-200 hover:bg-purple-50/30',
-                    route: '/teacher/ocr-upload', testId: 'quick-action-upload-scripts',
-                  },
-                  {
-                    title: 'Review OCR Flags', desc: 'Check and correct AI extractions',
-                    icon: ScanLine, bg: 'bg-orange-100 group-hover:bg-orange-200',
-                    color: 'text-orange-600', border: 'hover:border-orange-200 hover:bg-orange-50/30',
-                    route: '/teacher/assessments?filter=review', testId: 'quick-action-review-ocr',
-                  },
-                ].map(({ title, desc, icon: Icon, bg, color, border, route, testId }) => (
-                  <button
-                    key={title}
-                    onClick={() => navigate(route)}
-                    className={`flex items-start gap-3 p-4 rounded-xl border border-gray-100 transition-all text-left group ${border}`}
-                    data-testid={testId}
-                  >
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${bg}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Priority Queue */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-testid="priority-queue">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold text-gray-900">Priority Queue</h2>
-                  {!queueLoading && priorityQueue.length > 0 && (
-                    <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full">
-                      {priorityQueue.length}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => navigate('/teacher/assessments?filter=review')}
-                  className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                  data-testid="priority-queue-view-all"
-                >
-                  View All <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              {queueLoading ? (
-                <div className="space-y-3">
-                  {[0, 1, 2].map(i => (
-                    <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0">
-                      <Skeleton className="w-8 h-8 rounded-lg" />
-                      <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-3.5 w-40" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                      <Skeleton className="h-5 w-14 rounded-full" />
-                    </div>
-                  ))}
-                </div>
-              ) : queueError ? (
-                <SectionError onRetry={loadAssessments} />
-              ) : priorityQueue.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-2">
-                  <CheckCircle2 className="w-10 h-10 text-green-400" />
-                  <p className="text-sm font-medium text-gray-700">Nothing to review</p>
-                  <p className="text-xs text-gray-400">All extractions have been processed.</p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {priorityQueue.map((item, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => navigate(`/teacher/assessments/${item.id}`)}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left group"
-                    >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        item.severity === 'High' ? 'bg-red-100' : item.severity === 'Medium' ? 'bg-orange-100' : 'bg-yellow-100'
-                      }`}>
-                        <Flag className={`w-4 h-4 ${
-                          item.severity === 'High' ? 'text-red-500' : item.severity === 'Medium' ? 'text-orange-500' : 'text-yellow-500'
-                        }`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                        <p className="text-xs text-gray-500 truncate">{item.subtitle} · {item.scripts} scripts</p>
-                      </div>
-                      <SeverityBadge severity={item.severity} />
-                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right column: OCR Health + Teacher Workflow */}
-          <div className="space-y-6">
-
-            {/* OCR Health */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-testid="ocr-health">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">OCR Health</h2>
-                <button
-                  onClick={() => navigate('/teacher/assessments?filter=review')}
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  View Details
-                </button>
-              </div>
-
-              {ocrLoading ? (
-                <div className="space-y-3">
-                  <div className="flex justify-center mb-2">
-                    <Skeleton className="w-32 h-32 rounded-full" />
-                  </div>
-                  {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
-                </div>
-              ) : ocrHealth ? (
-                <>
-                  <div className="flex justify-center mb-5">
-                    <OCRHealthChart
-                      data={{ high: ocrHealth.high, medium: ocrHealth.medium, low: ocrHealth.low, failed: ocrHealth.failed }}
-                      accuracy={ocrHealth.accuracy}
-                    />
-                  </div>
-                  <div className="space-y-2.5">
-                    {[
-                      { dot: 'bg-green-500',  label: 'High Confidence',   value: `${ocrHealth.high}%` },
-                      { dot: 'bg-purple-500', label: 'Medium Confidence', value: `${ocrHealth.medium}%` },
-                      { dot: 'bg-yellow-400', label: 'Low Confidence',    value: `${ocrHealth.low}%` },
-                      { dot: 'bg-gray-300',   label: 'Could Not Process',   value: `${ocrHealth.failed}%` },
-                    ].map(({ dot, label, value }) => (
-                      <div key={label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2.5 h-2.5 rounded-full ${dot}`} />
-                          <span className="text-xs text-gray-600">{label}</span>
-                        </div>
-                        <span className="text-xs font-semibold text-gray-800">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
-                    {[
-                      { label: 'Average processing time', value: ocrHealth.avgTime },
-                      { label: 'Your correction rate', value: ocrHealth.correctionRate },
-                      { label: 'Scripts processed today', value: `${ocrHealth.processedToday} scripts` },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{label}</span>
-                        <span className="text-xs font-medium text-gray-700">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : null}
-            </div>
-
-            {/* Teacher Workflow */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-testid="teacher-workflow">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Teacher Workflow</h2>
-              <div className="space-y-1">
-                {[
-                  { n: 1, title: 'Upload Scripts',       desc: 'Upload handwritten scripts for AI extraction', icon: Upload,        bg: 'bg-blue-100',   color: 'text-blue-600',   route: '/teacher/ocr-upload' },
-                  { n: 2, title: 'Review OCR Results',   desc: 'Review and correct AI-extracted answers',      icon: Eye,           bg: 'bg-purple-100', color: 'text-purple-600', route: '/teacher/assessments?filter=review' },
-                  { n: 3, title: 'AI Marking',           desc: 'Approve AI marking and release feedback',      icon: CheckCircle2,  bg: 'bg-green-100',  color: 'text-green-600',  route: '/teacher/assessments' },
-                  { n: 4, title: 'View Analytics',       desc: 'Track class and student performance',          icon: BarChart3,     bg: 'bg-orange-100', color: 'text-orange-600', route: '/teacher/analytics' },
-                ].map(({ n, title, desc, icon: Icon, bg, color, route }) => (
-                  <button
-                    key={n}
-                    onClick={() => navigate(route)}
-                    className="w-full flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left group"
-                  >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${bg}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
-                        <span className="text-gray-400 text-xs mr-1">{n}.</span>{title}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{desc}</p>
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0 mt-1" />
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => navigate('/teacher/assessments')}
-                className="w-full text-center text-xs text-blue-600 hover:underline mt-2 pt-3 border-t border-gray-100 block"
-              >
-                Go to Assessments →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Recent Assessments ── */}
+        {/* ── Recent assessments ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-testid="recent-assessments">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-base font-semibold text-gray-900">Recent Assessments</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-gray-900">Recent assessments</h2>
             <button
               onClick={() => navigate('/teacher/assessments')}
               className="text-xs text-blue-600 hover:underline flex items-center gap-1"
               data-testid="recent-assessments-view-all"
             >
-              View All <ArrowRight className="w-3 h-3" />
+              View all <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
@@ -626,7 +343,6 @@ export const TeacherDashboard = ({ user }) => {
                     <Skeleton className="h-3 w-24" />
                   </div>
                   <Skeleton className="h-5 w-20 rounded-full" />
-                  <Skeleton className="h-3.5 w-16 hidden lg:block" />
                 </div>
               ))}
             </div>
@@ -645,63 +361,46 @@ export const TeacherDashboard = ({ user }) => {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-1">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    {['Assessment', 'Class', 'Submissions', 'Status', 'Updated', ''].map((h, i) => (
-                      <th
-                        key={h || i}
-                        className={`text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide pb-3 pr-4 ${
-                          i === 1 ? 'hidden sm:table-cell' :
-                          i === 2 ? 'hidden md:table-cell' :
-                          i === 4 ? 'hidden lg:table-cell' : ''
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentAssessments.map((a, idx) => (
-                    <tr
-                      key={a.id || idx}
-                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors cursor-pointer group"
-                      onClick={() => navigate(`/teacher/assessments/${a.id}`)}
-                    >
-                      <td className="py-3 pr-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
-                            <FileText className="w-3.5 h-3.5 text-blue-500" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900 truncate max-w-[180px] sm:max-w-[240px]">
-                            {a.title}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-4 hidden sm:table-cell">
-                        <span className="text-sm text-gray-500">{a.class_name || a.class || '—'}</span>
-                      </td>
-                      <td className="py-3 pr-4 hidden md:table-cell">
-                        <span className="text-sm font-medium text-gray-800">{a.submission_count ?? a.submissions ?? 0}</span>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <StatusBadge status={a.status} />
-                      </td>
-                      <td className="py-3 pr-4 hidden lg:table-cell">
-                        <span className="text-xs text-gray-400">{formatTime(a.updated_at || a.created_at)}</span>
-                      </td>
-                      <td className="py-3 w-6">
-                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-gray-50">
+              {recentAssessments.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => navigate(`/teacher/assessments/${a.id}`)}
+                  className="w-full flex items-center gap-3 py-3 text-left hover:bg-gray-50/60 rounded-lg px-2 transition-colors group"
+                >
+                  <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
+                    <FileText className="w-3.5 h-3.5 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {a.title || a.subject || 'Untitled assessment'}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {a.subject && a.title ? `${a.subject} · ` : ''}{formatTime(a.updated_at || a.created_at)}
+                    </p>
+                  </div>
+                  <StatusBadge status={a.status} />
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
+                </button>
+              ))}
             </div>
           )}
         </div>
+
+        {/* ── Analytics shortcut ── */}
+        <button
+          onClick={() => navigate('/teacher/analytics')}
+          className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow text-left group"
+        >
+          <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+            <BarChart3 className="w-4 h-4 text-indigo-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-900">Class analytics</p>
+            <p className="text-xs text-gray-400">Performance trends, topic gaps, and intervention signals.</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
+        </button>
 
       </div>
     </div>

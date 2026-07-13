@@ -79,6 +79,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     stage: 'KS4',
     examBoard: 'AQA',
     tier: 'Higher',
+    // Topic focus — filled once in Step 2 and inherited by the AI question
+    // generator so teachers never re-enter assessment details (frontend-only;
+    // the backend create model ignores unknown fields).
+    topic: '',
+    subtopic: '',
+    difficulty: 'Medium',
     yearSeries: '',
     durationMinutes: 90,
     instructions: '',
@@ -112,6 +118,9 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [pageThumbnails, setPageThumbnails] = useState({});
   const [pageImages, setPageImages] = useState({});
   const [msPageThumbnails, setMsPageThumbnails] = useState({});
+  // Server-side extraction session id — pages persist under it so diagram
+  // crops can be reproduced later (diagram pipeline D1)
+  const [extractionId, setExtractionId] = useState(null);
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -179,6 +188,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setPageThumbnails(response.data.page_thumbnails || {});
       setPageImages(response.data.page_images || {});
       setMsPageThumbnails(response.data.ms_page_thumbnails || {});
+      setExtractionId(response.data.extraction_id || null);
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -207,6 +217,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setPageThumbnails({});
     setPageImages({});
     setMsPageThumbnails({});
+    setExtractionId(null);
     setOcrReviewState('uploading');
   }, []);
 
@@ -262,7 +273,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       if (assessment.assessmentMode === OCR_GCSE_MODE && assessment.ocrConfirmed) {
         // Locked OCR assessment — redirect to detail page with a message
         showNotification(
-          'This GCSE Past Paper assessment is locked after review. To re-extract, use "Unlock for re-extraction" on the assessment detail page.',
+          'This past paper assessment is locked after review. To re-extract, use "Unlock for re-extraction" on the assessment detail page.',
           'error'
         );
         setTimeout(() => navigate(`/teacher/assessments/${assessmentId}/enhanced`), 2500);
@@ -385,18 +396,18 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     }
 
     if (assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE') {
-      if (assessmentData.questions.length !== 1) {
-        showNotification('Formative mode requires exactly 1 long-response question', 'error');
+      if (assessmentData.questions.length < 1 || assessmentData.questions.length > 10) {
+        showNotification('Formative mode requires 1-10 long-response questions', 'error');
         return false;
       }
-      if (assessmentData.questions[0]?.questionType !== 'LONG_RESPONSE') {
-        showNotification('Formative mode requires a long-response question', 'error');
+      if (assessmentData.questions.some(q => q.questionType !== 'LONG_RESPONSE')) {
+        showNotification('All formative questions must be long-response', 'error');
         return false;
       }
     }
 
-    if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 5 || assessmentData.questions.length > 20)) {
-      showNotification('Summative mode requires 5-20 questions', 'error');
+    if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 3 || assessmentData.questions.length > 20)) {
+      showNotification('Summative mode requires 3-20 questions', 'error');
       return false;
     }
 
@@ -829,6 +840,50 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </select>
             </div>
 
+            {/* Topic focus — feeds the AI question generator so it needs no re-entry */}
+            <div className="rounded-lg border border-purple-100 bg-purple-50/40 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">What is this assessment about?</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Set the topic once — question generation with AI will use it automatically, along with the subject, stage, board, and tier above.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                  <input
+                    type="text"
+                    value={assessmentData.topic}
+                    onChange={(e) => updateField('topic', e.target.value)}
+                    placeholder="e.g., Quadratic Equations"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subtopic (Optional)</label>
+                  <input
+                    type="text"
+                    value={assessmentData.subtopic}
+                    onChange={(e) => updateField('subtopic', e.target.value)}
+                    placeholder="e.g., Completing the square"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                  <select
+                    value={assessmentData.difficulty}
+                    onChange={(e) => updateField('difficulty', e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option>Easy</option>
+                    <option>Medium</option>
+                    <option>Hard</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Instructions (Optional)</label>
               <textarea
@@ -998,6 +1053,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   pageThumbnails={pageThumbnails}
                   pageImages={pageImages}
                   msPageThumbnails={msPageThumbnails}
+                  extractionId={extractionId}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />
@@ -1023,17 +1079,17 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <div className="flex gap-3">
                 <button
                   onClick={addQuestion}
-                  disabled={assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length >= 1}
-                  className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 font-medium transition-colors"
+                  disabled={assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length >= 10}
+                  className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   + Add Question Manually
                 </button>
-                {assessmentData.assessmentMode !== OCR_GCSE_MODE && assessmentData.assessmentMode !== 'FORMATIVE_SINGLE_LONG_RESPONSE' && (
+                {assessmentData.assessmentMode !== OCR_GCSE_MODE && (
                   <button
                     onClick={() => setShowAIBulk(true)}
                     className="flex-1 py-4 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 text-purple-600 hover:text-purple-700 font-medium transition-colors"
                   >
-                    🤖 Generate Multiple Questions with AI
+                    🤖 Generate Questions with AI
                   </button>
                 )}
               </div>
@@ -1057,6 +1113,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                       <AIBulkGenerator
                         onQuestionsGenerated={handleAIBulkGenerate}
                         assessmentMode={assessmentData.assessmentMode}
+                        assessmentContext={{
+                          subject: assessmentData.subject,
+                          key_stage: assessmentData.stage,
+                          exam_board: assessmentData.examBoard,
+                          tier: assessmentData.tier,
+                          topic: assessmentData.topic,
+                          subtopic: assessmentData.subtopic,
+                          difficulty: assessmentData.difficulty,
+                          calculator_allowed: assessmentData.calculatorAllowed,
+                        }}
                       />
                     </Suspense>
                   </div>

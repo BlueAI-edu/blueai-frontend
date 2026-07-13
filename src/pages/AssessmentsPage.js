@@ -6,7 +6,6 @@ import { Navbar } from "@/components/Navbar";
 import { AssessmentHero } from "@/components/AssessmentHero";
 import { AssessmentCard, AssessmentCardSkeleton, AssessmentEmptyState } from "@/components/AssessmentCard";
 import { AssessmentStatsRow } from "@/components/AssessmentStatsRow";
-import { AssessmentQueuePanel } from "@/components/AssessmentQueuePanel";
 
 export const AssessmentsPage = ({ user }) => {
   const [assessments, setAssessments] = useState([]);
@@ -15,18 +14,12 @@ export const AssessmentsPage = ({ user }) => {
   const [templates, setTemplates] = useState([]);
   const [assignmentsByAssessment, setAssignmentsByAssessment] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [activeTab, setActiveTab] = useState("assessments"); // assessments, templates
   const [visibleCount, setVisibleCount] = useState(10);
-  const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "review_needed" | "submissions"
+  const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "submissions"
   const [totalSubmissions, setTotalSubmissions] = useState(0);
-  const [formData, setFormData] = useState({
-    question_id: "",
-    class_id: "",
-    duration_minutes: "",
-    auto_close: false,
-  });
+  const [reviewCount, setReviewCount] = useState(0);
   const [templateFormData, setTemplateFormData] = useState({
     name: "",
     description: "",
@@ -69,34 +62,13 @@ export const AssessmentsPage = ({ user }) => {
         return { data: {} };
       });
       setTotalSubmissions(dashboardRes.data.total_submissions ?? 0);
+      const reviewRes = await teacherApi.getNeedsReview().catch(() => ({ data: {} }));
+      setReviewCount(reviewRes.data.total_count ?? 0);
     } catch (error) {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await teacherApi.createAssessment({
-        question_id: formData.question_id,
-        class_id: formData.class_id || null,
-        duration_minutes: formData.duration_minutes
-          ? parseInt(formData.duration_minutes)
-          : null,
-        auto_close: formData.auto_close,
-      });
-      setShowForm(false);
-      setFormData({
-        question_id: "",
-        class_id: "",
-        duration_minutes: "",
-        auto_close: false,
-      });
-      loadData();
-    } catch (error) {
-      handleApiError(error, "Failed to create assessment");
-    }
-  };
 
   const handleCreateTemplate = async (e) => {
     e.preventDefault();
@@ -216,7 +188,6 @@ export const AssessmentsPage = ({ user }) => {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <AssessmentHero
           onCreateEnhanced={() => navigate("/teacher/assessments/create")}
-          onClassicMode={() => setShowForm(true)}
           liveCount={assessments.filter((a) => a.status === "started").length}
           onOpenLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
         />
@@ -226,12 +197,12 @@ export const AssessmentsPage = ({ user }) => {
           totalAssessments={assessments.length}
           liveAssessments={assessments.filter((a) => a.status === "started").length}
           totalSubmissions={totalSubmissions}
-          reviewNeeded={assessments.filter((a) => a.status === "review_needed").length}
+          reviewNeeded={reviewCount}
           activeFilter={statusFilter}
           onFilterAll={() => { setActiveTab("assessments"); setStatusFilter("all"); scrollToList(); }}
           onFilterLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
           onFilterSubmissions={() => { setActiveTab("assessments"); setStatusFilter("submissions"); scrollToList(); }}
-          onFilterReview={() => { setActiveTab("assessments"); setStatusFilter("review_needed"); scrollToList(); }}
+          onFilterReview={() => navigate("/teacher/dashboard")}
         />
 
         {/* Tab toolbar — template-mode gets its own CTA here */}
@@ -549,131 +520,9 @@ export const AssessmentsPage = ({ user }) => {
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             {/* ── Main column ── */}
             <div className="flex-1 min-w-0">
-            {showForm && (
-              <div
-                className="bg-white p-6 rounded-lg shadow mb-6"
-                data-testid="assessment-form"
-              >
-                <h3 className="text-xl font-semibold mb-4">
-                  Create Assessment
-                </h3>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select Question
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.question_id}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          question_id: e.target.value,
-                        })
-                      }
-                      required
-                      data-testid="question-select"
-                    >
-                      <option value="">-- Select a question --</option>
-                      {questions.map((q) => (
-                        <option key={q.id} value={q.id}>
-                          {q.subject} - {q.topic}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Phase 4: Class Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Link to Class (Optional)
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.class_id}
-                      onChange={(e) =>
-                        setFormData({ ...formData, class_id: e.target.value })
-                      }
-                      data-testid="class-select"
-                    >
-                      <option value="">
-                        -- No class (students enter name) --
-                      </option>
-                      {classes.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.class_name} {c.subject ? `(${c.subject})` : ""} -{" "}
-                          {c.student_count} students
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      If linked, students will select their name from a dropdown
-                      instead of typing it.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Duration (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full px-3 py-2 border rounded-lg"
-                      value={formData.duration_minutes}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          duration_minutes: e.target.value,
-                        })
-                      }
-                      placeholder="Optional - leave empty for no time limit"
-                      min="1"
-                      data-testid="duration-input"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="auto_close"
-                      checked={formData.auto_close}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          auto_close: e.target.checked,
-                        })
-                      }
-                      data-testid="auto-close-checkbox"
-                    />
-                    <label
-                      htmlFor="auto_close"
-                      className="text-sm text-gray-700"
-                    >
-                      Auto-close when time expires
-                    </label>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-                      data-testid="create-assessment-submit"
-                    >
-                      Create Assessment
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowForm(false)}
-                      className="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300"
-                      data-testid="cancel-assessment-btn"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
             {(() => {
               const FILTER_STATUS_MAP = {
                 started: "started",
-                review_needed: "review_needed",
                 submissions: "closed",
               };
               const activeStatus = FILTER_STATUS_MAP[statusFilter];
@@ -684,7 +533,6 @@ export const AssessmentsPage = ({ user }) => {
               const FILTER_LABELS = {
                 all: "All Assessments",
                 started: "Live Assessments",
-                review_needed: "Review Needed",
                 submissions: "With Submissions",
               };
 
@@ -715,7 +563,6 @@ export const AssessmentsPage = ({ user }) => {
                   {assessments.length === 0 ? (
                     <AssessmentEmptyState
                       onCreateEnhanced={() => navigate("/teacher/assessments/create")}
-                      onClassicMode={() => setShowForm(true)}
                     />
                   ) : filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-8 bg-white border border-dashed border-gray-200 rounded-xl text-center">
@@ -769,20 +616,6 @@ export const AssessmentsPage = ({ user }) => {
               );
             })()}
             </div>{/* end main column */}
-
-            {/* ── Sidebar: Assessment Queue ── */}
-            <div className="w-full lg:w-72 xl:w-80 flex-shrink-0">
-              <AssessmentQueuePanel
-                assessments={assessments}
-                loading={loading}
-                onNavigate={(path) => navigate(path)}
-                onFilterReview={(filter) => {
-                  setStatusFilter(filter);
-                  scrollToList();
-                }}
-                onCreateEnhanced={() => navigate("/teacher/assessments/create")}
-              />
-            </div>
           </div>
         )}
       </div>

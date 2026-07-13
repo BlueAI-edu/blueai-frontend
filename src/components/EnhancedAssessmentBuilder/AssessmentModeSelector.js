@@ -4,36 +4,36 @@ const AssessmentModeSelector = ({ selectedMode, onModeChange }) => {
   const modes = [
     {
       id: 'OCR_GENERATED_GCSE_PAST_PAPER',
-      name: 'GCSE Past Paper (OCR Generated)',
-      description: 'Upload a GCSE past paper PDF and AI extracts the questions automatically',
+      name: 'Past Paper Upload',
+      description: 'Upload any past paper PDF (question paper and/or mark scheme) — questions, diagrams, and marking points are extracted automatically for you to review',
       duration: '30-120 min',
-      questions: 'AI extracted',
+      questions: 'Extracted from PDF',
       icon: '📤',
       color: 'bg-orange-50 border-orange-300 hover:bg-orange-100'
     },
     {
       id: 'FORMATIVE_SINGLE_LONG_RESPONSE',
-      name: '📋 Formative Assessment',
-      description: 'Single extended response question for mastery checks',
-      duration: '30-60 min',
-      questions: '1 question (6+ marks)',
+      name: 'Formative Assessment',
+      description: 'In-depth extended-response questions — 6-mark science explanations, 10–15 mark English responses, or similar',
+      duration: '30-120 min',
+      questions: '1-10 long-response questions',
       icon: '📋',
       color: 'bg-blue-50 border-blue-300 hover:bg-blue-100'
     },
     {
       id: 'SUMMATIVE_MULTI_QUESTION',
-      name: '📊 Summative Assessment',
-      description: 'Multiple questions of mixed types (MCQ, short answer, calculations)',
-      duration: '30-60 min',
-      questions: '5-10 questions',
+      name: 'Summative Assessment',
+      description: 'End-of-topic or end-of-term test mixing question types — multiple choice, 1–3 mark short answers, and longer responses',
+      duration: '30-120 min',
+      questions: '3-20 questions',
       icon: '📊',
       color: 'bg-green-50 border-green-300 hover:bg-green-100'
     },
     {
       id: 'EXAM_STRUCTURED_GCSE_STYLE',
-      name: '📄 GCSE Structured Exam',
-      description: 'Exam-style questions with sub-parts (1a, 1b, 1c) and shared stimulus',
-      duration: '30-60 min',
+      name: 'GCSE Structured Exam',
+      description: 'Exam-style questions with sub-parts (1a, 1b, 1c) and shared stimulus — test one topic GCSE-style without uploading a full paper',
+      duration: '30-120 min',
       questions: '1-5 structured questions',
       icon: '📄',
       color: 'bg-purple-50 border-purple-300 hover:bg-purple-100'
