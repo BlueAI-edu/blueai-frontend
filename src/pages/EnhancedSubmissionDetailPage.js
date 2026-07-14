@@ -7,6 +7,22 @@ import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
 
+// Feedback fields (www / next_steps / overall_feedback) may come back from the
+// backend as an array of bullet points or a legacy plain string — normalise
+// either into newline-separated text for the textarea.
+const toDisplayText = (value) => {
+  if (Array.isArray(value)) return value.join('\n');
+  return value || '';
+};
+
+// Convert the textarea's newline-separated text back into an array of bullets
+// for the API, matching the backend's new list-based feedback schema.
+const toBulletArray = (text) =>
+  (text || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
 export const EnhancedSubmissionDetailPage = ({ user }) => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -36,10 +52,10 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
       
       // Initialize feedback if already marked
       if (response.data.attempt.status === 'marked') {
-        setWww(response.data.attempt.www || '');
-        setEbi(response.data.attempt.next_steps || '');
-        setOverallFeedback(response.data.attempt.overall_feedback || '');
-        
+        setWww(toDisplayText(response.data.attempt.www));
+        setEbi(toDisplayText(response.data.attempt.next_steps));
+        setOverallFeedback(toDisplayText(response.data.attempt.overall_feedback));
+
         // Initialize question scores if available
         if (response.data.attempt.questionScores) {
           setQuestionScores(response.data.attempt.questionScores);
@@ -85,9 +101,9 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
       await axios.post(`${API}/teacher/submissions/${attemptId}/mark-enhanced`, {
         questionScores,
         totalScore,
-        www,
-        next_steps: ebi,
-        overall_feedback: overallFeedback
+        www: toBulletArray(www),
+        next_steps: toBulletArray(ebi),
+        overall_feedback: toBulletArray(overallFeedback)
       });
 
       showSuccess('Feedback saved successfully!');
