@@ -6,6 +6,8 @@ import { handleApiError, showSuccess } from "@/lib/handle-error";
 import { useAsync } from "@/hooks/use-async";
 import { Navbar } from "@/components/Navbar";
 import { PageLoader } from "@/components/common";
+import { toDisplayText, toBulletArray, toBulletList } from '@/lib/feedback-format';
+
 
 export const SubmissionDetailPage = ({ user }) => {
   const { submissionId } = useParams();
@@ -33,9 +35,9 @@ export const SubmissionDetailPage = ({ user }) => {
       setData(response.data);
       setEditedFeedback({
         score: response.data.submission.score,
-        www: response.data.submission.www,
-        next_steps: response.data.submission.next_steps,
-        overall_feedback: response.data.submission.overall_feedback,
+        www: toDisplayText(response.data.submission.www),
+        next_steps: toDisplayText(response.data.submission.next_steps),
+        overall_feedback: toDisplayText(response.data.submission.overall_feedback),
       });
       setLoading(false);
     } catch (error) {
@@ -126,10 +128,12 @@ export const SubmissionDetailPage = ({ user }) => {
 
   const handleSaveFeedback = () => runSave(
     async () => {
-      await axios.put(
-        `${API}/teacher/submissions/${submissionId}/moderate-feedback`,
-        editedFeedback,
-      );
+      await axios.put(`${API}/teacher/submissions/${submissionId}`, {
+            ...editedFeedback,
+            www: toBulletArray(editedFeedback.www),
+            next_steps: toBulletArray(editedFeedback.next_steps),
+            overall_feedback: toBulletArray(editedFeedback.overall_feedback),
+          });
       showSuccess("Feedback saved successfully!");
       setEditMode(false);
       loadData();
@@ -514,7 +518,9 @@ export const SubmissionDetailPage = ({ user }) => {
                         What Went Well
                       </h3>
                       <p className="text-gray-700" data-testid="www">
-                        {data.submission.www}
+                        {toBulletList(data.submission.www).map((item, i) => (
+                          <span key={i} className="block">• {item}</span>
+                        ))}
                       </p>
                     </div>
 
@@ -522,8 +528,10 @@ export const SubmissionDetailPage = ({ user }) => {
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         Next Steps
                       </h3>
-                      <p className="text-gray-700" data-testid="next-steps">
-                        {data.submission.next_steps}
+                      <p className="text-gray-700" data-testid="Next steps">
+                        {toBulletList(data.submission.www).map((item, i) => (  
+                          <span key={i} className="block">• {item}</span>
+                        ))}
                       </p>
                     </div>
 
@@ -531,11 +539,10 @@ export const SubmissionDetailPage = ({ user }) => {
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         Overall Feedback
                       </h3>
-                      <p
-                        className="text-gray-700"
-                        data-testid="overall-feedback"
-                      >
-                        {data.submission.overall_feedback}
+                      <p className="text-gray-700" data-testid="overall-feedback">
+                        {toBulletList(data.submission.www).map((item, i) => (   
+                          <span key={i} className="block">• {item}</span>
+                        ))}
                       </p>
                     </div>
                   </>
