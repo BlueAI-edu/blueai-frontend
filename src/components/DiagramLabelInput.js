@@ -17,8 +17,10 @@ import { useRef, useState } from 'react';
  *   value    — previously saved answer object (or null)
  *   onChange — called with the answer object on every edit
  *   editMode — teacher zone-editing variant (green pins, "zone" wording)
+ *   readOnly — display-only mode for teacher review: clicking does nothing,
+ *              pins aren't removable
  */
-const DiagramLabelInput = ({ image, value, onChange, editMode = false }) => {
+const DiagramLabelInput = ({ image, value, onChange, editMode = false, readOnly = false }) => {
   const containerRef = useRef(null);
   const [labels, setLabels] = useState(() => value?.labels || []);
   const [pending, setPending] = useState(null); // {x, y} awaiting text input
@@ -30,7 +32,7 @@ const DiagramLabelInput = ({ image, value, onChange, editMode = false }) => {
   };
 
   const handleImageClick = (e) => {
-    if (pending) return; // finish the current label first
+    if (readOnly || pending) return; // finish the current label first
     const rect = containerRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
@@ -58,7 +60,9 @@ const DiagramLabelInput = ({ image, value, onChange, editMode = false }) => {
           {editMode ? 'Marking zones' : 'Auto-marked labelling'}
         </span>
         <span className="text-gray-500">
-          {editMode
+          {readOnly
+            ? "Student's placed labels (read-only)"
+            : editMode
             ? 'Click the diagram where a label belongs, then type the accepted answer(s)'
             : 'Click the diagram, then type your label · click a label to remove it'}
         </span>
@@ -66,22 +70,32 @@ const DiagramLabelInput = ({ image, value, onChange, editMode = false }) => {
 
       <div
         ref={containerRef}
-        className="relative inline-block max-w-full border-2 border-gray-300 rounded-lg overflow-hidden cursor-crosshair"
+        className={`relative inline-block max-w-full border-2 border-gray-300 rounded-lg overflow-hidden ${readOnly ? '' : 'cursor-crosshair'}`}
         onClick={handleImageClick}
       >
         <img src={image} alt="Diagram to label" className="max-w-full block select-none" draggable={false} />
 
         {labels.map((l, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={(e) => { e.stopPropagation(); removeLabel(i); }}
-            title="Click to remove"
-            className={`absolute -translate-x-1/2 -translate-y-1/2 ${pinColor} text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow hover:bg-red-600`}
-            style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%` }}
-          >
-            {l.text}
-          </button>
+          readOnly ? (
+            <span
+              key={i}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 ${pinColor} text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow`}
+              style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%` }}
+            >
+              {l.text}
+            </span>
+          ) : (
+            <button
+              key={i}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); removeLabel(i); }}
+              title="Click to remove"
+              className={`absolute -translate-x-1/2 -translate-y-1/2 ${pinColor} text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow hover:bg-red-600`}
+              style={{ left: `${l.x * 100}%`, top: `${l.y * 100}%` }}
+            >
+              {l.text}
+            </button>
+          )
         ))}
 
         {pending && (

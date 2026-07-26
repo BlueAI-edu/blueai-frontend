@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
+import StudentAnswerDisplay from '../components/StudentAnswerDisplay';
 import { Navbar } from '../components/Navbar';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
@@ -22,6 +23,17 @@ const toBulletArray = (text) =>
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
+
+// Expand a bare MCQ option label ("A") into "A - Glucose" when a matching
+// option is available, so the teacher isn't left guessing what the letter
+// means — mirrors _enrich_model_answer() in enhanced_assessment_marker.py
+// (the AI marker gets the same enrichment; this is purely for display here).
+const formatModelAnswer = (modelAnswer, options) => {
+  const trimmed = (modelAnswer || '').trim();
+  if (!trimmed || !options?.length) return trimmed;
+  const match = options.find((opt) => (opt.label || '').trim().toLowerCase() === trimmed.toLowerCase());
+  return match?.text ? `${match.label} - ${match.text}` : trimmed;
+};
 
 export const EnhancedSubmissionDetailPage = ({ user }) => {
   const { attemptId } = useParams();
@@ -364,11 +376,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                           <div className="mb-3 p-3 bg-blue-50 rounded">
                             <p className="text-xs text-gray-600 mb-1 font-medium">Student's Answer:</p>
                             <div className="prose max-w-none">
-                              {partAnswer ? (
-                                <LaTeXRenderer text={String(partAnswer)} />
-                              ) : (
-                                <p className="text-gray-500 italic text-sm">No answer provided</p>
-                              )}
+                              <StudentAnswerDisplay answer={partAnswer} stimulus={part.partStimulus} />
                             </div>
                           </div>
 
@@ -448,11 +456,10 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                     <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                       <p className="text-sm text-gray-600 mb-2 font-medium">Student's Answer:</p>
                       <div className="prose max-w-none">
-                        {answers[question.questionNumber] ? (
-                          <LaTeXRenderer text={String(answers[question.questionNumber])} />
-                        ) : (
-                          <p className="text-gray-500 italic">No answer provided</p>
-                        )}
+                        <StudentAnswerDisplay
+                          answer={answers[question.questionNumber]}
+                          stimulus={question.stimulusBlock}
+                        />
                       </div>
                     </div>
 
@@ -477,7 +484,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                       <div className="mb-4 p-4 bg-purple-50 rounded-lg">
                         <p className="text-sm text-gray-600 mb-2 font-medium">Model Answer:</p>
                         <div className="prose max-w-none text-sm">
-                          <LaTeXRenderer text={question.modelAnswer || ''} />
+                          <LaTeXRenderer text={formatModelAnswer(question.modelAnswer, question.options)} />
                         </div>
                       </div>
                     )}
