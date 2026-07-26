@@ -24,6 +24,7 @@ import {
   X,
   LogOut,
   User,
+  HelpCircle,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Classes', path: '/teacher/classes', icon: Users },
   { label: 'Marking', path: '/teacher/ocr-upload', icon: CheckSquare },
   { label: 'Analytics', path: '/teacher/analytics', icon: BarChart3 },
+  { label: 'Help', path: '/teacher/help', icon: HelpCircle },
 ];
 
 const getInitials = (name) => {
