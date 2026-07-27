@@ -4,7 +4,8 @@ import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import DiagramRenderer from '../components/DiagramRenderer';
 import DrawableCanvas, { requiresDrawing } from '../components/DrawableCanvas';
-import StudentMathKeyboard from '../components/StudentMathKeyboard';
+import MathsliveAnswerInput from '../components/MathsliveAnswerInput';
+import MathsliveKeyboardPanel from '../components/MathsliveKeyboardPanel';
 import StudentCalculator from '../components/StudentCalculator';
 import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
 import QuestionSidebar from '../components/QuestionSidebar';
@@ -33,6 +34,18 @@ export const EnhancedAttemptPage = () => {
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
   const [submitProgress, setSubmitProgress] = useState(0);
   const [submitStage, setSubmitStage] = useState('');
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const mathfieldRef = useRef(null);
+
+  // Detect mobile layout on mount and resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileLayout(window.innerWidth < 768);
+    };
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const { timeLeft } = useTimer({
     // Per-student timing: count down from when the student personally joined.
@@ -202,19 +215,6 @@ export const EnhancedAttemptPage = () => {
     return { answeredCount, totalItems };
   }, [assessment?.questions, answers, hasAnswer]);
 
-  // Track the last focused textarea/input so the keyboard can insert even after
-  // focus moves to a keyboard button (onMouseDown prevents this in most cases,
-  // but the ref is a reliable fallback).
-  const lastFocusedInputRef = useRef(null);
-  useEffect(() => {
-    const track = (e) => {
-      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
-        lastFocusedInputRef.current = e.target;
-      }
-    };
-    document.addEventListener('focusin', track);
-    return () => document.removeEventListener('focusin', track);
-  }, []);
 
   if (loading) {
     return (
@@ -318,28 +318,6 @@ export const EnhancedAttemptPage = () => {
     if (entity?.drawingEnabled === true) return true;
     if (entity?.drawingEnabled === false) return false;
     return requiresDrawing(text);
-  };
-
-  // Insert a keyboard symbol into the last focused textarea/input.
-  const insertIntoFocused = (symbol, cursorOffset = 0) => {
-    const el = lastFocusedInputRef.current || document.activeElement;
-    if (!el || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT')) return;
-    const start = el.selectionStart ?? el.value.length;
-    const end = el.selectionEnd ?? el.value.length;
-    const before = el.value.substring(0, start);
-    const after = el.value.substring(end);
-    const newValue = before + symbol + after;
-    // Trigger React's synthetic onChange via the native value setter.
-    const proto = el.tagName === 'TEXTAREA'
-      ? window.HTMLTextAreaElement.prototype
-      : window.HTMLInputElement.prototype;
-    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, newValue);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    setTimeout(() => {
-      const pos = start + symbol.length + (cursorOffset || 0);
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    }, 0);
   };
 
   return (
@@ -484,22 +462,15 @@ export const EnhancedAttemptPage = () => {
                             }
                           />
                         ) : (
-                          <div className="space-y-2">
-                            <textarea
+                            <MathsliveAnswerInput
                               value={answers[partAnswerKey] || ''}
-                              onChange={(e) => handleAnswerChange(partAnswerKey, e.target.value)}
+                              onChange={(value) => handleAnswerChange(partAnswerKey, value)}
+                              questionType={part.questionType || 'ALGEBRA'}
                               placeholder={`Your answer for part ${part.partLabel}...`}
-                              rows={3}
-                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-none"
+                              inputRef={mathfieldRef}
+                              className="w-full"
                             />
-                            {answers[partAnswerKey]?.includes('$') && (
-                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-xs text-blue-600 font-medium mb-1">Rendered preview</p>
-                                <LaTeXRenderer text={answers[partAnswerKey]} />
-                              </div>
                             )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
@@ -567,21 +538,13 @@ export const EnhancedAttemptPage = () => {
                     }
                   />
                 ) : (
-                  <div className="space-y-2">
-                    <textarea
-                      value={answers[currentQuestion.questionNumber] || ''}
-                      onChange={(e) => handleAnswerChange(currentQuestion.questionNumber, e.target.value)}
-                      placeholder="Type your answer here..."
-                      rows={4}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none resize-none"
-                    />
-                    {answers[currentQuestion.questionNumber]?.includes('$') && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-xs text-blue-600 font-medium mb-1">Rendered preview</p>
-                        <LaTeXRenderer text={answers[currentQuestion.questionNumber]} />
-                      </div>
-                    )}
-                  </div>
+                  <MathsliveAnswerInput
+                    value={answers[currentQuestion.questionNumber] || ''}
+                    onChange={(value) => handleAnswerChange(currentQuestion.questionNumber, value)}
+                    questionType={currentQuestion.questionType}
+                    placeholder="Type your answer here..."
+                    className="w-full"
+                  />
                 )}
               </div>
             );
@@ -590,9 +553,12 @@ export const EnhancedAttemptPage = () => {
           {/* Assessment-wide tool panels */}
           {/* ── Maths & Science Keyboard (right-panel, draggable) ──────────────────── */}
           {assessment.mathKeyboardEnabled && showMathKeyboard && (
-            <StudentMathKeyboard
-              onInsert={insertIntoFocused}
+            <MathsliveKeyboardPanel
+              shown={showMathKeyboard}
               onClose={() => setShowMathKeyboard(false)}
+              questionType={currentQuestion.questionType}
+              mathfieldRef={mathfieldRef}
+              mobileLayout={isMobileLayout}
             />
           )}
 
