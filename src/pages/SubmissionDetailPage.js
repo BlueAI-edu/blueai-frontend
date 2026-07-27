@@ -6,7 +6,7 @@ import { handleApiError, showSuccess } from "@/lib/handle-error";
 import { useAsync } from "@/hooks/use-async";
 import { Navbar } from "@/components/Navbar";
 import { PageLoader } from "@/components/common";
-import { toDisplayText, toBulletArray, toBulletList } from '@/lib/feedback-format';
+import { toDisplayText, toBulletList } from '@/lib/feedback-format';
 
 
 export const SubmissionDetailPage = ({ user }) => {
@@ -128,11 +128,15 @@ export const SubmissionDetailPage = ({ user }) => {
 
   const handleSaveFeedback = () => runSave(
     async () => {
-      await axios.put(`${API}/teacher/submissions/${submissionId}`, {
+      // Classic attempts store www/next_steps/overall_feedback as plain strings
+      // (marking_service.py joins the AI's bullet array before saving) — the
+      // moderate-feedback endpoint's FeedbackModeration model expects str, not
+      // an array, so edited text goes back as a single newline-joined string.
+      await axios.put(`${API}/teacher/submissions/${submissionId}/moderate-feedback`, {
             ...editedFeedback,
-            www: toBulletArray(editedFeedback.www),
-            next_steps: toBulletArray(editedFeedback.next_steps),
-            overall_feedback: toBulletArray(editedFeedback.overall_feedback),
+            www: toDisplayText(editedFeedback.www),
+            next_steps: toDisplayText(editedFeedback.next_steps),
+            overall_feedback: toDisplayText(editedFeedback.overall_feedback),
           });
       showSuccess("Feedback saved successfully!");
       setEditMode(false);
@@ -529,7 +533,7 @@ export const SubmissionDetailPage = ({ user }) => {
                         Next Steps
                       </h3>
                       <p className="text-gray-700" data-testid="Next steps">
-                        {toBulletList(data.submission.www).map((item, i) => (  
+                        {toBulletList(data.submission.next_steps).map((item, i) => (
                           <span key={i} className="block">• {item}</span>
                         ))}
                       </p>
@@ -540,7 +544,7 @@ export const SubmissionDetailPage = ({ user }) => {
                         Overall Feedback
                       </h3>
                       <p className="text-gray-700" data-testid="overall-feedback">
-                        {toBulletList(data.submission.www).map((item, i) => (   
+                        {toBulletList(data.submission.overall_feedback).map((item, i) => (
                           <span key={i} className="block">• {item}</span>
                         ))}
                       </p>

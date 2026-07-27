@@ -25,6 +25,7 @@ const GraphAnswerEditor = ({ question, updateQuestion }) => {
   const rules = question.expectedGraph?.rules || [];
   const pointsRule = rules.find((r) => r.kind === 'points');
   const lineRule = rules.find((r) => r.kind === 'line');
+  const curveRule = rules.find((r) => r.kind === 'curve');
 
   const setAxis = (axis, idx, value) => {
     const axes = { ...spec.axes, [axis]: [...spec.axes[axis]] };
@@ -32,8 +33,8 @@ const GraphAnswerEditor = ({ question, updateQuestion }) => {
     updateQuestion('graphSpec', { ...spec, axes });
   };
 
-  const setRules = (nextPointsRule, nextLineRule) => {
-    const nextRules = [nextPointsRule, nextLineRule].filter(Boolean);
+  const setRules = (nextPointsRule, nextLineRule, nextCurveRule = curveRule) => {
+    const nextRules = [nextPointsRule, nextLineRule, nextCurveRule].filter(Boolean);
     updateQuestion('expectedGraph', nextRules.length ? { rules: nextRules } : null);
   };
 
@@ -151,6 +152,63 @@ const GraphAnswerEditor = ({ question, updateQuestion }) => {
                 />
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <label className="flex items-center gap-2 text-xs text-gray-700">
+          <input
+            type="checkbox"
+            checked={Boolean(curveRule)}
+            onChange={(e) =>
+              setRules(
+                pointsRule || null,
+                lineRule || null,
+                e.target.checked ? { kind: 'curve', expression: 'x**2', marks: 2, tolerance: 0.5, minPoints: 3 } : null
+              )
+            }
+            className="rounded"
+          />
+          Expect a curve <code>y = f(x)</code>
+        </label>
+        {curveRule && (
+          <div className="pl-5 space-y-2">
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-gray-600">Expression (in terms of x):</label>
+              <input
+                type="text"
+                value={curveRule.expression}
+                onChange={(e) => setRules(pointsRule || null, lineRule || null, { ...curveRule, expression: e.target.value })}
+                placeholder="x**2 - 4"
+                className="w-40 px-2 py-0.5 text-sm border border-gray-300 rounded font-mono"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {[['tolerance', 'Tolerance (±y)', 0.1], ['minPoints', 'Min. points required', 1], ['marks', 'Marks', 1]].map(
+                ([field, label, step]) => (
+                  <div key={field} className="flex items-center gap-1">
+                    <label className="text-xs text-gray-600">{label}:</label>
+                    <input
+                      type="number"
+                      step={step}
+                      value={curveRule[field]}
+                      onChange={(e) =>
+                        setRules(pointsRule || null, lineRule || null, {
+                          ...curveRule,
+                          [field]: field === 'tolerance' ? (parseFloat(e.target.value) || 0) : (parseInt(e.target.value) || 1),
+                        })
+                      }
+                      className="w-20 px-2 py-0.5 text-sm border border-gray-300 rounded"
+                    />
+                  </div>
+                )
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              Use standard math notation, e.g. <code>x**2 - 4</code>, <code>2*x + 1</code>, <code>sin(x)</code>.
+              A student point counts if it lands within tolerance of this curve; at least "min. points" must be plotted before any marks are given.
+            </p>
           </div>
         )}
       </div>

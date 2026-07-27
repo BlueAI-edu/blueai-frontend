@@ -52,12 +52,18 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode, assessmentConte
   const tiers = ['Foundation', 'Higher', 'Intermediate'];
   const difficulties = ['Easy', 'Medium', 'Hard'];
 
+  // GRAPH_PLOT is excluded for structured mode: a STRUCTURED_WITH_PARTS
+  // question's answerable content lives in its parts, not the root question,
+  // and the D4 graph pipeline was never wired into part-level authoring
+  // (StructuredQuestionBuilder.js) — offering it here would generate a
+  // question with no way for the student to actually answer it.
   const questionTypeOptions = [
     { id: 'SHORT_ANSWER', name: 'Short Answer (1-3 marks)' },
     { id: 'MULTIPLE_CHOICE', name: 'Multiple Choice' },
     { id: 'NUMERIC', name: 'Numeric/Calculation' },
     { id: 'LONG_RESPONSE', name: 'Long Response (6+ marks)' },
-    { id: 'STRUCTURED_WITH_PARTS', name: 'Structured (GCSE style)' }
+    { id: 'STRUCTURED_WITH_PARTS', name: 'Structured (GCSE style)' },
+    ...(isStructured ? [] : [{ id: 'GRAPH_PLOT', name: 'Graph Plot (point/line/curve)' }]),
   ];
 
   const handleChange = (field, value) => {
