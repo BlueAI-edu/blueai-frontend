@@ -12,6 +12,53 @@ const AIBulkGenerator = lazy(() => import('../components/EnhancedAssessmentBuild
 const OCRExtractionReview = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRExtractionReview'));
 const OCRUploadStep = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRUploadStep'));
 
+export const SUBJECT_GROUPS = [
+  {
+    label: 'Science',
+    subjects: ['Science', 'Combined Science', 'Biology', 'Chemistry', 'Physics'],
+  },
+  {
+    label: 'Mathematics',
+    subjects: ['Mathematics', 'Further Mathematics', 'Statistics'],
+  },
+  {
+    label: 'English',
+    subjects: ['English Language', 'English Literature', 'English'],
+  },
+  {
+    label: 'Humanities',
+    subjects: ['History', 'Geography', 'Religious Studies', 'Citizenship'],
+  },
+  {
+    label: 'Modern Foreign Languages',
+    subjects: ['French', 'Spanish', 'German', 'Italian', 'Mandarin', 'Arabic', 'Latin'],
+  },
+  {
+    label: 'Computer Science & Technology',
+    subjects: ['Computer Science', 'ICT', 'Design and Technology', 'Engineering'],
+  },
+  {
+    label: 'Business & Social Sciences',
+    subjects: ['Business Studies', 'Economics', 'Accounting', 'Psychology', 'Sociology', 'Politics'],
+  },
+  {
+    label: 'Arts & Creative Subjects',
+    subjects: ['Art and Design', 'Photography', 'Drama', 'Music', 'Media Studies', 'Film Studies'],
+  },
+  {
+    label: 'PE & Health',
+    subjects: ['Physical Education', 'Health and Social Care', 'Food Preparation and Nutrition'],
+  },
+  {
+    label: 'Vocational / Applied',
+    subjects: ['BTEC Science', 'BTEC Business', 'BTEC ICT', 'Applied Science', 'Travel and Tourism'],
+  },
+  {
+    label: 'Other',
+    subjects: ['Other'],
+  },
+];
+
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();
   const { assessmentId } = useParams();
@@ -32,6 +79,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     stage: 'KS4',
     examBoard: 'AQA',
     tier: 'Higher',
+    // Topic focus — filled once in Step 2 and inherited by the AI question
+    // generator so teachers never re-enter assessment details (frontend-only;
+    // the backend create model ignores unknown fields).
+    topic: '',
+    subtopic: '',
+    difficulty: 'Medium',
     yearSeries: '',
     durationMinutes: 90,
     instructions: '',
@@ -65,6 +118,9 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [pageThumbnails, setPageThumbnails] = useState({});
   const [pageImages, setPageImages] = useState({});
   const [msPageThumbnails, setMsPageThumbnails] = useState({});
+  // Server-side extraction session id — pages persist under it so diagram
+  // crops can be reproduced later (diagram pipeline D1)
+  const [extractionId, setExtractionId] = useState(null);
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -132,6 +188,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setPageThumbnails(response.data.page_thumbnails || {});
       setPageImages(response.data.page_images || {});
       setMsPageThumbnails(response.data.ms_page_thumbnails || {});
+      setExtractionId(response.data.extraction_id || null);
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -160,6 +217,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setPageThumbnails({});
     setPageImages({});
     setMsPageThumbnails({});
+    setExtractionId(null);
     setOcrReviewState('uploading');
   }, []);
 
@@ -215,7 +273,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       if (assessment.assessmentMode === OCR_GCSE_MODE && assessment.ocrConfirmed) {
         // Locked OCR assessment — redirect to detail page with a message
         showNotification(
-          'This GCSE Past Paper assessment is locked after review. To re-extract, use "Unlock for re-extraction" on the assessment detail page.',
+          'This past paper assessment is locked after review. To re-extract, use "Unlock for re-extraction" on the assessment detail page.',
           'error'
         );
         setTimeout(() => navigate(`/teacher/assessments/${assessmentId}/enhanced`), 2500);
@@ -338,18 +396,18 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     }
 
     if (assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE') {
-      if (assessmentData.questions.length !== 1) {
-        showNotification('Formative mode requires exactly 1 long-response question', 'error');
+      if (assessmentData.questions.length < 1 || assessmentData.questions.length > 10) {
+        showNotification('Formative mode requires 1-10 long-response questions', 'error');
         return false;
       }
-      if (assessmentData.questions[0]?.questionType !== 'LONG_RESPONSE') {
-        showNotification('Formative mode requires a long-response question', 'error');
+      if (assessmentData.questions.some(q => q.questionType !== 'LONG_RESPONSE')) {
+        showNotification('All formative questions must be long-response', 'error');
         return false;
       }
     }
 
-    if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 5 || assessmentData.questions.length > 20)) {
-      showNotification('Summative mode requires 5-20 questions', 'error');
+    if (assessmentData.assessmentMode === 'SUMMATIVE_MULTI_QUESTION' && (assessmentData.questions.length < 3 || assessmentData.questions.length > 20)) {
+      showNotification('Summative mode requires 3-20 questions', 'error');
       return false;
     }
 
@@ -552,18 +610,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   onChange={(e) => updateField('subject', e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option>Mathematics</option>
-                  <option>Physics</option>
-                  <option>Chemistry</option>
-                  <option>Biology</option>
-                  <option>Combined Science</option>
-                  <option>English Language</option>
-                  <option>English Literature</option>
-                  <option>History</option>
-                  <option>Geography</option>
-                  <option>Computer Science</option>
-                  <option>Business Studies</option>
-                  <option>Economics</option>
+                  {SUBJECT_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.subjects.map((subject) => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -611,14 +664,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
-              <input
-                type="number"
-                min="1"
-                max="120"
+              <select
                 value={assessmentData.durationMinutes}
-                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value) || 90)}
+                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value={1}>1 min</option>
+                {Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(mins => (
+                  <option key={mins} value={mins}>{mins} mins</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -718,12 +773,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   onChange={(e) => updateField('subject', e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option>Mathematics</option>
-                  <option>Physics</option>
-                  <option>Chemistry</option>
-                  <option>Biology</option>
-                  <option>English</option>
-                  <option>History</option>
+                  {SUBJECT_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.subjects.map((subject) => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
 
@@ -772,14 +828,60 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
-              <input
-                type="number"
-                min="1"
-                max="120"
+              <select
                 value={assessmentData.durationMinutes}
-                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value) || 45)}
+                onChange={(e) => updateField('durationMinutes', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value={1}>1 min</option>
+                {Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(mins => (
+                  <option key={mins} value={mins}>{mins} mins</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Topic focus — feeds the AI question generator so it needs no re-entry */}
+            <div className="rounded-lg border border-purple-100 bg-purple-50/40 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">What is this assessment about?</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Set the topic once — question generation with AI will use it automatically, along with the subject, stage, board, and tier above.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                  <input
+                    type="text"
+                    value={assessmentData.topic}
+                    onChange={(e) => updateField('topic', e.target.value)}
+                    placeholder="e.g., Quadratic Equations"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subtopic (Optional)</label>
+                  <input
+                    type="text"
+                    value={assessmentData.subtopic}
+                    onChange={(e) => updateField('subtopic', e.target.value)}
+                    placeholder="e.g., Completing the square"
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                  <select
+                    value={assessmentData.difficulty}
+                    onChange={(e) => updateField('difficulty', e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option>Easy</option>
+                    <option>Medium</option>
+                    <option>Hard</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -951,6 +1053,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   pageThumbnails={pageThumbnails}
                   pageImages={pageImages}
                   msPageThumbnails={msPageThumbnails}
+                  extractionId={extractionId}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />
@@ -976,17 +1079,17 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <div className="flex gap-3">
                 <button
                   onClick={addQuestion}
-                  disabled={assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length >= 1}
-                  className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 font-medium transition-colors"
+                  disabled={assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE' && assessmentData.questions.length >= 10}
+                  className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   + Add Question Manually
                 </button>
-                {assessmentData.assessmentMode !== OCR_GCSE_MODE && assessmentData.assessmentMode !== 'FORMATIVE_SINGLE_LONG_RESPONSE' && (
+                {assessmentData.assessmentMode !== OCR_GCSE_MODE && (
                   <button
                     onClick={() => setShowAIBulk(true)}
                     className="flex-1 py-4 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 text-purple-600 hover:text-purple-700 font-medium transition-colors"
                   >
-                    🤖 Generate Multiple Questions with AI
+                    🤖 Generate Questions with AI
                   </button>
                 )}
               </div>
@@ -1010,6 +1113,16 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                       <AIBulkGenerator
                         onQuestionsGenerated={handleAIBulkGenerate}
                         assessmentMode={assessmentData.assessmentMode}
+                        assessmentContext={{
+                          subject: assessmentData.subject,
+                          key_stage: assessmentData.stage,
+                          exam_board: assessmentData.examBoard,
+                          tier: assessmentData.tier,
+                          topic: assessmentData.topic,
+                          subtopic: assessmentData.subtopic,
+                          difficulty: assessmentData.difficulty,
+                          calculator_allowed: assessmentData.calculatorAllowed,
+                        }}
                       />
                     </Suspense>
                   </div>

@@ -1,3 +1,5 @@
+import { toBulletList } from '@/lib/feedback-format';
+
 const EnhancedFeedbackView = ({ attempt, assessment }) => {
   const feedbackReleased = attempt.feedback_released || false;
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
@@ -45,24 +47,36 @@ const EnhancedFeedbackView = ({ attempt, assessment }) => {
             </div>
           )}
 
-          {attempt.www && (
+         {attempt.www && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-green-700 mb-2">What Went Well (WWW)</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{attempt.www}</p>
+              <div className="text-gray-700">
+                {toBulletList(attempt.www).map((item, i) => (
+                  <p key={i}>• {item}</p>
+                ))}
+              </div>
             </div>
           )}
 
           {attempt.next_steps && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-orange-700 mb-2">Even Better If / Next Steps (EBI)</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{attempt.next_steps}</p>
+              <div className="text-gray-700">
+                {toBulletList(attempt.next_steps).map((item, i) => (
+                  <p key={i}>• {item}</p>
+                ))}
+              </div>
             </div>
           )}
 
           {attempt.overall_feedback && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-blue-700 mb-2">Overall Feedback</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{attempt.overall_feedback}</p>
+              <div className="text-gray-700">
+                {toBulletList(attempt.overall_feedback).map((item, i) => (
+                  <p key={i}>• {item}</p>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -58,7 +58,6 @@ const HeroIllustration = () => (
 
 export const AssessmentHero = ({
   onCreateEnhanced,
-  onClassicMode,
   liveCount = 0,
   onOpenLive,
 }) => {
@@ -111,15 +110,7 @@ export const AssessmentHero = ({
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
               </svg>
-              Create Enhanced Assessment
-            </button>
-
-            <button
-              onClick={onClassicMode}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-transparent border border-white/40 text-white font-medium text-sm hover:bg-white/10 active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-              data-testid="classic-mode-btn"
-            >
-              + Classic Mode
+              Create Assessment
             </button>
           </div>
 

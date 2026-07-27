@@ -24,15 +24,17 @@ import {
   X,
   LogOut,
   User,
+  HelpCircle,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
-  { label: 'Questions', path: '/teacher/questions', icon: FileQuestion },
   { label: 'Assessments', path: '/teacher/assessments', icon: ClipboardList },
   { label: 'Classes', path: '/teacher/classes', icon: Users },
+  { label: 'Questions', path: '/teacher/questions', icon: FileQuestion },
   { label: 'Marking', path: '/teacher/ocr-upload', icon: CheckSquare },
   { label: 'Analytics', path: '/teacher/analytics', icon: BarChart3 },
+  { label: 'Help', path: '/teacher/help', icon: HelpCircle },
 ];
 
 const getInitials = (name) => {

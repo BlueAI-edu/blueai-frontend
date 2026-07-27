@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   getPageTypeLabel,
   isPageSkipped,
+  isPageFailed,
+  getFailedPageCount,
   getPageTypeColor,
   getReviewRequiredCount,
 } from "@/utils/ocrHelpers";
@@ -409,7 +411,12 @@ export default function OCRReviewPage() {
 
   const currentPage = pages[currentPageIndex];
   const currentPageType = currentPage?.page_type;
+  const currentPageFailed = isPageFailed(currentPageType);
   const visualResponses = getVisualResponsesForPage(currentPage);
+  // Always derived live from `pages` state (not a stored submission field)
+  // so it stays correct immediately after a single-page re-extract patches
+  // page_type in place, without needing a full re-fetch.
+  const failedPageCount = getFailedPageCount(pages);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -437,6 +444,11 @@ export default function OCRReviewPage() {
               <Badge variant="secondary">
                 {pages.length} {pages.length === 1 ? "page" : "pages"}
               </Badge>
+              {failedPageCount > 0 && (
+                <Badge className="bg-red-100 text-red-700 border-red-300 border animate-pulse">
+                  &#9888; {failedPageCount} {failedPageCount === 1 ? "page" : "pages"} need attention
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -498,23 +510,34 @@ export default function OCRReviewPage() {
 
                     const page = pages[pageIdx];
                     const skipped = isPageSkipped(page.page_type);
+                    const failed = isPageFailed(page.page_type);
                     items.push(
                       <button
                         key={page.page_id || page.page_number || pageIdx}
                         onClick={() => setCurrentPageIndex(pageIdx)}
-                        title={getPageTypeLabel(page.page_type) || `Page ${pageIdx + 1}`}
+                        title={
+                          failed
+                            ? `Page ${pageIdx + 1}: OCR failed — needs attention`
+                            : getPageTypeLabel(page.page_type) || `Page ${pageIdx + 1}`
+                        }
                         className={[
                           "w-8 h-8 rounded-full text-xs font-medium transition-all",
-                          skipped
-                            ? "bg-gray-200 text-gray-400 line-through"
-                            : pageIdx === current
-                              ? "bg-blue-600 text-white ring-2 ring-blue-300"
-                              : page.is_approved
-                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                          failed
+                            // Deliberately NOT dimmed/line-through like skipped pages —
+                            // a failed page must stand out in the strip, not recede.
+                            ? pageIdx === current
+                              ? "bg-red-600 text-white ring-2 ring-red-300"
+                              : "bg-red-100 text-red-700 ring-1 ring-red-400 hover:bg-red-200 animate-pulse"
+                            : skipped
+                              ? "bg-gray-200 text-gray-400 line-through"
+                              : pageIdx === current
+                                ? "bg-blue-600 text-white ring-2 ring-blue-300"
+                                : page.is_approved
+                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                  : "bg-slate-100 text-slate-700 hover:bg-slate-200",
                         ].join(" ")}
                       >
-                        {pageIdx + 1}
+                        {failed ? "!" : pageIdx + 1}
                       </button>
                     );
                   });
@@ -528,7 +551,7 @@ export default function OCRReviewPage() {
 
         {/* Page Classification Info */}
         {currentPageType && (
-          <Card className="mb-6">
+          <Card className={`mb-6 ${currentPageFailed ? "border-red-300" : ""}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-4 flex-wrap">
                 {(() => {
@@ -545,6 +568,23 @@ export default function OCRReviewPage() {
                   </Badge>
                 )}
               </div>
+              {currentPageFailed && (
+                <div className="mt-3 rounded-lg bg-red-50 border border-red-200 p-3">
+                  <p className="text-sm font-semibold text-red-800">
+                    &#9888; Automatic text extraction failed on this page
+                  </p>
+                  <p className="mt-1 text-sm text-red-700">
+                    {currentPage?.ocr_error
+                      ? `Reason: ${currentPage.ocr_error}`
+                      : "The AI could not process this page — this is usually a temporary issue."}
+                    {" "}The student's answer on this page has <strong>not</strong> been marked yet.
+                  </p>
+                  <p className="mt-2 text-sm text-red-700">
+                    Click <strong>Re-extract</strong> below to try again, or type the
+                    student's answer into the box on the right yourself.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -620,8 +660,15 @@ export default function OCRReviewPage() {
               <textarea
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
-                className="w-full h-[500px] p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none"
-                placeholder="Edit the student's answer here..."
+                className={[
+                  "w-full h-[500px] p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none",
+                  currentPageFailed ? "border-red-300 bg-red-50/30" : "border-slate-300",
+                ].join(" ")}
+                placeholder={
+                  currentPageFailed
+                    ? "OCR failed on this page — type the student's answer here, or click Re-extract above to try again."
+                    : "Edit the student's answer here..."
+                }
               />
 
               <div className="mt-4 flex gap-3">
@@ -637,8 +684,12 @@ export default function OCRReviewPage() {
                 <Button
                   onClick={handleReExtractPage}
                   disabled={saving || reExtracting}
-                  variant="outline"
-                  className="border-amber-500 text-amber-700 hover:bg-amber-50 gap-1.5"
+                  variant={currentPageFailed ? undefined : "outline"}
+                  className={
+                    currentPageFailed
+                      ? "bg-red-600 text-white hover:bg-red-700 gap-1.5"
+                      : "border-amber-500 text-amber-700 hover:bg-amber-50 gap-1.5"
+                  }
                   title="Re-run GPT-4o extraction on this page only"
                 >
                   {reExtracting ? (

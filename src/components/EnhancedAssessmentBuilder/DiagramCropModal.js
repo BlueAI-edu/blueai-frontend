@@ -184,7 +184,15 @@ const DiagramCropModal = ({ pageImage, currentDiagram, onConfirm, onRemove, onCl
       Math.round(sel.x * sw), Math.round(sel.y * sh), cw, ch,
       0, 0, cw, ch
     );
-    onConfirm({ type: 'image', content: canvas.toDataURL('image/jpeg', 0.92), caption: 'Diagram' });
+    onConfirm({
+      type: 'image',
+      content: canvas.toDataURL('image/jpeg', 0.92),
+      caption: 'Diagram',
+      cropOrigin: 'manual',
+      // Fractional page coords — matches stimulusBlock.source.bboxPct so the
+      // crop can be reproduced server-side from the persisted extraction page.
+      bboxPct: [sel.x, sel.y, sel.x + sel.w, sel.y + sel.h],
+    });
   }, [onConfirm]);
 
   const hasValidSelection = selection && selection.w > 0.01 && selection.h > 0.01;

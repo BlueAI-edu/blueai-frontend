@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '@/config';
 import { useAsync } from '../hooks/use-async';
 import { useToast } from '@/hooks/use-toast';
+import { toDisplayText, toBulletArray, toBulletList } from '@/lib/feedback-format';
+
 
 export default function OCRModerationPage({ user }) {
   const navigate = useNavigate();
@@ -43,9 +45,9 @@ export default function OCRModerationPage({ user }) {
       setMarkingResult(markingData);
 
       setTotalScore(markingData.total_score || 0);
-      setWww(markingData.www || '');
-      setNextSteps(markingData.next_steps || '');
-      setOverallFeedback(markingData.overall_feedback || '');
+      setWww(toDisplayText(markingData.www));
+      setNextSteps(toDisplayText(markingData.next_steps));
+      setOverallFeedback(toDisplayText(markingData.overall_feedback));
 
       const assessmentResponse = await fetch(`${API_URL}/api/teacher/assessments`, {
         credentials: 'include'
@@ -90,10 +92,10 @@ export default function OCRModerationPage({ user }) {
           headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'include',
           body: JSON.stringify({
-            total_score: totalScore,
-            www: www,
-            next_steps: nextSteps,
-            overall_feedback: overallFeedback
+          total_score: totalScore,
+          www: toBulletArray(www),
+          next_steps: toBulletArray(nextSteps),
+          overall_feedback: toBulletArray(overallFeedback)
           })
         }
       );
@@ -288,15 +290,27 @@ export default function OCRModerationPage({ user }) {
             </div>
             <div>
               <p className="text-sm font-medium text-blue-800">What Went Well (AI Suggested)</p>
-              <p className="text-sm text-blue-900 bg-white rounded p-3 mt-1">{markingResult.www}</p>
+              <div className="text-sm text-blue-900 bg-white rounded p-3 mt-1">
+                {toBulletList(markingResult.www).map((item, i) => (
+                  <p key={i}>• {item}</p>
+                ))}
+              </div>
             </div>
             <div>
               <p className="text-sm font-medium text-blue-800">Next Steps (AI Suggested)</p>
-              <p className="text-sm text-blue-900 bg-white rounded p-3 mt-1">{markingResult.next_steps}</p>
+              <div className="text-sm text-blue-900 bg-white rounded p-3 mt-1">
+                {toBulletList(markingResult.next_steps).map((item, i) => (
+                  <p key={i}>• {item}</p>
+                ))}
+              </div>
             </div>
             <div>
               <p className="text-sm font-medium text-blue-800">Overall Feedback (AI Suggested)</p>
-              <p className="text-sm text-blue-900 bg-white rounded p-3 mt-1">{markingResult.overall_feedback}</p>
+              <div className="text-sm text-blue-900 bg-white rounded p-3 mt-1">
+                {toBulletList(markingResult.overall_feedback).map((item, i) => (
+                  <p key={i}>• {item}</p>
+                ))}
+              </div>
             </div>
           </div>
         </div>

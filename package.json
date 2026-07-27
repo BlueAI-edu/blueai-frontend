@@ -42,6 +42,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "jsxgraph": "^1.13.1",
     "katex": "^0.16.28",
     "lucide-react": "^0.507.0",
     "mathjs": "^15.1.1",

@@ -77,14 +77,27 @@ export function getPageTypeLabel(pageType) {
     question: "Question Page",
     continuation: "Continuation",
     blank: "Blank Page",
-    error: "Error",
+    error: "OCR Failed",
     unknown: "Unknown",
   };
   return labels[pageType] || pageType;
 }
 
 export function isPageSkipped(pageType) {
-  return pageType === "cover" || pageType === "instruction" || pageType === "blank" || pageType === "error";
+  // "error" is deliberately NOT included: a page that was correctly
+  // classified as cover/instructions/blank never needed OCR, but a page
+  // where extraction genuinely failed must stand out, not blend into the
+  // same dimmed "nothing to see here" bucket. See isPageFailed.
+  return pageType === "cover" || pageType === "instruction" || pageType === "blank";
+}
+
+export function isPageFailed(pageType) {
+  return pageType === "error";
+}
+
+export function getFailedPageCount(pages) {
+  if (!pages) return 0;
+  return pages.filter((p) => isPageFailed(p.page_type)).length;
 }
 
 export function getPageTypeColor(pageType) {

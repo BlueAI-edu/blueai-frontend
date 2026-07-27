@@ -506,7 +506,7 @@ export const AssessmentCard = ({
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-export const AssessmentEmptyState = ({ onCreateEnhanced, onClassicMode }) => (
+export const AssessmentEmptyState = ({ onCreateEnhanced }) => (
   <div
     className="flex flex-col items-center justify-center py-16 px-8 bg-white border border-dashed border-gray-200 rounded-xl text-center"
     data-testid="no-assessments"
@@ -528,13 +528,7 @@ export const AssessmentEmptyState = ({ onCreateEnhanced, onClassicMode }) => (
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
-        Create Enhanced Assessment
-      </button>
-      <button
-        onClick={onClassicMode}
-        className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
-      >
-        + Classic Mode
+        Create Assessment
       </button>
     </div>
   </div>

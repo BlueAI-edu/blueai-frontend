@@ -1,4 +1,5 @@
 import { API } from "@/config";
+import { toBulletList } from "@/lib/feedback-format";
 
 const AttemptFeedbackView = ({ attempt, question, attemptId }) => {
   const feedbackReleased = attempt.feedback_released || false;
@@ -99,7 +100,9 @@ const AttemptFeedbackView = ({ attempt, question, attemptId }) => {
               What Went Well
             </h3>
             <p className="text-gray-700" data-testid="www-content">
-              {attempt.www}
+              {toBulletList(attempt.www).map((item, i) => (
+                <span key={i} className="block">• {item}</span>
+              ))}
             </p>
           </div>
 
@@ -111,7 +114,9 @@ const AttemptFeedbackView = ({ attempt, question, attemptId }) => {
               Next Steps
             </h3>
             <p className="text-gray-700" data-testid="next-steps-content">
-              {attempt.next_steps}
+              {toBulletList(attempt.next_steps).map((item, i) => (
+                <span key={i} className="block">• {item}</span>
+              ))}
             </p>
           </div>
 
@@ -123,10 +128,11 @@ const AttemptFeedbackView = ({ attempt, question, attemptId }) => {
               Overall Feedback
             </h3>
             <p className="text-gray-700" data-testid="overall-content">
-              {attempt.overall_feedback}
+              {toBulletList(attempt.overall_feedback).map((item, i) => (
+                <span key={i} className="block">• {item}</span>
+              ))}
             </p>
           </div>
-
           {/* Step-by-Step Feedback */}
           {attempt.step_feedback && attempt.step_feedback.step_feedback && (
             <div className="border-t pt-6">
