@@ -36,6 +36,7 @@ const OCRReviewPage = lazy(() => import('./components/OCRReviewPage').then(m => 
 const OCRModerationPage = lazy(() => import('./components/OCRModerationPage').then(m => ({ default: m.default || m.OCRModerationPage })));
 const BulkUploadPage = lazy(() => import('./components/BulkUploadPage').then(m => ({ default: m.default || m.BulkUploadPage })));
 const BulkUploadReviewPage = lazy(() => import('./components/BulkUploadReviewPage').then(m => ({ default: m.default || m.BulkUploadReviewPage })));
+const HelpPage = lazy(() => import('./pages/HelpPage').then(m => ({ default: m.HelpPage })));
 
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m => ({ default: m.ProtectedRoute })));
 
@@ -88,7 +89,7 @@ function App() {
         <Route path="/teacher/ocr-moderate/:submissionId" element={<LazyProtectedRoute>{(user) => <OCRModerationPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/ocr-bulk-upload" element={<LazyProtectedRoute>{(user) => <BulkUploadPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/ocr-bulk-review/:batchId" element={<LazyProtectedRoute>{(user) => <BulkUploadReviewPage user={user} />}</LazyProtectedRoute>} />
-        
+        <Route path="/teacher/help" element={<LazyProtectedRoute>{(user) => <HelpPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/admin/dashboard" element={<LazyProtectedRoute adminOnly={true}>{(user) => <AdminDashboard user={user} />}</LazyProtectedRoute>} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
