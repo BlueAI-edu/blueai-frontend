@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from './LaTeXRenderer';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
 
 const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
+  const navigate = useNavigate();
   const [filteredQuestions, setFilteredQuestions] = useState(questions);
   const [filters, setFilters] = useState({
     search: '',
@@ -138,6 +140,12 @@ const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
     } catch (error) {
       handleApiError(error, 'Failed to delete some questions');
     }
+  };
+
+  const handleCreateAssessment = () => {
+    navigate('/teacher/assessments/create', {
+      state: { bankQuestionIds: Array.from(selectedQuestions) },
+    });
   };
 
   const handleClone = async (question) => {
@@ -347,6 +355,12 @@ const QuestionBank = ({ user, questions, onRefresh, onEdit }) => {
                 className="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded text-sm hover:bg-blue-50"
               >
                 Deselect All
+              </button>
+              <button
+                onClick={handleCreateAssessment}
+                className="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700"
+              >
+                Create Assessment from Selected
               </button>
               <button
                 onClick={handleBulkDelete}
