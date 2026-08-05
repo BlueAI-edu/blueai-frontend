@@ -219,6 +219,16 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                 Analytics
               </button>
               <button
+                onClick={() => navigate(`/teacher/assessments/${assessmentId}/security-report`)}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+                data-testid="view-security-report-btn"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Security Report
+              </button>
+              <button
                 onClick={openAssignModal}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
               >
@@ -287,6 +297,15 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                         <h4 className="text-lg font-semibold text-gray-900">
                           {submission.student_name}
                         </h4>
+                        {/* NEW: Needs Review badge */}
+                        {submission.needs_review && (
+                          <span
+                            className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium"
+                            title={submission.flagged_reason}
+                          >
+                            ⚠️ Needs Review
+                          </span>
+                        )}
                         <StatusBadge status={submission.status} />
                         {submission.feedback_released && (
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
@@ -314,6 +333,16 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                             ? new Date(submission.submitted_at).toLocaleString() 
                             : 'N/A'}
                         </p>
+                        {/* NEW: Show submission reason if auto-submitted */}
+                        {submission.submission_reason && submission.submission_reason !== "manual" && (
+                          <p className="text-xs text-orange-600">
+                            {submission.submission_reason === "fullscreen_violation"
+                              ? "🔒 Auto-submitted: Fullscreen security violation"
+                              : submission.submission_reason === "timeout"
+                                ? "⏱️ Auto-submitted: Time expired"
+                                : `Auto-submitted: ${submission.submission_reason}`}
+                          </p>
+                        )}
                         {submission.status === 'marked' && !isFormative && submission.score !== null && (
                           <p>
                             <strong>Score:</strong> {submission.score} / {assessment.totalMarks}
