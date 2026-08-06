@@ -115,6 +115,45 @@ export const adminApi = {
   updateUserUsage: (userId, data) => client.put(`/admin/usage/${userId}`, data),
   resetUserUsage: (userId) => client.post(`/admin/usage/${userId}/reset`),
   getAllAssessments: () => client.get('/admin/assessments'),
+
+  // Microsoft Entra connector (#269, org-scoped). organisationId is required
+  // for platform admins; school_admins omit it (backend enforces their own org)
+  getEntraConsentUrl: (organisationId) =>
+    client.get('/admin/entra/consent-url', {
+      params: organisationId ? { organisation_id: organisationId } : {},
+    }),
+  getEntraConnections: (organisationId) =>
+    client.get('/admin/entra/connections', {
+      params: organisationId ? { organisation_id: organisationId } : {},
+    }),
+  deleteEntraConnection: (tenantId, organisationId) =>
+    client.delete(`/admin/entra/connections/${tenantId}`, {
+      params: organisationId ? { organisation_id: organisationId } : {},
+    }),
+  getEntraUsers: (tenantId, search, organisationId) =>
+    client.get('/admin/entra/users', {
+      params: {
+        tenant_id: tenantId,
+        search: search || '',
+        ...(organisationId ? { organisation_id: organisationId } : {}),
+      },
+    }),
+  provisionEntraTeachers: (tenantId, users, { includeClasses = false, organisationId = null } = {}) =>
+    client.post('/admin/entra/provision', {
+      tenant_id: tenantId,
+      users,
+      include_classes: includeClasses,
+      ...(organisationId ? { organisation_id: organisationId } : {}),
+    }),
+
+  // Organisations / school admins (#269 Phase A)
+  getOrganisations: () => client.get('/admin/organisations'),
+  createOrganisation: (data) => client.post('/admin/organisations', data),
+  deleteOrganisation: (id) => client.delete(`/admin/organisations/${id}`),
+  addSchoolAdmin: (organisationId, data) =>
+    client.post(`/admin/organisations/${organisationId}/school-admins`, data),
+  removeSchoolAdmin: (organisationId, userId) =>
+    client.delete(`/admin/organisations/${organisationId}/school-admins/${userId}`),
 };
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
