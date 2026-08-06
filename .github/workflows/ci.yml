@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        # 478 pre-existing no-unused-vars warnings as of 2026-08-06; the cap
+        # stops large regressions while the burn-down happens. Ratchet this
+        # number down as warnings are fixed, target --max-warnings 0.
+        run: npx eslint src --max-warnings 500
+
+      - name: Build
+        # CRA treats lint warnings as errors when CI=true — disable until the
+        # warning burn-down is complete, then remove this override.
+        env:
+          CI: "false"
+        run: npm run build
+
+      - name: Dependency audit (report only)
+        # Most remaining advisories live in the react-scripts build chain and
+        # are not fixable without leaving CRA; report, don't block. Runtime
+        # deps (axios, mathjs, react-router-dom) were updated 2026-08-06.
+        run: npm audit --audit-level=high || true

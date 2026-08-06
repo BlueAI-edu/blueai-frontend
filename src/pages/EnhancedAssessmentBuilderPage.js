@@ -65,7 +65,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const location = useLocation();
   const { assessmentId } = useParams();
   const isEdit = !!assessmentId;
-  // Set when arriving from QuestionBank.js's "Create Assessment from Selected"
+  // Set when arriving from QuestionsPage's Browse Bank "Create Assessment from Selected"
   // bulk action (navigate(..., { state: { bankQuestionIds } })) — injected
   // once the teacher reaches the question-review step, see the effect below.
   const bankQuestionIdsFromNav = location.state?.bankQuestionIds || null;

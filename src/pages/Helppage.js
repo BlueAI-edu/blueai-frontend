@@ -29,20 +29,19 @@ const FAQ_SECTIONS = [
           <li><strong>Save & submit</strong> – Click "Save" to save your marks. The student receives your feedback immediately</li>
         </ol>
         <p className="text-sm bg-blue-50 p-3 rounded">💡 <strong>Tip:</strong> Use the filter options to see "Pending Review" submissions first to prioritize your marking workflow.</p>
-
-          {/* Video Placeholder */}
-          <div className="mt-8">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Video walkthrough</h4>
-            <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-70"></div>
-              <button className="relative flex flex-col items-center gap-3 hover:scale-110 transition-transform">
-                <div className="p-3 bg-blue-600 rounded-full">
-                  <Play className="w-6 h-6 text-white fill-white" />
-                </div>
-                <span className="text-white text-sm font-medium">How to mark submissions</span>
-              </button>
-            </div>
+        {/* Video Placeholder */}
+        <div className="mt-8">
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">Video walkthrough</h4>
+          <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-70"></div>
+            <button className="relative flex flex-col items-center gap-3 hover:scale-110 transition-transform">
+              <div className="p-3 bg-blue-600 rounded-full">
+                <Play className="w-6 h-6 text-white fill-white" />
+              </div>
+              <span className="text-white text-sm font-medium">How to mark submissions</span>
+            </button>
           </div>
+        </div>
       </div>
     ),
   },
@@ -267,20 +266,19 @@ const FAQ_SECTIONS = [
           <li><strong>Write manually:</strong> Type your own question and mark scheme</li>
         </ul>
         <p className="text-sm bg-blue-50 p-3 rounded">💡 <strong>Tip:</strong> Always review AI-generated questions—edit the mark scheme and model answers to match your exact expectations before releasing to students.</p>
-
-          {/* Video Placeholder */}
-          <div className="mt-8">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Video walkthrough</h4>
-            <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-70"></div>
-              <button className="relative flex flex-col items-center gap-3 hover:scale-110 transition-transform">
-                <div className="p-3 bg-blue-600 rounded-full">
-                  <Play className="w-6 h-6 text-white fill-white" />
-                </div>
-                <span className="text-white text-sm font-medium">AI question generation</span>
-              </button>
-            </div>
+        {/* Video Placeholder */}
+        <div className="mt-8">
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">Video walkthrough</h4>
+          <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-70"></div>
+            <button className="relative flex flex-col items-center gap-3 hover:scale-110 transition-transform">
+              <div className="p-3 bg-blue-600 rounded-full">
+                <Play className="w-6 h-6 text-white fill-white" />
+              </div>
+              <span className="text-white text-sm font-medium">AI question generation</span>
+            </button>
           </div>
+        </div>
       </div>
     ),
   },
@@ -315,7 +313,7 @@ const FAQ_SECTIONS = [
               <div className="p-3 bg-blue-600 rounded-full">
                 <Play className="w-6 h-6 text-white fill-white" />
               </div>
-              <span className="text-white text-sm font-medium">Uploading documents</span>
+              <span className="text-white text-sm font-medium">Understanding the dashboard</span>
             </button>
           </div>
         </div>
@@ -356,7 +354,7 @@ const FAQ_SECTIONS = [
               <div className="p-3 bg-blue-600 rounded-full">
                 <Play className="w-6 h-6 text-white fill-white" />
               </div>
-              <span className="text-white text-sm font-medium">Setting up assessment scheduling</span>
+              <span className="text-white text-sm font-medium">Understanding the dashboard</span>
             </button>
           </div>
         </div>
