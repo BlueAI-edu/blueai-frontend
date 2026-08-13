@@ -35,8 +35,10 @@ export const SecurityReportPage = ({ user }) => {
         return "👁️";
       case "window_blur":
         return "🔄";
-      case "fullscreen_exit":
+      case "fullscreen_exit_security_breach":
         return "⬜";
+      case "escape_key_pressed_in_fullscreen":
+        return "🔑";
       case "fullscreen_not_supported":
         return "⚠️";
       default:
@@ -50,8 +52,10 @@ export const SecurityReportPage = ({ user }) => {
         return "Tab Switch";
       case "window_blur":
         return "Window Lost Focus";
-      case "fullscreen_exit":
+      case "fullscreen_exit_security_breach":
         return "Exited Fullscreen";
+      case "escape_key_pressed_in_fullscreen":
+        return "Escape Key Pressed";
       case "fullscreen_not_supported":
         return "Fullscreen Not Supported";
       default:
@@ -95,7 +99,7 @@ export const SecurityReportPage = ({ user }) => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <p className="text-gray-600 text-sm mb-1">Total Submissions</p>
             <p className="text-3xl font-bold text-blue-600">
@@ -119,6 +123,14 @@ export const SecurityReportPage = ({ user }) => {
             <p className="text-3xl font-bold text-red-600">
               {report.flagged_count}
             </p>
+          </div>
+          {/* NEW: Needs Review card */}
+          <div className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-400">
+            <p className="text-gray-600 text-sm mb-1">Needs Review</p>
+            <p className="text-3xl font-bold text-yellow-600">
+              {report.needs_review_count || 0}
+            </p>
+            <p className="text-xs text-gray-500 mt-2">Fullscreen exits</p>
           </div>
         </div>
 
@@ -167,6 +179,15 @@ export const SecurityReportPage = ({ user }) => {
                         <h4 className="font-semibold text-gray-900">
                           {student.student_name}
                         </h4>
+                        {/* NEW: Needs Review badge */}
+                        {student.needs_review && (
+                          <span
+                            className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium"
+                            title={student.flagged_reason}
+                          >
+                            ⚠️ Needs Review
+                          </span>
+                        )}
                         {student.flagged && (
                           <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-medium">
                             FLAGGED
@@ -232,24 +253,92 @@ export const SecurityReportPage = ({ user }) => {
                   {/* Expanded Event Details */}
                   {selectedStudent === student.attempt_id && (
                     <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                      <h5 className="font-medium text-gray-900 mb-3">
-                        Event Timeline
-                      </h5>
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {student.events.map((event, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-3 text-sm"
-                          >
-                            <span className="text-gray-400 w-20">
-                              {new Date(event.timestamp).toLocaleTimeString()}
-                            </span>
-                            <span>{getEventIcon(event.type)}</span>
-                            <span className="text-gray-700">
-                              {getEventLabel(event.type)}
-                            </span>
+                      
+                      {/* ACCEPTANCE CRITERIA: Per-Student Fullscreen Exit Attempt History */}
+                      {student.fullscreen_exit_attempts && student.fullscreen_exit_attempts.length > 0 && (
+                        <div className="mb-6">
+                          <div className="flex items-center gap-2 mb-3">
+                            <h5 className="font-semibold text-gray-900 text-base">
+                              Fullscreen Exit Attempts
+                            </h5>
+                            {student.locked_out && (
+                              <span className="bg-red-100 text-red-700 text-xs px-2 py-1 rounded font-medium">
+                                LOCKED OUT
+                              </span>
+                            )}
                           </div>
-                        ))}
+                          <div className="space-y-2 bg-white rounded p-3 border-2 border-orange-200">
+                            {student.fullscreen_exit_attempts.map((attempt, idx) => (
+                              <div
+                                key={idx}
+                                className={`flex items-center justify-between p-3 rounded text-sm ${
+                                  attempt.locked_out 
+                                    ? "bg-red-50 border-l-4 border-red-500" 
+                                    : "bg-yellow-50 border-l-4 border-yellow-500"
+                                }`}
+                                data-testid={`fullscreen-attempt-${idx}`}
+                              >
+                                <div className="flex items-center gap-4 flex-1">
+                                  <div className="flex-1">
+                                    <div className="font-semibold text-gray-900">
+                                      {attempt.display_label}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      {new Date(attempt.timestamp).toLocaleString()}
+                                    </div>
+                                  </div>
+                                </div>
+                                {attempt.locked_out && (
+                                  <span className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold ml-4 whitespace-nowrap">
+                                    AUTO-LOGGED OFF
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ACCEPTANCE CRITERIA: Complete Event Timeline */}
+                      <div>
+                        <h5 className="font-medium text-gray-900 mb-3">
+                          Complete Event Timeline
+                        </h5>
+                        <div className="space-y-2 max-h-80 overflow-y-auto bg-white rounded p-3 border border-gray-200">
+                          {student.events.length === 0 ? (
+                            <p className="text-sm text-gray-500 py-4 text-center">No events logged</p>
+                          ) : (
+                            student.events.map((event, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-3 text-sm pb-2 border-b border-gray-100 last:border-b-0"
+                                data-testid={`security-event-${idx}`}
+                              >
+                                <div className="text-gray-400 w-40 pt-1 flex-shrink-0 font-mono text-xs">
+                                  {new Date(event.timestamp).toLocaleString()}
+                                </div>
+                                <span className="text-lg flex-shrink-0">
+                                  {getEventIcon(event.type)}
+                                </span>
+                                <div className="flex-1 pt-1">
+                                  <span className="text-gray-700">
+                                    {getEventLabel(event.type)}
+                                  </span>
+                                  {event.type === "fullscreen_exit_security_breach" && event.exit_attempt && (
+                                    <span className="ml-2 text-orange-600 font-semibold">
+                                      (Attempt {event.exit_attempt}/3)
+                                    </span>
+                                  )}
+                                  {event.student_name && event.student_name !== student.student_name && (
+                                    <span className="ml-2 text-gray-500 text-xs">
+                                      — {event.student_name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}

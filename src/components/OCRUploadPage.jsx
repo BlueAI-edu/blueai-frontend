@@ -164,6 +164,17 @@ export default function OCRUploadPage({ user }) {
                   Upload handwritten student scripts and BlueAI will automatically extract answers for marking.
                   Supports PDFs and images (JPG, PNG) up to 10MB each, maximum 20 files.
                 </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  Have a whole class scanned as one PDF (e.g. "Scan to Email")?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/teacher/ocr-bulk-upload')}
+                    className="font-semibold underline hover:text-blue-900"
+                  >
+                    Upload as a class set instead
+                  </button>
+                  {' '}— BlueAI will detect and split each student's script automatically.
+                </p>
               </div>
             </div>
           </CardContent>

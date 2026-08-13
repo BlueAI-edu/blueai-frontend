@@ -75,16 +75,23 @@ export const AttemptPage = () => {
   const security = useFullscreenSecurity({
     attemptId,
     enabled: !showFeedback,
-    onLockout: async () => {
+    onLockout: async (reason) => {
+      // Fetch latest attempt to get any recent autosaves before lockout
       try {
+        const response = await axios.get(`${API}/public/attempt/${attemptId}`);
+        const latestAnswer = response.data.attempt?.answer_text || answer || '';
+        const latestWorking = response.data.attempt?.show_working || showWorking || '';
+        
+        // Submit with the latest data from database
         await axios.post(`${API}/public/attempt/${attemptId}/submit`, {
-          answer_text: answer,
-          reason: 'fullscreen_violation'
+          answer_text: latestAnswer,
+          show_working: latestWorking,
+          reason: reason
         });
-        navigate('/');
       } catch (error) {
-        navigate('/');
+        console.error('Failed to submit on lockout:', error);
       }
+      navigate('/');
     },
   });
 
@@ -107,11 +114,16 @@ export const AttemptPage = () => {
     }
   };
 
-  const handleSubmit = async (autoSubmit = false) => {
+  const handleSubmit = async (autoSubmit = false, reason = 'manual') => {
     if (!autoSubmit && submitting) return;
     setSubmitting(true);
     try {
-      const submissionData = { answer_text: answer, show_working: showWorking };
+      // Always include answer_text, even if empty (for auto-submit on lockout)
+      const submissionData = { 
+        answer_text: answer || '', 
+        show_working: showWorking || '',
+        reason: reason  // NEW: Include reason (manual, fullscreen_violation, timeout, etc)
+      };
       if (graphData) {
         submissionData.graph_data = {
           mode: graphData.mode,
