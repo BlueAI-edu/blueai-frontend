@@ -20,6 +20,10 @@ import AIQuestionGenerator from '../components/AIQuestionGenerator';
 import MixedMathEditor from '../components/MixedMathEditor';
 import QuestionBank from '../components/QuestionBank';
 import { Navbar } from '../components/Navbar';
+import {
+  RecentQuestionsSkeleton,
+  TemplatesGridSkeleton,
+} from '@/components/SkeletonLoader';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 
@@ -27,6 +31,9 @@ import { handleApiError, showSuccess } from '@/lib/handle-error';
  * Questions tab — a working surface, not a brochure. Header + tabs + the
  * active tool. The old hero/stats/workflow/tips panels were removed: they
  * described the page instead of doing anything.
+ * 
+ * Progressive loading: recent questions, templates, and question bank each
+ * load independently with skeleton states.
  */
 
 const blankFormData = {
@@ -81,10 +88,6 @@ const SectionError = ({ title, message, onRetry }) => (
       </div>
     </div>
   </div>
-);
-
-const SkeletonBlock = ({ className = '' }) => (
-  <div className={`animate-pulse rounded-lg bg-slate-200/70 ${className}`} />
 );
 
 export const QuestionsPage = ({ user }) => {
@@ -277,7 +280,7 @@ export const QuestionsPage = ({ user }) => {
 
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
 
-        {/* ── Header ── */}
+        {/* ── Header (static, no loading state) ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-950" data-testid="questions-title">Questions</h1>
@@ -586,10 +589,11 @@ export const QuestionsPage = ({ user }) => {
               )}
 
               <div className="mt-5">
+                {/* Templates loading skeleton */}
                 {templatesLoading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => <SkeletonBlock key={i} className="h-20 w-full" />)}
-                  </div>
+                  <TemplatesGridSkeleton cardCount={3} />
+                ) : templatesError ? (
+                  <SectionError title="Templates unavailable" message={templatesError} onRetry={loadTemplates} />
                 ) : templates.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                     <Layers3 className="mx-auto h-9 w-9 text-blue-600" />
@@ -643,7 +647,8 @@ export const QuestionsPage = ({ user }) => {
           )}
 
           {/* Recent questions — shown on the manual tab as a quick "continue where
-              you left off" list. The bank tab already lists everything. */}
+              you left off" list. The bank tab already lists everything.
+              Progressive loading: independent skeleton state. */}
           {activeTab === 'manual' && (
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
@@ -656,11 +661,7 @@ export const QuestionsPage = ({ user }) => {
 
               <div className="mt-4">
                 {loading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                      <SkeletonBlock key={index} className="h-14 w-full" />
-                    ))}
-                  </div>
+                  <RecentQuestionsSkeleton rowCount={4} />
                 ) : recentQuestions.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
                     <FileQuestion className="mx-auto h-8 w-8 text-blue-600" />
