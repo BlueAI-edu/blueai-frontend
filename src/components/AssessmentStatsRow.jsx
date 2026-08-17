@@ -57,11 +57,12 @@ const StatCard = ({
   active,
   onClick,
   testId,
+  showIndicator, // NEW
 }) => (
   <button
     onClick={onClick}
     className={`
-      flex-1 min-w-0 text-left rounded-xl border p-4 sm:p-5
+      relative flex-1 min-w-0 text-left rounded-xl border p-4 sm:p-5
       transition-all duration-150 cursor-pointer group
       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400
       ${active
@@ -72,6 +73,14 @@ const StatCard = ({
     data-testid={testId}
     aria-pressed={active}
   >
+    {/* New-submission indicator — anchored to the card itself */}
+    {showIndicator && (
+      <span
+        className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white"
+        data-testid="new-submission-indicator"
+      />
+    )}
+
     {/* Icon + chevron row */}
     <div className="flex items-start justify-between mb-3">
       <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg} ${iconColor}`}>
@@ -117,6 +126,7 @@ export const AssessmentStatsRow = ({
   onFilterLive,
   onFilterSubmissions,
   onFilterReview,
+  showNewSubmissions,
 }) => {
   if (loading) {
     return (
@@ -165,6 +175,7 @@ export const AssessmentStatsRow = ({
         active={activeFilter === "submissions"}
         onClick={onFilterSubmissions}
         testId="stat-total-submissions"
+        showIndicator={showNewSubmissions}
       />
 
       <StatCard

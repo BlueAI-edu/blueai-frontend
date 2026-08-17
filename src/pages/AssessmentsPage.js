@@ -19,6 +19,7 @@ export const AssessmentsPage = ({ user }) => {
   const [visibleCount, setVisibleCount] = useState(10);
   const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "submissions"
   const [totalSubmissions, setTotalSubmissions] = useState(0);
+  const [submissionsCardHasNew, setSubmissionsCardHasNew] = useState(false);
   const [reviewCount, setReviewCount] = useState(0);
   const [templateFormData, setTemplateFormData] = useState({
     name: "",
@@ -61,7 +62,16 @@ export const AssessmentsPage = ({ user }) => {
         console.log('Dashboard error:', err);
         return { data: {} };
       });
-      setTotalSubmissions(dashboardRes.data.total_submissions ?? 0);
+      const total = dashboardRes.data.total_submissions ?? 0;
+      setTotalSubmissions(total);
+
+      const seenCount = localStorage.getItem('submissionsCardSeenCount');
+
+      if (seenCount === null || total > parseInt(seenCount, 10)) {
+        setSubmissionsCardHasNew(true);
+      } else {
+        setSubmissionsCardHasNew(false);
+      }
       const reviewRes = await teacherApi.getNeedsReview().catch(() => ({ data: {} }));
       setReviewCount(reviewRes.data.total_count ?? 0);
     } catch (error) {
@@ -201,8 +211,10 @@ export const AssessmentsPage = ({ user }) => {
           activeFilter={statusFilter}
           onFilterAll={() => { setActiveTab("assessments"); setStatusFilter("all"); scrollToList(); }}
           onFilterLive={() => { setActiveTab("assessments"); setStatusFilter("started"); scrollToList(); }}
-          onFilterSubmissions={() => { setActiveTab("assessments"); setStatusFilter("submissions"); scrollToList(); }}
+          // onFilterSubmissions={() => { setActiveTab("assessments"); setStatusFilter("submissions"); scrollToList(); }}
+          onFilterSubmissions={() => { setSubmissionsCardHasNew(false); localStorage.setItem("submissionsCardSeenCount", String(totalSubmissions)); setActiveTab("assessments"); setStatusFilter("submissions"); scrollToList(); }}
           onFilterReview={() => navigate("/teacher/dashboard")}
+          showNewSubmissions={submissionsCardHasNew}
         />
 
         {/* Tab toolbar — template-mode gets its own CTA here */}

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API } from '@/config';
 import { Navbar } from '../components/Navbar';
 import UsageBanner from '../components/UsageBanner';
+import { useHasNewSubmissions } from '@/hooks/useHasNewSubmissions';
 import {
   ClipboardList, Upload, BarChart3, AlertCircle, CheckCircle2,
   ChevronRight, RefreshCw, FileText, Flag, Plus, ArrowRight, Radio,
@@ -51,6 +52,7 @@ const SectionError = ({ onRetry }) => (
 
 export const TeacherDashboard = ({ user }) => {
   const navigate = useNavigate();
+  const hasNewSubmissions = useHasNewSubmissions();
 
   const [stats, setStats] = useState(null);
   const [assessments, setAssessments] = useState([]);
@@ -143,6 +145,7 @@ export const TeacherDashboard = ({ user }) => {
       label: 'Submissions', value: stats?.total_submissions ?? '—',
       icon: Upload, color: 'text-purple-600 bg-purple-50',
       onClick: () => navigate('/teacher/assessments'), testId: 'stat-submissions',
+      showIndicator: hasNewSubmissions,
     },
     {
       label: 'Needs review', value: needsReview,
@@ -193,15 +196,21 @@ export const TeacherDashboard = ({ user }) => {
 
         {/* ── Stat row ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map(({ label, value, icon: Icon, color, onClick, testId }) => {
+          {statCards.map(({ label, value, icon: Icon, color, onClick, testId, showIndicator }) => {
             const Tag = onClick ? 'button' : 'div';
             return (
               <Tag
                 key={label}
                 onClick={onClick || undefined}
-                className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-left flex items-center gap-3 ${onClick ? 'hover:shadow-md transition-shadow' : ''}`}
+                className={`relative bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-left flex items-center gap-3 ${onClick ? 'hover:shadow-md transition-shadow' : ''}`}
                 data-testid={testId}
               >
+                {showIndicator && (
+                  <span
+                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white"
+                    data-testid="new-submission-indicator"
+                  />
+                )}
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
                   <Icon className="w-4 h-4" />
                 </div>
