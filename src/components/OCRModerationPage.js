@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { API_URL } from '@/config';
 import { useAsync } from '../hooks/use-async';
 import { useToast } from '@/hooks/use-toast';
-import { toDisplayText, toBulletArray, toBulletList } from '@/lib/feedback-format';
+import { toDisplayText, toBulletList } from '@/lib/feedback-format';
 
 
 export default function OCRModerationPage({ user }) {
@@ -93,9 +93,12 @@ export default function OCRModerationPage({ user }) {
           credentials: 'include',
           body: JSON.stringify({
           total_score: totalScore,
-          www: toBulletArray(www),
-          next_steps: toBulletArray(nextSteps),
-          overall_feedback: toBulletArray(overallFeedback)
+          // ocr_marking_results stores www/next_steps/overall_feedback as plain
+          // strings (see routes/ocr_routes.py), and OCRMarkingOverride types them
+          // Optional[str] to match — sending an array here 422s the request.
+          www: toDisplayText(www),
+          next_steps: toDisplayText(nextSteps),
+          overall_feedback: toDisplayText(overallFeedback)
           })
         }
       );

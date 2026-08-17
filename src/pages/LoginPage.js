@@ -159,49 +159,60 @@ export const Login = () => {
     }
   }, [location.state, navigate]);
 
+  // school_admins (#269 Phase A) land on their own console, everyone else on
+  // the teacher dashboard
+  const destinationFor = (user) =>
+    user?.role === 'school_admin' ? '/school-admin' : '/teacher/dashboard';
+
   const handleEmailAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    let signedInUser;
     try {
       const payload  = isSignUp
         ? { email, password, name, school_name: schoolName }
         : { email, password };
-      await (isSignUp ? authApi.register(payload) : authApi.login(payload));
+      const res = await (isSignUp ? authApi.register(payload) : authApi.login(payload));
+      signedInUser = res.data;
     } catch (err) {
       setError(getApiErrorMessage(err, 'Authentication failed'));
       setLoading(false);
       return;
     }
-    navigate('/teacher/dashboard');
+    navigate(destinationFor(signedInUser));
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     setError('');
+    let signedInUser;
     try {
-      await authApi.loginWithGoogle(credentialResponse.credential);
+      const res = await authApi.loginWithGoogle(credentialResponse.credential);
+      signedInUser = res.data;
     } catch (err) {
       setError(getApiErrorMessage(err, 'Google authentication failed'));
       setLoading(false);
       return;
     }
-    navigate('/teacher/dashboard');
+    navigate(destinationFor(signedInUser));
   };
 
   const handleMicrosoftLogin = async () => {
     setLoading(true);
     setError('');
+    let signedInUser;
     try {
       const msalResponse = await instance.loginPopup(loginRequest);
-      await authApi.loginWithMicrosoft(msalResponse.accessToken);
+      const res = await authApi.loginWithMicrosoft(msalResponse.accessToken);
+      signedInUser = res.data;
     } catch (err) {
       if (err.errorCode === 'user_cancelled') { setLoading(false); return; }
       setError(getApiErrorMessage(err, 'Microsoft authentication failed'));
       setLoading(false);
       return;
     }
-    navigate('/teacher/dashboard');
+    navigate(destinationFor(signedInUser));
   };
 
   const switchMode = (signup) => { setIsSignUp(signup); setError(''); };

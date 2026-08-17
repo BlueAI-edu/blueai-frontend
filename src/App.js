@@ -26,6 +26,7 @@ const SecurityReportPage = lazy(() => import('./components/TeacherPages').then(m
 const ProfilePage = lazy(() => import('./components/TeacherPages').then(m => ({ default: m.ProfilePage })));
 
 const AdminDashboard = lazy(() => import('./components/AdminPages').then(m => ({ default: m.AdminDashboard })));
+const SchoolAdminPage = lazy(() => import('./pages/SchoolAdminPage').then(m => ({ default: m.SchoolAdminPage })));
 const AnalyticsPage = lazy(() => import('./components/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 const ClassesPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.ClassesPage })));
 const ClassDetailPage = lazy(() => import('./components/ClassesPage').then(m => ({ default: m.ClassDetailPage })));
@@ -43,10 +44,10 @@ const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m =
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-const LazyProtectedRoute = ({ children, adminOnly = false }) => {
+const LazyProtectedRoute = ({ children, adminOnly = false, roles = null }) => {
   return (
     <Suspense fallback={<PageLoader />}>
-      <ProtectedRoute adminOnly={adminOnly}>
+      <ProtectedRoute adminOnly={adminOnly} roles={roles}>
         {(user) => children(user)}
       </ProtectedRoute>
     </Suspense>
@@ -91,6 +92,7 @@ function App() {
         <Route path="/teacher/ocr-bulk-review/:batchId" element={<LazyProtectedRoute>{(user) => <BulkUploadReviewPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/help" element={<LazyProtectedRoute>{(user) => <HelpPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/admin/dashboard" element={<LazyProtectedRoute adminOnly={true}>{(user) => <AdminDashboard user={user} />}</LazyProtectedRoute>} />
+        <Route path="/school-admin" element={<LazyProtectedRoute roles={['school_admin', 'admin']}>{(user) => <SchoolAdminPage user={user} />}</LazyProtectedRoute>} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
