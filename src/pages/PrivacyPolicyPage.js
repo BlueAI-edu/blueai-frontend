@@ -155,14 +155,16 @@ export function PrivacyPolicyPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-3">5. Data Retention</h2>
             <p className="text-sm">
               We retain your data for as long as your account is active or as needed to provide the service.
-              Teacher accounts and all associated data (assessments, student submissions, classes) are deleted
-              when you delete your account. Session tokens expire after 24 hours. Password reset tokens
-              expire after a short period.
+              Deleting your account permanently removes all associated data — assessments, student
+              submissions, class rosters, uploaded scripts, and generated feedback documents. Session
+              tokens expire after 24 hours. Password reset tokens expire after a short period.
             </p>
             <p className="mt-2 text-sm">
-              We are in the process of implementing automated data retention policies. Until these are in
-              place, data retention is managed manually. If you have specific data retention requirements
-              (for example, under your school's data handling policy), please contact us.
+              Automated retention limits also apply while your account is active: request and activity
+              logs (which include IP addresses) are kept for 30 days; uploaded script scans and generated
+              feedback PDFs are removed from our servers 180 days after creation (transcribed answers and
+              marks are retained with the submission, and feedback PDFs can be regenerated on request).
+              If your school's data handling policy requires different retention periods, please contact us.
             </p>
           </section>
 
