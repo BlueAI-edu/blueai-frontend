@@ -1,10 +1,41 @@
 import { useState } from 'react';
-import axios from 'axios';
-import { API } from '@/config';
-import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
 
-const StimulusUploader = ({ assessmentId, questionNumber, currentStimulus, onStimulusUploaded }) => {
+// Stimulus images are stored inline as base64 data URIs on the question's
+// stimulusBlock (same shape the OCR extraction pipeline produces), so they
+// travel with the assessment document — no separate upload endpoint.
+// Downscale to match the backend's 1600px Vision convention and keep
+// assessment documents small.
+const MAX_IMAGE_DIMENSION = 1600;
+
+const fileToDataUri = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read the image file'));
+    reader.readAsDataURL(file);
+  });
+
+const downscaleImage = (dataUri) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+      if (scale >= 1) {
+        resolve(dataUri);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('Could not load the image'));
+    img.src = dataUri;
+  });
+
+const StimulusUploader = ({ currentStimulus, onStimulusUploaded }) => {
   const [runUpload, uploading] = useAsync();
   const [error, setError] = useState('');
   const [stimulusType, setStimulusType] = useState('image');
@@ -30,22 +61,15 @@ const StimulusUploader = ({ assessmentId, questionNumber, currentStimulus, onSti
     setError('');
     runUpload(
       async () => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('question_number', questionNumber);
-        formData.append('caption', caption);
-
-        const response = await axios.post(
-          `${API}/teacher/assessments/${assessmentId}/upload-stimulus`,
-          formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
-        );
-
-        if (response.data.success) {
-          onStimulusUploaded(response.data.stimulusBlock);
-        }
+        const dataUri = await downscaleImage(await fileToDataUri(file));
+        onStimulusUploaded({
+          type: 'image',
+          content: dataUri,
+          caption: caption,
+          source: 'manual_upload',
+        });
       },
-      (err) => setError(getApiErrorMessage(err, 'Failed to upload image'))
+      () => setError('Failed to process image — please try a different file')
     );
   };
 

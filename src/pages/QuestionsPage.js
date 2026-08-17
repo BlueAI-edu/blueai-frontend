@@ -123,6 +123,10 @@ export const QuestionsPage = ({ user }) => {
     duration_minutes: '',
     auto_close: false,
   });
+  // Browse Bank multi-select — feeds the "Create Assessment from Selected"
+  // bulk action (#237) and bulk delete
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -197,6 +201,11 @@ export const QuestionsPage = ({ user }) => {
     try {
       const response = await axios.get(`${API}/teacher/questions`);
       setQuestions(response.data);
+      // Drop selections for questions that no longer exist
+      setSelectedIds((prev) => {
+        const stillPresent = new Set(response.data.map((q) => q.id));
+        return new Set([...prev].filter((id) => stillPresent.has(id)));
+      });
     } catch {
       setLoadError('Question data could not be loaded. You can still start a new question.');
     } finally {
@@ -278,6 +287,53 @@ export const QuestionsPage = ({ user }) => {
     } catch (error) {
       handleApiError(error, 'Failed to delete question');
     }
+  };
+
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === questions.length ? new Set() : new Set(questions.map((q) => q.id))
+    );
+  };
+
+  const handleCreateAssessmentFromSelected = () => {
+    if (selectedIds.size === 0) return;
+    // EnhancedAssessmentBuilderPage injects these once the teacher reaches
+    // the question-review step (POST /teacher/questions/to-enhanced)
+    navigate('/teacher/assessments/create', {
+      state: { bankQuestionIds: [...selectedIds] },
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} selected question${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    const results = await Promise.allSettled(
+      [...selectedIds].map((id) => axios.delete(`${API}/teacher/questions/${id}`))
+    );
+    setBulkDeleting(false);
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed === 0) {
+      showSuccess(`Deleted ${results.length} question${results.length === 1 ? '' : 's'}.`);
+    } else {
+      handleApiError(
+        results.find((r) => r.status === 'rejected')?.reason,
+        `${failed} of ${results.length} deletions failed`
+      );
+    }
+    loadQuestions();
   };
 
   const sortedQuestions = [...questions].sort((a, b) => {
@@ -487,7 +543,31 @@ export const QuestionsPage = ({ user }) => {
                   </div>
                 ) : (
                   <>
-                    <h3 className="text-lg font-semibold text-slate-950 mb-4">Question Bank</h3>
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <h3 className="text-lg font-semibold text-slate-950">Question Bank</h3>
+                      {selectedIds.size > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-slate-500">{selectedIds.size} selected</span>
+                          <button
+                            onClick={handleCreateAssessmentFromSelected}
+                            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            data-testid="create-assessment-from-selected"
+                          >
+                            Create Assessment from Selected
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={handleBulkDelete}
+                            disabled={bulkDeleting}
+                            className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            data-testid="bulk-delete-selected"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {bulkDeleting ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     {loading ? (
                       <div className="space-y-3">
                         {Array.from({ length: 6 }).map((_, index) => (
@@ -495,36 +575,55 @@ export const QuestionsPage = ({ user }) => {
                         ))}
                       </div>
                     ) : (
-                      <div className="divide-y divide-slate-100">
-                        {sortedQuestions.map((question) => (
-                          <div key={question.id} className="flex items-center gap-3 py-3">
-                            <button onClick={() => handleEdit(question)} className="min-w-0 flex-1 text-left">
-                              <span className="block truncate text-sm font-semibold text-slate-950">{getQuestionTitle(question)}</span>
-                              <span className="mt-0.5 block text-xs text-slate-500">
-                                {question.subject || 'Subject'} · {question.max_marks ?? '—'} marks · {formatUpdatedDate(question)}
-                              </span>
-                            </button>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <ActionButton
-                                icon={Edit3}
-                                onClick={() => handleEdit(question)}
-                                label="Edit"
+                      <>
+                        <label className="flex items-center gap-3 border-b border-slate-200 pb-2 text-xs font-medium text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.size === questions.length && questions.length > 0}
+                            onChange={toggleSelectAll}
+                            className="h-4 w-4 rounded border-slate-300"
+                            aria-label="Select all questions"
+                          />
+                          Select all
+                        </label>
+                        <div className="divide-y divide-slate-100">
+                          {sortedQuestions.map((question) => (
+                            <div key={question.id} className="flex items-center gap-3 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(question.id)}
+                                onChange={() => toggleSelected(question.id)}
+                                className="h-4 w-4 shrink-0 rounded border-slate-300"
+                                aria-label={`Select ${getQuestionTitle(question)}`}
                               />
-                              <ActionButton
-                                icon={Copy}
-                                onClick={() => handleDuplicate(question)}
-                                label="Duplicate"
-                              />
-                              <ActionButton
-                                icon={Trash2}
-                                onClick={() => handleDelete(question.id)}
-                                label="Delete"
-                                variant="delete"
-                              />
+                              <button onClick={() => handleEdit(question)} className="min-w-0 flex-1 text-left">
+                                <span className="block truncate text-sm font-semibold text-slate-950">{getQuestionTitle(question)}</span>
+                                <span className="mt-0.5 block text-xs text-slate-500">
+                                  {question.subject || 'Subject'} · {question.max_marks ?? '—'} marks · {formatUpdatedDate(question)}
+                                </span>
+                              </button>
+                              <div className="flex shrink-0 items-center gap-1">
+                                <ActionButton
+                                  icon={Edit3}
+                                  onClick={() => handleEdit(question)}
+                                  label="Edit"
+                                />
+                                <ActionButton
+                                  icon={Copy}
+                                  onClick={() => handleDuplicate(question)}
+                                  label="Duplicate"
+                                />
+                                <ActionButton
+                                  icon={Trash2}
+                                  onClick={() => handleDelete(question.id)}
+                                  label="Delete"
+                                  variant="delete"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </>
                 )}
