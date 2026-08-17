@@ -5,6 +5,7 @@ import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
 import { Navbar } from './Navbar';
 import { LoadingSpinner } from '@/components/common';
+import { EntraConnectorPanel } from './EntraConnectorPanel';
 
 const ACCOUNT_TYPES = ['free_tester', 'beta_tester', 'paid', 'extended', 'pilot', 'internal'];
 const ACCOUNT_TYPE_LABELS = {
@@ -203,6 +204,232 @@ function UsageEditModal({ entry, onClose, onSave }) {
   );
 }
 
+// ─── Organisations tab (#269 Phase A) ────────────────────────────────────────
+// School/MAT onboarding: create the organisation, add its named IT contact as
+// a school_admin (SSO-only — they sign in with Microsoft), and manage the
+// org's Entra connection on their behalf when needed.
+function OrganisationsTab() {
+  const [orgs, setOrgs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [orgForm, setOrgForm] = useState({ name: '' });
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [selectedOrgId, setSelectedOrgId] = useState(null);
+  const [adminForm, setAdminForm] = useState({ name: '', email: '' });
+  const [addingAdmin, setAddingAdmin] = useState(false);
+
+  const loadOrgs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/admin/organisations`);
+      setOrgs(res.data.organisations || []);
+    } catch (error) {
+      handleApiError(error, 'Failed to load organisations');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Returning from a consent flow started for a specific organisation —
+    // re-open that organisation so the Entra panel (and its banner) shows
+    const returnOrg = sessionStorage.getItem('entra_connect_org');
+    if (returnOrg && new URLSearchParams(window.location.search).get('entra_status')) {
+      setSelectedOrgId(returnOrg);
+      sessionStorage.removeItem('entra_connect_org');
+    }
+    loadOrgs();
+  }, [loadOrgs]);
+
+  const handleCreateOrg = async (e) => {
+    e.preventDefault();
+    if (!orgForm.name.trim()) return;
+    setCreatingOrg(true);
+    try {
+      await axios.post(`${API}/admin/organisations`, { name: orgForm.name.trim() });
+      setOrgForm({ name: '' });
+      loadOrgs();
+    } catch (error) {
+      handleApiError(error, 'Failed to create organisation');
+    } finally {
+      setCreatingOrg(false);
+    }
+  };
+
+  const handleAddAdmin = async (e, orgId) => {
+    e.preventDefault();
+    if (!adminForm.name.trim() || !adminForm.email.trim()) return;
+    setAddingAdmin(true);
+    try {
+      await axios.post(`${API}/admin/organisations/${orgId}/school-admins`, {
+        name: adminForm.name.trim(),
+        email: adminForm.email.trim(),
+      });
+      setAdminForm({ name: '', email: '' });
+      loadOrgs();
+    } catch (error) {
+      handleApiError(error, 'Failed to add school admin');
+    } finally {
+      setAddingAdmin(false);
+    }
+  };
+
+  const handleRemoveAdmin = async (orgId, adminUserId, adminName) => {
+    if (!window.confirm(`Remove ${adminName} as school admin? Their account and sessions are deleted.`)) return;
+    try {
+      await axios.delete(`${API}/admin/organisations/${orgId}/school-admins/${adminUserId}`);
+      loadOrgs();
+    } catch (error) {
+      handleApiError(error, 'Failed to remove school admin');
+    }
+  };
+
+  const handleDeleteOrg = async (orgId, orgName) => {
+    if (!window.confirm(`Delete organisation "${orgName}"? Blocked if it still has school admins or Entra connections.`)) return;
+    try {
+      await axios.delete(`${API}/admin/organisations/${orgId}`);
+      if (selectedOrgId === orgId) setSelectedOrgId(null);
+      loadOrgs();
+    } catch (error) {
+      handleApiError(error, 'Failed to delete organisation');
+    }
+  };
+
+  const selectedOrg = orgs.find((o) => o.id === selectedOrgId);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-xl font-semibold text-gray-900">Organisations</h3>
+        <p className="mt-1 text-sm text-gray-500 max-w-2xl">
+          Create a school and add its IT contact as a school admin — they sign in with Microsoft
+          and set up the rest themselves.
+        </p>
+
+        <form onSubmit={handleCreateOrg} className="mt-4 flex gap-2">
+          <input
+            type="text"
+            value={orgForm.name}
+            onChange={(e) => setOrgForm({ name: e.target.value })}
+            placeholder="School / MAT name…"
+            className="flex-1 max-w-md rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+            data-testid="org-name-input"
+          />
+          <button
+            type="submit"
+            disabled={creatingOrg || !orgForm.name.trim()}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
+          >
+            {creatingOrg ? 'Creating…' : 'Create organisation'}
+          </button>
+        </form>
+
+        <div className="mt-5">
+          {loading ? (
+            <div className="text-center py-6"><LoadingSpinner /></div>
+          ) : orgs.length === 0 ? (
+            <p className="text-sm text-gray-500 border border-dashed border-gray-300 rounded-lg p-6 text-center">
+              No organisations yet.
+            </p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {orgs.map((org) => (
+                <div key={org.id} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{org.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {(org.school_admins || []).length} school admin(s) · {org.connection_count || 0} Entra connection(s)
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedOrgId(selectedOrgId === org.id ? null : org.id)}
+                      className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                        selectedOrgId === org.id
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {selectedOrgId === org.id ? 'Close' : 'Manage'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOrg(org.id, org.name)}
+                      className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
+
+                  {selectedOrgId === org.id && (
+                    <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <h4 className="text-sm font-semibold text-gray-900">School admins</h4>
+                      {(org.school_admins || []).length === 0 ? (
+                        <p className="mt-1 text-xs text-gray-500">
+                          None yet. They&apos;ll sign in with Microsoft — no invite or password needed.
+                        </p>
+                      ) : (
+                        <div className="mt-2 space-y-1">
+                          {org.school_admins.map((a) => (
+                            <div key={a.user_id} className="flex items-center gap-2 text-sm text-gray-700">
+                              <span className="font-medium">{a.name}</span>
+                              <span className="text-gray-500">{a.email}</span>
+                              <span className="text-xs text-gray-400">
+                                {a.last_login ? `last sign-in ${new Date(a.last_login).toLocaleDateString()}` : 'never signed in'}
+                              </span>
+                              <button
+                                onClick={() => handleRemoveAdmin(org.id, a.user_id, a.name)}
+                                className="ml-auto text-xs text-red-600 hover:text-red-700"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <form onSubmit={(e) => handleAddAdmin(e, org.id)} className="mt-3 flex flex-wrap gap-2">
+                        <input
+                          type="text"
+                          value={adminForm.name}
+                          onChange={(e) => setAdminForm((f) => ({ ...f, name: e.target.value }))}
+                          placeholder="Full name"
+                          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="email"
+                          value={adminForm.email}
+                          onChange={(e) => setAdminForm((f) => ({ ...f, email: e.target.value }))}
+                          placeholder="Email (their Microsoft account)"
+                          className="w-64 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={addingAdmin}
+                          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
+                        >
+                          {addingAdmin ? 'Adding…' : 'Add school admin'}
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selectedOrg && (
+        <div>
+          <h3 className="mb-3 text-lg font-semibold text-gray-900">
+            Entra connection — {selectedOrg.name}
+          </h3>
+          <EntraConnectorPanel key={selectedOrg.id} organisationId={selectedOrg.id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const AdminDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('teachers');
   const [teachers, setTeachers] = useState([]);
@@ -274,6 +501,15 @@ export const AdminDashboard = ({ user }) => {
     loadData();
   }, [loadData]);
 
+  // Returning from the Entra admin-consent flow (?entra_status=...) — land on
+  // the Organisations tab so the outcome banner is visible. The Entra panel
+  // itself reads and then strips the query param.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('entra_status')) {
+      setActiveTab('organisations');
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'usage') loadUsage();
     if (activeTab === 'activity') loadActivity();
@@ -293,6 +529,7 @@ export const AdminDashboard = ({ user }) => {
     { id: 'assessments', label: `Assessments (${assessments.length})` },
     { id: 'usage', label: 'Usage & Quotas' },
     { id: 'activity', label: 'Activity Log' },
+    { id: 'organisations', label: 'Organisations' },
   ];
 
   return (
@@ -690,6 +927,8 @@ export const AdminDashboard = ({ user }) => {
             )}
           </div>
         )}
+        {/* Organisations tab (#269 Phase A) */}
+        {activeTab === 'organisations' && <OrganisationsTab />}
       </div>
 
       {editingEntry && (
