@@ -4,6 +4,7 @@ import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import DiagramRenderer from '../components/DiagramRenderer';
 import DrawableCanvas, { requiresDrawing } from '../components/DrawableCanvas';
+import TextAnswerInput from '../components/TextAnswerInput';
 import MathsliveAnswerInput from '../components/MathsliveAnswerInput';
 import MathsliveKeyboardPanel from '../components/MathsliveKeyboardPanel';
 import GraphPlotInput from '../components/GraphPlotInput';
@@ -58,6 +59,11 @@ export const EnhancedAttemptPage = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Determine if a question type is text-only (no math mode)
+  const isTextOnlyQuestion = (questionType) => {
+    return ['TEXT', 'SHORT_ANSWER', 'LONG_ANSWER', 'SHORT_RESPONSE', 'LONG_RESPONSE'].includes(questionType);
+  };
 
   const { timeLeft } = useTimer({
     startedAt: attempt?.started_at ?? attempt?.joined_at,
@@ -493,16 +499,24 @@ export const EnhancedAttemptPage = () => {
                               handleAnswerChange(partAnswerKey, JSON.stringify({ _type: 'drawing', imageData }))
                             }
                           />
+                        ) : isTextOnlyQuestion(part.questionType) ? (
+                          <TextAnswerInput
+                            value={answers[partAnswerKey] || ''}
+                            onChange={(value) => handleAnswerChange(partAnswerKey, value)}
+                            placeholder={`Your answer for part ${part.partLabel}...`}
+                            className="w-full"
+                            rows={4}
+                          />
                         ) : (
-                            <MathsliveAnswerInput
-                              value={answers[partAnswerKey] || ''}
-                              onChange={(value) => handleAnswerChange(partAnswerKey, value)}
-                              questionType={part.questionType || 'ALGEBRA'}
-                              placeholder={`Your answer for part ${part.partLabel}...`}
-                              inputRef={mathfieldRef}
-                              className="w-full"
-                            />
-                            )}
+                          <MathsliveAnswerInput
+                            value={answers[partAnswerKey] || ''}
+                            onChange={(value) => handleAnswerChange(partAnswerKey, value)}
+                            questionType={part.questionType || 'ALGEBRA'}
+                            placeholder={`Your answer for part ${part.partLabel}...`}
+                            inputRef={mathfieldRef}
+                            className="w-full"
+                          />
+                        )}
                       </div>
                     </div>
                   );
@@ -603,6 +617,14 @@ export const EnhancedAttemptPage = () => {
                     onChange={(imageData) =>
                       handleAnswerChange(currentQuestion.questionNumber, JSON.stringify({ _type: 'drawing', imageData }))
                     }
+                  />
+                ) : isTextOnlyQuestion(currentQuestion.questionType) ? (
+                  <TextAnswerInput
+                    value={answers[currentQuestion.questionNumber] || ''}
+                    onChange={(value) => handleAnswerChange(currentQuestion.questionNumber, value)}
+                    placeholder="Type your answer here..."
+                    className="w-full"
+                    rows={8}
                   />
                 ) : (
                   <MathsliveAnswerInput
