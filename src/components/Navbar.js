@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authApi } from '@/services/api';
 import { BlueAILogo } from '../components/ui/BlueAI-logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useHasNewSubmissions } from '@/hooks/useHasNewSubmissions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +51,7 @@ const getInitials = (name) => {
 export const Navbar = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const hasNewSubmissions = useHasNewSubmissions();
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileRef = useRef(null);
 
@@ -107,19 +109,28 @@ export const Navbar = ({ user, onLogout }) => {
               <nav className="hidden lg:flex items-center gap-1" data-testid="nav-links">
                 {NAV_ITEMS.map(({ label, path, icon: Icon }) => {
                   const active = isActive(path);
+
                   return (
                     <button
                       key={path}
                       onClick={() => navigate(path)}
                       data-testid={`nav-${label.toLowerCase()}`}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         active
                           ? 'text-blue-700 bg-blue-50'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       }`}
                     >
                       <Icon className={`w-4 h-4 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
-                      {label}
+
+                      <span className="relative">
+                        {label}
+
+                        {label === 'Assessments' && hasNewSubmissions && (
+                          <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-red-500" />
+                        )}
+                      </span>
+
                       {active && (
                         <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-blue-600 rounded-full" />
                       )}
@@ -243,7 +254,14 @@ export const Navbar = ({ user, onLogout }) => {
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <div className="relative flex items-center">
+                      <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+
+                      {label === 'Assessments' && hasNewSubmissions && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+                      )}
+                    </div>
+
                     {label}
                     {active && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600" />
