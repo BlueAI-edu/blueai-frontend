@@ -9,7 +9,11 @@ import {
   ClipboardList, Upload, BarChart3, AlertCircle, CheckCircle2,
   ChevronRight, RefreshCw, FileText, Flag, Plus, ArrowRight, Radio,
 } from 'lucide-react';
-
+import {
+  StatRowSkeleton,
+  QueueSkeleton,
+  AssessmentListSkeleton,
+} from '@/components/SkeletonLoader';
 /**
  * Teacher dashboard — deliberately lean. It answers two questions:
  * "what needs my attention right now?" (flagged submissions, live assessments)
@@ -17,10 +21,6 @@ import {
  * real data; the old OCR-health chart and priority queue were removed because
  * they rendered hardcoded or impossible values.
  */
-
-const Skeleton = ({ className }) => (
-  <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
-);
 
 // Real assessment lifecycle statuses only (draft → published → started → closed).
 const StatusBadge = ({ status }) => {
@@ -195,36 +195,38 @@ export const TeacherDashboard = ({ user }) => {
         </div>
 
         {/* ── Stat row ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map(({ label, value, icon: Icon, color, onClick, testId, showIndicator }) => {
-            const Tag = onClick ? 'button' : 'div';
-            return (
-              <Tag
-                key={label}
-                onClick={onClick || undefined}
-                className={`relative bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-left flex items-center gap-3 ${onClick ? 'hover:shadow-md transition-shadow' : ''}`}
-                data-testid={testId}
-              >
+        {assessmentsLoading && reviewLoading ? (
+          <StatRowSkeleton />
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {statCards.map(({ label, value, icon: Icon, color, onClick, testId, showIndicator }) => {
+              const Tag = onClick ? 'button' : 'div';
+              return (
+                <Tag
+                  key={label}
+                  onClick={onClick || undefined}
+                  className={`relative bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-left flex items-center gap-3 ${onClick ? 'hover:shadow-md transition-shadow' : ''}`}
+                  data-testid={testId}
+                >
                 {showIndicator && (
                   <span
                     className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white"
                     data-testid="new-submission-indicator"
                   />
                 )}
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 leading-none">
-                    {assessmentsLoading && value === 0 ? <Skeleton className="h-6 w-8" /> : value}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{label}</p>
-                </div>
-              </Tag>
-            );
-          })}
-        </div>
-
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
+                    <p className="text-xs text-gray-400 mt-1">{label}</p>
+                  </div>
+                </Tag>
+              );
+            })}
+          </div>
+        )}
+        
         {/* ── Live assessments strip ── */}
         {liveAssessments.length > 0 && (
           <div className="bg-white rounded-2xl border border-green-100 shadow-sm p-5" data-testid="live-assessments">
@@ -271,17 +273,7 @@ export const TeacherDashboard = ({ user }) => {
           </div>
 
           {reviewLoading ? (
-            <div className="space-y-3">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="flex items-center gap-3 py-2">
-                  <Skeleton className="w-8 h-8 rounded-lg" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3.5 w-40" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <QueueSkeleton itemCount={3} />
           ) : reviewError ? (
             <SectionError onRetry={loadReviewQueue} />
           ) : needsReview === 0 ? (
@@ -343,18 +335,7 @@ export const TeacherDashboard = ({ user }) => {
           </div>
 
           {assessmentsLoading ? (
-            <div className="space-y-1">
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} className="flex items-center gap-4 py-3 border-b border-gray-50 last:border-0">
-                  <Skeleton className="w-7 h-7 rounded-lg" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3.5 w-48" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                  <Skeleton className="h-5 w-20 rounded-full" />
-                </div>
-              ))}
-            </div>
+            <AssessmentListSkeleton rowCount={5} />
           ) : assessmentsError ? (
             <SectionError onRetry={loadAssessments} />
           ) : recentAssessments.length === 0 ? (

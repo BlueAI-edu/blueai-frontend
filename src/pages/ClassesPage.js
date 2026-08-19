@@ -4,11 +4,12 @@ import axios from 'axios';
 import { API } from '@/config';
 import { Navbar } from '@/components/Navbar';
 import CreateClassModal from '@/components/classes/CreateClassModal';
-import { PageLoader } from '@/components/common';
+import { ClassesGridSkeleton } from '@/components/SkeletonLoader';
 
 export const ClassesPage = ({ user }) => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
 
@@ -17,23 +18,24 @@ export const ClassesPage = ({ user }) => {
   }, []);
 
   const loadClasses = async () => {
+    setLoading(true);
+    setError(false);
     try {
       const response = await axios.get(`${API}/teacher/classes`);
       setClasses(response.data.classes);
-    } catch (error) {
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
-  if (loading) {
-    return <PageLoader />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header - static, no loading state */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900" data-testid="classes-title">Classes</h2>
@@ -63,7 +65,20 @@ export const ClassesPage = ({ user }) => {
           </div>
         </div>
 
-        {classes.length === 0 ? (
+        {/* Loading state - skeleton grid */}
+        {loading ? (
+          <ClassesGridSkeleton cardCount={6} />
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <p className="text-red-700 font-medium mb-3">Failed to load classes</p>
+            <button
+              onClick={loadClasses}
+              className="text-red-600 hover:text-red-700 font-medium text-sm"
+            >
+              Try again
+            </button>
+          </div>
+        ) : classes.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

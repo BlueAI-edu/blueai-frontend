@@ -17,11 +17,21 @@ import {
 import AIQuestionGenerator from '../components/AIQuestionGenerator';
 import MixedMathEditor from '../components/MixedMathEditor';
 import { Navbar } from '../components/Navbar';
+import {
+  RecentQuestionsSkeleton,
+  TemplatesGridSkeleton,
+} from '@/components/SkeletonLoader';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { SUBJECT_GROUPS } from '@/pages/EnhancedAssessmentBuilderPage';
 
 /**
+ * Questions tab — a working surface, not a brochure. Header + tabs + the
+ * active tool. The old hero/stats/workflow/tips panels were removed: they
+ * described the page instead of doing anything.
+ * 
+ * Progressive loading: recent questions, templates, and question bank each
+ * load independently with skeleton states.
  * Questions page — sidebar navigation + content area. Sidebar shows all modes
  * (Manual Builder, AI Generator, Browse Bank, Templates) with icon + label.
  * The active tab's content fills the main area. No horizontal tabs; no empty
@@ -349,7 +359,7 @@ export const QuestionsPage = ({ user }) => {
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
 
-        {/* ── Header ── */}
+        {/* ── Header (static, no loading state) ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-950" data-testid="questions-title">Questions</h1>
