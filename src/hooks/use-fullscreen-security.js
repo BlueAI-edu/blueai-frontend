@@ -107,11 +107,12 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       exit_count: newCount
     }).catch(() => {});
 
-    if (newCount >= 3) {
+   if (newCount >= 3) {
       setIsLockedOut(true);
       setWarningMessage('You have exited fullscreen 3 times. Your assessment will be automatically submitted.');
       setShowWarningModal(true);
-      setTimeout(() => onLockout?.(), 3000);
+      // NEW: Pass 'fullscreen_violation' reason to onLockout callback
+      setTimeout(() => onLockout?.('fullscreen_violation'), 3000);
     } else if (newCount === 2) {
       setWarningMessage(`Security breach ${newCount}/3: This is your FINAL warning! Exiting fullscreen one more time will automatically submit your assessment.`);
       setShowWarningModal(true);

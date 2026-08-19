@@ -14,11 +14,11 @@ import EnhancedFeedbackView from '../components/EnhancedFeedbackView';
 import QuestionSidebar from '../components/QuestionSidebar';
 import SecurityOverlays from '../components/SecurityOverlays';
 import { useTimer } from '../hooks/use-timer';
-import { useAutosave } from '../hooks/use-autosave';
 import { useFullscreenSecurity } from '../hooks/use-fullscreen-security';
 import { API } from '@/config';
 import { handleApiError } from '@/lib/handle-error';
 import { hasAnswer } from '@/lib/utils';
+
 
 export const EnhancedAttemptPage = () => {
   const { attemptId } = useParams();
@@ -39,6 +39,16 @@ export const EnhancedAttemptPage = () => {
   const [submitStage, setSubmitStage] = useState('');
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const mathfieldRef = useRef(null);
+  const answersRef = useRef(answers); // 🚀 NEW: Reference to hold latest answers
+
+  // 🚀 NEW: Keep the ref updated every time answers change
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  // NEW: Robust Autosave States
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Detect mobile layout on mount and resize
   useEffect(() => {
@@ -56,21 +66,10 @@ export const EnhancedAttemptPage = () => {
   };
 
   const { timeLeft } = useTimer({
-    // Per-student timing: count down from when the student personally joined.
     startedAt: attempt?.started_at ?? attempt?.joined_at,
-    // Enhanced assessments store durationMinutes (camelCase); classic fallback to duration_minutes.
     durationMinutes: assessment?.durationMinutes ?? assessment?.duration_minutes,
     enabled: !showFeedback && !submitted,
     onExpire: () => handleSubmit(true),
-  });
-
-  const { isSaving } = useAutosave({
-    attemptId,
-    data: { answers },
-    endpoint: `/public/enhanced-attempt/${attemptId}/autosave`,
-    enabled: !!attempt && !showFeedback && !submitted,
-    mode: 'debounce',
-    delay: 3000,
   });
 
   const security = useFullscreenSecurity({
@@ -79,7 +78,7 @@ export const EnhancedAttemptPage = () => {
     onLockout: async () => {
       try {
         await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
-          answers,
+          answers: answersRef.current, // 🚀 FIX: Use the ref here!
           autoSubmitted: true,
           reason: 'fullscreen_violation',
         });
@@ -94,9 +93,44 @@ export const EnhancedAttemptPage = () => {
     loadAttempt();
   }, [attemptId]);
 
+  // NEW: Bulletproof Inline Autosave Logic
+  useEffect(() => {
+    if (!hasUnsavedChanges || showFeedback || submitted) return;
+
+    // Reduced debounce to 1.5s for faster safety
+    const timer = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await axios.post(`${API}/public/enhanced-attempt/${attemptId}/autosave`, {
+          answers
+        });
+        setHasUnsavedChanges(false); // Mark as safely saved
+      } catch (error) {
+        console.error("Autosave failed", error);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1500); 
+
+    return () => clearTimeout(timer);
+  }, [answers, hasUnsavedChanges, attemptId, showFeedback, submitted]);
+
+  // NEW: Native Browser Tab-Close Prevention
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        // Chrome requires returnValue to be set
+        e.returnValue = 'You have unsaved answers. Are you sure you want to leave?';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+
   // Exit fullscreen automatically when the student has submitted so the
   // results page is not trapped behind a forced-fullscreen session.
-  // Uses vendor-prefixed variants for cross-browser support (Safari, older Chrome).
   useEffect(() => {
     const fullscreenEl =
       document.fullscreenElement ||
@@ -133,6 +167,7 @@ export const EnhancedAttemptPage = () => {
 
   const handleAnswerChange = useCallback((questionNumber, value) => {
     setAnswers(prev => ({ ...prev, [questionNumber]: value }));
+    setHasUnsavedChanges(true); // NEW: Flag that we need to save!
   }, []);
 
   const handleSubmit = async (autoSubmit = false) => {
@@ -145,46 +180,47 @@ export const EnhancedAttemptPage = () => {
   };
 
   const performSubmit = async (autoSubmit = false) => {
-  setSubmitting(true);
-  setSubmitProgress(0);
-  setSubmitStage('Preparing your answers...');
-  setShowSubmitConfirm(false);
-
-  // Simulate progress stages while request is in flight
-  const stages = [
-    { pct: 15, label: 'Preparing your answers...' },
-    { pct: 35, label: 'Saving your responses...' },
-    { pct: 60, label: 'Uploading to server...' },
-    { pct: 80, label: 'Almost there, please wait...' },
-    { pct: 90, label: 'Finalising submission...' },
-  ];
-
-  let stageIndex = 0;
-  const interval = setInterval(() => {
-    if (stageIndex < stages.length) {
-      setSubmitProgress(stages[stageIndex].pct);
-      setSubmitStage(stages[stageIndex].label);
-      stageIndex++;
-    }
-  }, 600);
-
-  try {
-    await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
-      answers,
-      autoSubmitted: autoSubmit,
-    });
-    clearInterval(interval);
-    setSubmitProgress(100);
-    setSubmitStage('Submitted successfully!');
-    setTimeout(() => setSubmitted(true), 600);
-  } catch (error) {
-    clearInterval(interval);
-    handleApiError(error, 'Failed to submit assessment');
-    setSubmitting(false);
+    setSubmitting(true);
     setSubmitProgress(0);
-    setSubmitStage('');
-  }
-};
+    setSubmitStage('Preparing your answers...');
+    setShowSubmitConfirm(false);
+
+    // Simulate progress stages while request is in flight
+    const stages = [
+      { pct: 15, label: 'Preparing your answers...' },
+      { pct: 35, label: 'Saving your responses...' },
+      { pct: 60, label: 'Uploading to server...' },
+      { pct: 80, label: 'Almost there, please wait...' },
+      { pct: 90, label: 'Finalising submission...' },
+    ];
+
+    let stageIndex = 0;
+    const interval = setInterval(() => {
+      if (stageIndex < stages.length) {
+        setSubmitProgress(stages[stageIndex].pct);
+        setSubmitStage(stages[stageIndex].label);
+        stageIndex++;
+      }
+    }, 600);
+
+    try {
+      await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
+        answers,
+        autoSubmitted: autoSubmit,
+      });
+      clearInterval(interval);
+      setSubmitProgress(100);
+      setSubmitStage('Submitted successfully!');
+      setHasUnsavedChanges(false); // NEW: Clear unsaved flag on submit
+      setTimeout(() => setSubmitted(true), 600);
+    } catch (error) {
+      clearInterval(interval);
+      handleApiError(error, 'Failed to submit assessment');
+      setSubmitting(false);
+      setSubmitProgress(0);
+      setSubmitStage('');
+    }
+  };
 
   const toggleFlag = useCallback((index) => {
     setFlaggedQuestions(prev => {
@@ -202,7 +238,6 @@ export const EnhancedAttemptPage = () => {
   const goToPreviousQuestion = useCallback(() => {
     setCurrentQuestionIndex(prev => prev > 0 ? prev - 1 : prev);
   }, []);
-
 
   const answerProgress = useMemo(() => {
     if (!assessment?.questions) return { answeredCount: 0, totalItems: 0 };
@@ -222,7 +257,6 @@ export const EnhancedAttemptPage = () => {
     });
     return { answeredCount, totalItems };
   }, [assessment?.questions, answers, hasAnswer]);
-
 
   if (loading) {
     return (
@@ -287,8 +321,6 @@ export const EnhancedAttemptPage = () => {
     return <EnhancedFeedbackView attempt={attempt} assessment={assessment} />;
   }
 
-  // Security overlays (fullscreen prompt + warning modal) — must be checked after
-  // the feedback guard so overlay doesn't block the results screen
   const securityOverlay = (
     <SecurityOverlays
       showWarningModal={security.showWarningModal}
@@ -321,7 +353,6 @@ export const EnhancedAttemptPage = () => {
 
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
 
-  // Respect explicit teacher override; fall back to keyword auto-detection.
   const shouldDraw = (entity, text) => {
     if (entity?.drawingEnabled === true) return true;
     if (entity?.drawingEnabled === false) return false;
@@ -338,8 +369,6 @@ export const EnhancedAttemptPage = () => {
         if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'p'].includes(e.key.toLowerCase())) {
           e.preventDefault();
         }
-        // Note: Escape key cannot truly be blocked from exiting fullscreen at the
-        // browser level; it is intercepted and logged by the security hook instead.
       }}
     >
       <QuestionSidebar
@@ -356,7 +385,6 @@ export const EnhancedAttemptPage = () => {
         answerProgress={answerProgress}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -395,7 +423,6 @@ export const EnhancedAttemptPage = () => {
               <DiagramRenderer diagram={currentQuestion.stimulusBlock} className="mt-2" />
             )}
 
-            {/* Question-level drawing canvas for structured questions whose body requires a sketch */}
             {currentQuestion.questionType === 'STRUCTURED_WITH_PARTS' && (() => {
               const qNeedsDrawing = shouldDraw(currentQuestion, currentQuestion.questionBody);
               if (!qNeedsDrawing) return null;
@@ -405,7 +432,7 @@ export const EnhancedAttemptPage = () => {
                 try {
                   const p = JSON.parse(answers[sketchKey]);
                   if (p?._type === 'drawing') savedSketch = p.imageData;
-                } catch { /* not a drawing answer */ }
+                } catch { }
               }
               return (
                 <div className="mt-4 border border-purple-200 bg-purple-50 rounded-lg p-4">
@@ -424,19 +451,17 @@ export const EnhancedAttemptPage = () => {
               );
             })()}
 
-            {/* Structured Question Parts */}
             {currentQuestion.questionType === 'STRUCTURED_WITH_PARTS' && currentQuestion.parts && currentQuestion.parts.length > 0 && (
               <div className="mt-6 space-y-6">
                 {currentQuestion.parts.map((part, idx) => {
                   const partAnswerKey = `${currentQuestion.questionNumber}-${part.partLabel}`;
                   const partNeedsDrawing = shouldDraw(part, part.partPrompt);
-                  // Recover saved drawing data if any
                   let savedDrawingData = null;
                   if (partNeedsDrawing && answers[partAnswerKey]) {
                     try {
                       const p = JSON.parse(answers[partAnswerKey]);
                       if (p?._type === 'drawing') savedDrawingData = p.imageData;
-                    } catch { /* not a drawing answer */ }
+                    } catch { }
                   }
                   return (
                     <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
@@ -499,7 +524,6 @@ export const EnhancedAttemptPage = () => {
               </div>
             )}
 
-            {/* Multiple Choice */}
             {currentQuestion.questionType === 'MULTIPLE_CHOICE' && currentQuestion.options && (
               <div className="mt-6 space-y-3">
                 {currentQuestion.options.map((option, idx) => {
@@ -529,7 +553,6 @@ export const EnhancedAttemptPage = () => {
             )}
           </div>
 
-          {/* Answer Input for non-MCQ and non-Structured */}
           {currentQuestion.questionType !== 'MULTIPLE_CHOICE' &&
            currentQuestion.questionType !== 'STRUCTURED_WITH_PARTS' && (() => {
             const needsDrawing = shouldDraw(currentQuestion, currentQuestion.questionBody);
@@ -538,10 +561,8 @@ export const EnhancedAttemptPage = () => {
               try {
                 const p = JSON.parse(answers[currentQuestion.questionNumber]);
                 if (p?._type === 'drawing') savedDrawing = p.imageData;
-              } catch { /* not a drawing answer */ }
+              } catch { }
             }
-            // Structured graph answer (diagram pipeline D4) — takes precedence
-            // over the freehand canvas because it is machine-markable.
             const graphSpec = currentQuestion.graphSpec;
             let savedGraph = null;
             if (graphSpec && answers[currentQuestion.questionNumber]) {
@@ -550,7 +571,6 @@ export const EnhancedAttemptPage = () => {
                 if (p?._type === 'graph_plot') savedGraph = p;
               } catch { /* not a graph answer */ }
             }
-            // Complete-the-diagram labelling (pipeline D5) — also machine-marked.
             const labelImage = currentQuestion.diagramLabels && currentQuestion.stimulusBlock?.type === 'image'
               ? currentQuestion.stimulusBlock.content
               : null;
@@ -619,8 +639,6 @@ export const EnhancedAttemptPage = () => {
             );
           })()}
 
-          {/* Assessment-wide tool panels */}
-          {/* ── Maths & Science Keyboard (right-panel, draggable) ──────────────────── */}
           {assessment.mathKeyboardEnabled && showMathKeyboard && (
             <MathsliveKeyboardPanel
               shown={showMathKeyboard}
@@ -631,7 +649,6 @@ export const EnhancedAttemptPage = () => {
             />
           )}
 
-          {/* ── Scientific Calculator (bottom-left, draggable) ──────────────────────── */}
           {assessment.calculatorAllowed && showCalculator && (
             <StudentCalculator
               onClose={() => setShowCalculator(false)}
@@ -639,7 +656,6 @@ export const EnhancedAttemptPage = () => {
               />
           )}
 
-          {/* ── Floating toggle buttons (fixed bottom-right, never move) ───────────── */}
           {(assessment.calculatorAllowed || assessment.mathKeyboardEnabled) && (
             <div className="fixed right-4 bottom-8 flex flex-col gap-2 z-50">
               {assessment.calculatorAllowed && (
@@ -652,7 +668,6 @@ export const EnhancedAttemptPage = () => {
                       : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
                 >
-                  {/* Calculator icon */}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                       d="M9 7H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V9a2 2 0 00-2-2h-2M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01" />
@@ -672,7 +687,6 @@ export const EnhancedAttemptPage = () => {
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  {/* Keyboard icon */}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                       d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
@@ -684,7 +698,6 @@ export const EnhancedAttemptPage = () => {
             </div>
           )}
 
-          {/* Navigation Buttons */}
           <div className="flex justify-between mt-8">
             <button
               onClick={goToPreviousQuestion}
@@ -719,11 +732,9 @@ export const EnhancedAttemptPage = () => {
           </div>
         </div>
       </div>
-      {/* Submission Loading Overlay */}
       {submitting && (
         <div className="fixed inset-0 bg-white z-50 flex items-center justify-center p-6">
           <div className="max-w-sm w-full text-center">
-            {/* Animated icon */}
             <div className="w-20 h-20 mx-auto mb-6 relative">
               <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
               <div
@@ -741,7 +752,6 @@ export const EnhancedAttemptPage = () => {
               Please <span className="font-semibold text-gray-700">do not close this tab</span> until submission is complete.
             </p>
 
-            {/* Progress bar */}
             <div className="w-full bg-gray-100 rounded-full h-3 mb-3 overflow-hidden">
               <div
                 className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500 ease-out"
@@ -760,7 +770,6 @@ export const EnhancedAttemptPage = () => {
           </div>
         </div>
       )}
-      {/* Submit Confirmation Modal */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">

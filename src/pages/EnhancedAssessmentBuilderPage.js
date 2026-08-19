@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/common';
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
 const AIBulkGenerator = lazy(() => import('../components/EnhancedAssessmentBuilder/AIBulkGenerator'));
+const QuestionBankPicker = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionBankPicker'));
 const OCRExtractionReview = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRExtractionReview'));
 const OCRUploadStep = lazy(() => import('../components/EnhancedAssessmentBuilder/OCRUploadStep'));
 
@@ -61,8 +62,14 @@ export const SUBJECT_GROUPS = [
 
 export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { assessmentId } = useParams();
   const isEdit = !!assessmentId;
+  // Set when arriving from QuestionsPage's Browse Bank "Create Assessment from Selected"
+  // bulk action (navigate(..., { state: { bankQuestionIds } })) — injected
+  // once the teacher reaches the question-review step, see the effect below.
+  const bankQuestionIdsFromNav = location.state?.bankQuestionIds || null;
+  const bankInjectedRef = useRef(false);
 
   const [loading, setLoading] = useState(isEdit);
   const [runSave, saving] = useAsync();
@@ -103,6 +110,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   const [classesLoading, setClassesLoading] = useState(false);
 
   const [showAIBulk, setShowAIBulk] = useState(false);
+  const [showBankPicker, setShowBankPicker] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractProgress, setExtractProgress] = useState(0);
   const [extractStuck, setExtractStuck] = useState(false);
@@ -359,6 +367,37 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     });
     setShowAIBulk(false);
   }, []);
+
+  const handleAddFromBank = useCallback((questions) => {
+    setAssessmentData(prev => {
+      const numbered = questions.map((q, i) => ({
+        ...q,
+        questionNumber: prev.questions.length + i + 1
+      }));
+      return { ...prev, questions: [...prev.questions, ...numbered] };
+    });
+    setShowBankPicker(false);
+  }, []);
+
+  // Pre-populate questions selected from the Question Bank page, once the
+  // teacher reaches the question-review step (currentStep 3) with a fresh
+  // (not-yet-edited) assessment — avoids clobbering questions already added
+  // manually/via AI/OCR if the teacher navigates back and forth.
+  useEffect(() => {
+    if (!bankQuestionIdsFromNav || bankInjectedRef.current) return;
+    if (currentStep !== 3 || assessmentData.questions.length > 0) return;
+    bankInjectedRef.current = true;
+    (async () => {
+      try {
+        const response = await axios.post(`${API}/teacher/questions/to-enhanced`, {
+          question_ids: bankQuestionIdsFromNav,
+        });
+        handleAddFromBank(response.data.questions);
+      } catch (err) {
+        showNotification(getApiErrorMessage(err, 'Failed to load selected bank questions'), 'error');
+      }
+    })();
+  }, [currentStep, bankQuestionIdsFromNav, assessmentData.questions.length, handleAddFromBank]);
 
   const showNotification = (message, type = 'info') => {
     // Handle error objects/arrays
@@ -1092,8 +1131,43 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                     🤖 Generate Questions with AI
                   </button>
                 )}
+                {/* Bank questions have no parts[] — hidden for structured mode,
+                    same reasoning AIBulkGenerator uses to exclude GRAPH_PLOT there. */}
+                {assessmentData.assessmentMode !== OCR_GCSE_MODE &&
+                  assessmentData.assessmentMode !== 'EXAM_STRUCTURED_GCSE_STYLE' && (
+                  <button
+                    onClick={() => setShowBankPicker(true)}
+                    className="flex-1 py-4 border-2 border-dashed border-emerald-300 rounded-lg hover:border-emerald-400 hover:bg-emerald-50 text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+                  >
+                    📚 Add from Question Bank
+                  </button>
+                )}
               </div>
             </div>
+            )}
+
+            {showBankPicker && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                  <div className="p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-bold">Add from Question Bank</h3>
+                      <button
+                        onClick={() => setShowBankPicker(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <Suspense fallback={<div className="p-4 text-center text-gray-500">Loading question bank...</div>}>
+                      <QuestionBankPicker
+                        onQuestionsAdded={handleAddFromBank}
+                        onCancel={() => setShowBankPicker(false)}
+                      />
+                    </Suspense>
+                  </div>
+                </div>
+              </div>
             )}
 
             {showAIBulk && (

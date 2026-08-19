@@ -57,7 +57,7 @@ export const teacherApi = {
   createQuestion: (data) => client.post('/teacher/questions', data),
   updateQuestion: (id, data) => client.put(`/teacher/questions/${id}`, data),
   deleteQuestion: (id) => client.delete(`/teacher/questions/${id}`),
-  generateQuestion: (data) => client.post('/teacher/questions/generate', data),
+  generateQuestion: (data) => client.post('/teacher/questions/ai-generate', data),
 
   // Templates
   getTemplates: () => client.get('/teacher/templates'),
@@ -72,33 +72,26 @@ export const teacherApi = {
   deleteClass: (id) => client.delete(`/teacher/classes/${id}`),
   getClassAssignments: (classId) => client.get(`/teacher/classes/${classId}/assignments`),
 
-  // Students
+  // Students (routes are teacher-scoped, not class-scoped — class_id goes in the body on create)
   getStudent: (id) => client.get(`/teacher/students/${id}`),
-  addStudent: (classId, data) => client.post(`/teacher/classes/${classId}/students`, data),
-  updateStudent: (classId, studentId, data) =>
-    client.put(`/teacher/classes/${classId}/students/${studentId}`, data),
-  deleteStudent: (classId, studentId) =>
-    client.delete(`/teacher/classes/${classId}/students/${studentId}`),
+  addStudent: (classId, data) => client.post('/teacher/students', { class_id: classId, ...data }),
+  updateStudent: (studentId, data) => client.put(`/teacher/students/${studentId}`, data),
+  deleteStudent: (studentId) => client.delete(`/teacher/students/${studentId}`),
 
   // Submissions
-  getAttempts: (assessmentId) => client.get(`/teacher/assessments/${assessmentId}/attempts`),
-  getAttempt: (id) => client.get(`/teacher/attempts/${id}`),
+  getAttempt: (id) => client.get(`/teacher/submissions/${id}`),
   getEnhancedAttempt: (id) => client.get(`/teacher/submissions/${id}/enhanced`),
   markEnhancedAttempt: (id, data) => client.post(`/teacher/submissions/${id}/mark-enhanced`, data),
   autoMarkAttempt: (id) => client.post(`/teacher/submissions/${id}/auto-mark`),
 
   // Analytics
-  getAnalytics: () => client.get('/teacher/analytics/dashboard'),
   getAssessmentAnalytics: (id) => client.get(`/teacher/analytics/assessment/${id}/full`),
   getMathAnalytics: (params) => client.get('/teacher/analytics/math-performance', { params }),
 
   // Usage
   getUsage: () => client.get('/teacher/usage'),
 
-  // Profile
-  getProfile: () => client.get('/teacher/profile'),
-  updateProfile: (data) => client.put('/teacher/profile', data),
-  changePassword: (data) => client.put('/teacher/change-password', data),
+  // Profile lives under authApi (backend routes are /auth/me and /auth/profile)
 };
 
 // ─── Public endpoints (student-facing) ───────────────────────────────────────
@@ -108,7 +101,7 @@ export const publicApi = {
   submitAnswer: (attemptId, data) => client.post(`/public/attempt/${attemptId}/submit`, data),
   submitEnhancedAnswer: (attemptId, data) =>
     client.post(`/public/enhanced-attempt/${attemptId}/submit`, data),
-  getAttemptStatus: (attemptId) => client.get(`/public/attempt/${attemptId}/status`),
+  getAttempt: (attemptId) => client.get(`/public/attempt/${attemptId}`),
 };
 
 // ─── Admin endpoints ──────────────────────────────────────────────────────────
@@ -122,6 +115,45 @@ export const adminApi = {
   updateUserUsage: (userId, data) => client.put(`/admin/usage/${userId}`, data),
   resetUserUsage: (userId) => client.post(`/admin/usage/${userId}/reset`),
   getAllAssessments: () => client.get('/admin/assessments'),
+
+  // Microsoft Entra connector (#269, org-scoped). organisationId is required
+  // for platform admins; school_admins omit it (backend enforces their own org)
+  getEntraConsentUrl: (organisationId) =>
+    client.get('/admin/entra/consent-url', {
+      params: organisationId ? { organisation_id: organisationId } : {},
+    }),
+  getEntraConnections: (organisationId) =>
+    client.get('/admin/entra/connections', {
+      params: organisationId ? { organisation_id: organisationId } : {},
+    }),
+  deleteEntraConnection: (tenantId, organisationId) =>
+    client.delete(`/admin/entra/connections/${tenantId}`, {
+      params: organisationId ? { organisation_id: organisationId } : {},
+    }),
+  getEntraUsers: (tenantId, search, organisationId) =>
+    client.get('/admin/entra/users', {
+      params: {
+        tenant_id: tenantId,
+        search: search || '',
+        ...(organisationId ? { organisation_id: organisationId } : {}),
+      },
+    }),
+  provisionEntraTeachers: (tenantId, users, { includeClasses = false, organisationId = null } = {}) =>
+    client.post('/admin/entra/provision', {
+      tenant_id: tenantId,
+      users,
+      include_classes: includeClasses,
+      ...(organisationId ? { organisation_id: organisationId } : {}),
+    }),
+
+  // Organisations / school admins (#269 Phase A)
+  getOrganisations: () => client.get('/admin/organisations'),
+  createOrganisation: (data) => client.post('/admin/organisations', data),
+  deleteOrganisation: (id) => client.delete(`/admin/organisations/${id}`),
+  addSchoolAdmin: (organisationId, data) =>
+    client.post(`/admin/organisations/${organisationId}/school-admins`, data),
+  removeSchoolAdmin: (organisationId, userId) =>
+    client.delete(`/admin/organisations/${organisationId}/school-admins/${userId}`),
 };
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
