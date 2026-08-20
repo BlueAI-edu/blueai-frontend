@@ -4,6 +4,8 @@ import { lazy, Suspense } from 'react';
 import axios from 'axios';
 import { Toaster } from '@/components/ui/toaster';
 import { PageLoader } from '@/components/common';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import './Chunkerrorhandler'; // Import chunk error handler (runs on load)
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
@@ -35,7 +37,6 @@ const OCRUploadPage = lazy(() => import('./components/OCRUploadPage').then(m => 
 const OCRReviewPage = lazy(() => import('./components/OCRReviewPage').then(m => ({ default: m.default || m.OCRReviewPage })));
 const OCRModerationPage = lazy(() => import('./components/OCRModerationPage').then(m => ({ default: m.default || m.OCRModerationPage })));
 const HelpPage = lazy(() => import('./pages/HelpPage').then(m => ({ default: m.HelpPage })));
-
 
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m => ({ default: m.ProtectedRoute })));
 
@@ -96,11 +97,20 @@ function App() {
   );
 }
 
+/**
+ * AppWrapper with ErrorBoundary
+ * Wraps the entire app with error handling:
+ * - ErrorBoundary catches React rendering errors
+ * - chunkErrorHandler catches chunk loading errors
+ * - Provides fallback UI instead of the crash popup
+ */
 export default function AppWrapper() {
   return (
-    <BrowserRouter>
-      <App />
-      <Toaster />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+        <Toaster />
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
