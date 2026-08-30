@@ -17,6 +17,7 @@ export const CSVImportPage = ({ user }) => {
   const [importResult, setImportResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const downloadTemplate = async () => {
     try {
@@ -35,11 +36,10 @@ export const CSVImportPage = ({ user }) => {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const MAX_CSV_SIZE = 2 * 1024 * 1024; // 2MB
 
-    const MAX_CSV_SIZE = 2 * 1024 * 1024; // 2MB
+  const processFile = (file) => {
+    if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
       setError('Please select a CSV file (.csv)');
@@ -54,6 +54,29 @@ export const CSVImportPage = ({ user }) => {
     setSelectedFile(file);
     setFileName(file.name);
     setError('');
+  };
+
+  const handleFileSelect = (e) => {
+    processFile(e.target.files[0]);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+    processFile(e.dataTransfer.files?.[0]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
   };
 
   const handlePreview = async () => {
@@ -186,8 +209,12 @@ export const CSVImportPage = ({ user }) => {
             </div>
 
             <div 
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
               onClick={() => fileInputRef.current?.click()}
+              onDragEnter={handleDragOver}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <input
                 type="file"
