@@ -444,6 +444,9 @@ export const AdminDashboard = ({ user }) => {
   const [activitySummary, setActivitySummary] = useState(null);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityFilter, setActivityFilter] = useState({ user_id: '', user_email: '', errors_only: false, since_hours: 24 });
+  const [ocrMetrics, setOcrMetrics] = useState(null);
+  const [ocrMetricsLoading, setOcrMetricsLoading] = useState(false);
+  const [ocrMetricsSinceHours, setOcrMetricsSinceHours] = useState(24);
 
   const navigate = useNavigate();
 
@@ -497,6 +500,22 @@ export const AdminDashboard = ({ user }) => {
     }
   }, [activityFilter]);
 
+  const loadOcrMetrics = useCallback(async (sinceHours = ocrMetricsSinceHours) => {
+    setOcrMetricsLoading(true);
+
+    try {
+      const res = await axios.get(
+        `${API}/ocr/admin/activity/metrics?since_hours=${sinceHours}`
+      );
+
+      setOcrMetrics(res.data);
+    } catch (error) {
+      handleApiError(error, 'Failed to load OCR metrics');
+    } finally {
+      setOcrMetricsLoading(false);
+    }
+  }, [ocrMetricsSinceHours]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -512,7 +531,10 @@ export const AdminDashboard = ({ user }) => {
 
   useEffect(() => {
     if (activeTab === 'usage') loadUsage();
-    if (activeTab === 'activity') loadActivity();
+    if (activeTab === 'activity') {
+      loadActivity();
+      loadOcrMetrics();
+    }
   }, [activeTab]); // intentionally omit loadUsage/loadActivity — only re-run when tab changes
 
   const handleRoleChange = async (teacherId, newRole) => {
@@ -923,6 +945,206 @@ export const AdminDashboard = ({ user }) => {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* OCR Metrics */}
+            <div className = "bg-white rounded-lg shadow overflow-hidden">
+              <div className="px-6 py-4 border-b flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    OCR Metrics
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    OCR extraction performance and confidence monitoring
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <select
+                    value={ocrMetricsSinceHours}
+                    onChange={async (e) => {
+                      const hours = Number(e.target.value);
+                      setOcrMetricsSinceHours(hours);
+                      await loadOcrMetrics(hours);
+                    }}
+                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={1}>Last 1 hour</option>
+                    <option value={6}>Last 6 hours</option>
+                    <option value={24}>Last 24 hours</option>
+                    <option value={72}>Last 3 days</option>
+                    <option value={168}>Last 7 days</option>
+                    <option value={720}>Last 30 days</option>
+                  </select>
+
+                  <button
+                    onClick={() => loadOcrMetrics(ocrMetricsSinceHours)}
+                    disabled={ocrMetricsLoading}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+                  >
+                    {ocrMetricsLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {ocrMetricsLoading && !ocrMetrics ? (
+              <div className="text-center py-12 text-gray-500">
+                Loading OCR metrics...
+              </div>
+            ) : !ocrMetrics ? (
+              <div className="text-center py-12 text-gray-400">
+                No OCR metrics available.
+              </div>
+            ) : (
+              <div className="p-6 space-y-6">
+
+                {/* Metric cards */}
+                <div className="grid grid-cols-3 gap-4">
+
+                  {/* Extraction time */}
+                  <div className="border border-gray-200 rounded-lg px-5 py-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Avg. Extraction Time
+                    </p>
+
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {ocrMetrics.average_extraction_time_ms}
+                      </p>
+                      <span className="text-sm text-gray-500">ms</span>
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-2">
+                      Across {ocrMetrics.total_extractions} extraction
+                      {ocrMetrics.total_extractions === 1 ? '' : 's'}
+                    </p>
+                  </div>
+
+                  {/* Error rate */}
+                  <div className="border border-gray-200 rounded-lg px-5 py-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      OCR Error Rate
+                    </p>
+
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <p
+                        className={`text-2xl font-bold ${
+                          ocrMetrics.error_rate_pct >= 10
+                            ? 'text-red-600'
+                            : ocrMetrics.error_rate_pct >= 5
+                              ? 'text-amber-600'
+                              : 'text-green-600'
+                        }`}
+                      >
+                        {ocrMetrics.error_rate_pct}%
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-2">
+                      {ocrMetrics.failed_pages} failed of {ocrMetrics.total_pages} pages
+                    </p>
+                  </div>
+
+                  {/* Average confidence */}
+                  <div className="border border-gray-200 rounded-lg px-5 py-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Avg. Confidence
+                    </p>
+
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {(ocrMetrics.average_confidence * 100).toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-2">
+                      Minimum: {(ocrMetrics.min_confidence * 100).toFixed(1)}%
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* Supporting extraction totals */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-50 rounded-lg px-4 py-3">
+                    <p className="text-xs text-gray-500">Total Extractions</p>
+                    <p className="text-lg font-semibold text-gray-900 mt-1">
+                      {ocrMetrics.total_extractions}
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg px-4 py-3">
+                    <p className="text-xs text-gray-500">Successful Pages</p>
+                    <p className="text-lg font-semibold text-green-700 mt-1">
+                      {ocrMetrics.successful_pages}
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg px-4 py-3">
+                    <p className="text-xs text-gray-500">Failed Pages</p>
+                    <p className="text-lg font-semibold text-red-600 mt-1">
+                      {ocrMetrics.failed_pages}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Confidence distribution */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700">
+                        Confidence Distribution
+                      </h4>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Distribution of OCR confidence scores
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {Object.entries(
+                      ocrMetrics.confidence_distribution || {}
+                    ).map(([bucket, count]) => {
+                      const totalConfidenceValues = Object.values(
+                        ocrMetrics.confidence_distribution || {}
+                      ).reduce((sum, value) => sum + value, 0);
+
+                      const percentage = totalConfidenceValues
+                        ? Math.round((count / totalConfidenceValues) * 100)
+                        : 0;
+
+                      return (
+                        <div key={bucket} className="flex items-center gap-3">
+                          <span className="w-20 text-xs font-mono text-gray-600">
+                            {bucket}
+                          </span>
+
+                          <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-full transition-all"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+
+                          <span className="w-20 text-xs text-gray-500 text-right">
+                            {count} ({percentage}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {Object.values(
+                    ocrMetrics.confidence_distribution || {}
+                  ).reduce((sum, value) => sum + value, 0) === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">
+                      No confidence data available for this period.
+                    </p>
+                  )}
+                </div>
+
               </div>
             )}
           </div>
