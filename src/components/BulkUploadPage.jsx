@@ -25,6 +25,7 @@ export default function BulkUploadPage({ user }) {
   const [batch, setBatch] = useState(null);
   const [starting, setStarting] = useState(false);
   const pollRef = useRef(null);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -65,9 +66,7 @@ export default function BulkUploadPage({ user }) {
     }, 3000);
   };
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    e.target.value = '';
+  const processFile = (selected) => {
     if (!selected) return;
     if (selected.type !== 'application/pdf') {
       toast({ title: 'Unsupported file type', description: 'Bulk upload requires a single PDF file.', variant: 'destructive' });
@@ -78,6 +77,31 @@ export default function BulkUploadPage({ user }) {
       return;
     }
     setFile(selected);
+  };
+
+  const handleFileChange = (e) => {
+    processFile(e.target.files[0]);
+    e.target.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+    if (starting) return;
+    processFile(e.dataTransfer.files?.[0]);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!starting) setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
   };
 
   const handleStart = async (e) => {
@@ -197,7 +221,14 @@ export default function BulkUploadPage({ user }) {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Class Set PDF <span className="text-red-500">*</span>
                 </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-all hover:bg-blue-50/50">
+                <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+                  isDragActive ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/50'
+                }`}
+                onDragEnter={handleDragOver}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                >
                   <input
                     type="file"
                     onChange={handleFileChange}
