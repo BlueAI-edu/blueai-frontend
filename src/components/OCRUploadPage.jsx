@@ -16,6 +16,7 @@ export default function OCRUploadPage({ user }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
     fetchAssessments();
@@ -39,8 +40,7 @@ export default function OCRUploadPage({ user }) {
   const MAX_OCR_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   const MAX_OCR_FILES = 20;
 
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
+  const processFiles = (selectedFiles) => {
     const nextFiles = [...files, ...selectedFiles];
 
     if (nextFiles.length > MAX_OCR_FILES) {
@@ -60,7 +60,32 @@ export default function OCRUploadPage({ user }) {
     }
 
     setFiles(nextFiles);
+  };
+
+  const handleFileChange = (e) => {
+    processFiles(Array.from(e.target.files));
     e.target.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+    if (loading) return;
+    processFiles(Array.from(e.dataTransfer.files || []));
+  };
+
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!loading) setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
   };
 
   const handleSubmit = async (e) => {
@@ -248,7 +273,14 @@ export default function OCRUploadPage({ user }) {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Upload Files <span className="text-red-500">*</span>
                 </label>
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-all hover:bg-blue-50/50">
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all 
+                  ${isDragActive ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/50'}`}
+                  onDragEnter={handleDragOver}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
                   <input
                     type="file"
                     onChange={handleFileChange}
