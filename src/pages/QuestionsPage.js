@@ -529,7 +529,14 @@ export const QuestionsPage = ({ user }) => {
             {/* AI Generator Tab */}
             {activeTab === 'ai' && (
               <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <AIQuestionGenerator user={user} onQuestionsGenerated={loadQuestions} />
+                <AIQuestionGenerator 
+                  user={user} 
+                  onQuestionsGenerated={loadQuestions} 
+                  onGenerationSuccess={() => {
+                    showSuccess('Questions generated successfully.');
+                  }}
+                  scrollToGeneratedQuestions
+                />
               </section>
             )}
 

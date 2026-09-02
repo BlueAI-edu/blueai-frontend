@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import MixedMathEditor from './MixedMathEditor';
 import LaTeXRenderer from './LaTeXRenderer';
@@ -26,7 +26,10 @@ const diagramOptions = [
   { value: 'prompt', label: 'Generate diagram prompt' }
 ];
 
-const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
+const AIQuestionGenerator = ({ user, 
+  onQuestionsGenerated, 
+  onGenerationSuccess, 
+  scrollToGeneratedQuestions = false, }) => {
   const [formData, setFormData] = useState({
     subject: 'Mathematics',
     key_stage: 'KS4',
@@ -50,6 +53,19 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
   const [selectedQuestions, setSelectedQuestions] = useState(new Set());
   const [error, setError] = useState('');
+
+  const generatedQuestionsRef = useRef(null);
+
+  useEffect(() => {
+    if (!scrollToGeneratedQuestions || generatedQuestions.length === 0) {
+      return;
+    }
+
+    generatedQuestionsRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [generatedQuestions, scrollToGeneratedQuestions]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -78,6 +94,8 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
         const questionsData = response.data.questions || [];
         setGeneratedQuestions(questionsData);
         setSelectedQuestions(new Set());
+
+        onGenerationSuccess?.()
       },
       (err) => setError(getApiErrorMessage(err, 'Failed to generate questions. Please try again.'))
     );
@@ -391,7 +409,7 @@ const AIQuestionGenerator = ({ user, onQuestionsGenerated }) => {
 
       {/* Generated Questions Preview */}
       {generatedQuestions.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div ref={generatedQuestionsRef} className="bg-white p-6 rounded-lg shadow">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-gray-900">Generated Questions ({generatedQuestions.length})</h3>
             <button
