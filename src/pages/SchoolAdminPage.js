@@ -2,15 +2,20 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/services/api';
 import { BlueAILogo } from '@/components/ui/BlueAI-logo';
 import { EntraConnectorPanel } from '@/components/EntraConnectorPanel';
+import { SchoolManagementPanel } from '@/components/SchoolManagementPanel';
 
 /**
- * School admin console (#269 Phase A).
+ * School admin console (#269 Phase A, extended with teacher/class
+ * visibility in #307).
  *
  * The landing surface for the school_admin role — a school/MAT's named IT
- * contact. Deliberately not the teacher Navbar: school admins have no teacher
- * surface (assessments, classes, analytics all 403 for them). MVP scope is
- * the Entra connection + teacher/class provisioning for their organisation;
- * the backend scopes every call to their own org.
+ * contact. Deliberately not the teacher Navbar: school admins have no
+ * teacher surface (assessments, classes, analytics all 403 for them).
+ * EntraConnectorPanel connects the tenant and provisions new teachers/
+ * classes from the directory; SchoolManagementPanel is the other half —
+ * viewing (and lightly managing) the teachers/classes/students that
+ * already exist in BlueAI once provisioned. The backend scopes every call
+ * on this page to their own organisation.
  */
 export const SchoolAdminPage = ({ user }) => {
   const navigate = useNavigate();
@@ -54,6 +59,7 @@ export const SchoolAdminPage = ({ user }) => {
           Connect your Microsoft tenant, then add your teachers and their classes from your directory.
         </p>
         <EntraConnectorPanel />
+        <SchoolManagementPanel />
       </main>
     </div>
   );
