@@ -200,6 +200,17 @@ export default function OCRUploadPage({ user }) {
                   </button>
                   {' '}— BlueAI will detect and split each student's script automatically.
                 </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  Already have a separate file per student?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/teacher/bulk-assessment-upload')}
+                    className="font-semibold underline hover:text-blue-900"
+                  >
+                    Upload up to 35 files at once
+                  </button>
+                  {' '}— no splitting needed, each file becomes its own submission.
+                </p>
               </div>
             </div>
           </CardContent>

@@ -286,6 +286,10 @@ export default function BulkUploadPage({ user }) {
                       }}
                     />
                   </div>
+                  <p className="text-xs text-blue-700">
+                    Splitting a large class set can take a little while — it's safe to close this tab
+                    and come back later, processing continues in the background and won't be lost.
+                  </p>
                 </div>
               )}
 
