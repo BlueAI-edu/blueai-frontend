@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -59,7 +59,7 @@ const actionBorder = (priority) => {
   return 'border-green-300 bg-green-50';
 };
 
-const TABS = ['Overview', 'Questions', 'Students', 'Topics', 'Errors', 'Actions'];
+const TABS = ['Overview', 'Questions', 'Students', 'Topics', 'Errors', 'Actions', 'Misconceptions'];
 
 // ------------------------------------------------------------------ //
 // Main page
@@ -194,6 +194,7 @@ export const AssessmentAnalyticsPage = ({ user }) => {
             {activeTab === 'Topics' && <TopicsTab topics={topics} />}
             {activeTab === 'Errors' && <ErrorsTab errors={errors} />}
             {activeTab === 'Actions' && <ActionsTab actions={actions} />}
+            {activeTab === 'Misconceptions' && <MisconceptionsTab assessmentId={assessmentId} />}
           </>
         )}
       </div>
@@ -600,6 +601,217 @@ const ErrorsTab = ({ errors }) => {
           </table>
         )}
       </div>
+    </div>
+  );
+};
+
+// ------------------------------------------------------------------ //
+// Tab: Misconceptions (#279)
+// ------------------------------------------------------------------ //
+
+/**
+ * BlueAI surfaces and suggests; the teacher stays fully in control. This
+ * tab never runs anything automatically — "Analyse Misconceptions" is a
+ * deliberate teacher click, and every detected instance sits as
+ * "unconfirmed" until the teacher confirms, corrects, or dismisses it.
+ * Aggregated rows (one per canonical_tag, grouping the same misconception
+ * across students) expand to the individual per-student instances, since
+ * moderation acts on one instance at a time.
+ */
+const MisconceptionsTab = ({ assessmentId }) => {
+  const [misconceptions, setMisconceptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [runStatus, setRunStatus] = useState(null);
+  const [expandedTag, setExpandedTag] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const pollRef = useRef(null);
+
+  const load = () => {
+    axios
+      .get(`${API}/teacher/assessments/${assessmentId}/misconceptions`)
+      .then((res) => setMisconceptions(res.data.misconceptions || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [assessmentId]);
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
+    setRunStatus('running');
+    try {
+      const res = await axios.post(`${API}/teacher/assessments/${assessmentId}/misconceptions/analyze`);
+      const runId = res.data.run_id;
+      pollRef.current = setInterval(async () => {
+        try {
+          const runRes = await axios.get(
+            `${API}/teacher/assessments/${assessmentId}/misconceptions/runs/${runId}`
+          );
+          if (runRes.data.status !== 'running') {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+            setRunStatus(runRes.data.status);
+            setAnalyzing(false);
+            load();
+          }
+        } catch {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+          setAnalyzing(false);
+        }
+      }, 3000);
+    } catch {
+      setAnalyzing(false);
+      setRunStatus('error');
+    }
+  };
+
+  const handleAction = async (instanceId, action, payload) => {
+    if (action === 'confirm') {
+      await axios.post(`${API}/misconceptions/${instanceId}/confirm`);
+    } else if (action === 'dismiss') {
+      await axios.post(`${API}/misconceptions/${instanceId}/dismiss`);
+    } else if (action === 'correct') {
+      await axios.put(`${API}/misconceptions/${instanceId}`, payload);
+      setEditingId(null);
+    }
+    load();
+  };
+
+  if (loading) {
+    return <p className="text-sm text-gray-400 px-1">Loading misconceptions…</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700">Misconception Analysis</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            AI reviews missed mark points across marked submissions and suggests where understanding may be
+            breaking down. Nothing here is confirmed automatically — review each and confirm, correct, or dismiss.
+          </p>
+        </div>
+        <button
+          onClick={handleAnalyze}
+          disabled={analyzing}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
+        >
+          {analyzing ? 'Analysing…' : 'Analyse Misconceptions'}
+        </button>
+      </div>
+
+      {runStatus === 'error' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          Analysis failed — please try again.
+        </div>
+      )}
+
+      {misconceptions.length === 0 ? (
+        <div className="bg-white rounded-lg p-8 text-center text-gray-400 border border-dashed border-gray-200">
+          <p className="text-sm">No misconceptions identified yet — click "Analyse Misconceptions" above.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {misconceptions.map((m) => (
+            <div key={m.canonical_tag} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+              <button
+                onClick={() => setExpandedTag(expandedTag === m.canonical_tag ? null : m.canonical_tag)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{m.description}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {m.topic}{m.subtopic ? ` · ${m.subtopic}` : ''} · affects {m.affected_student_count} student{m.affected_student_count === 1 ? '' : 's'} ({m.occurrence_count} occurrence{m.occurrence_count === 1 ? '' : 's'})
+                  </p>
+                </div>
+                <span className="text-xs text-gray-400 whitespace-nowrap ml-3">
+                  {expandedTag === m.canonical_tag ? 'Hide ▲' : 'Details ▼'}
+                </span>
+              </button>
+              {expandedTag === m.canonical_tag && (
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 space-y-3">
+                  {m.suggested_intervention && (
+                    <p className="text-xs text-indigo-700 bg-indigo-50 rounded px-3 py-2">
+                      💡 Suggested (guidance only): {m.suggested_intervention}
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {m.instances.map((inst) => (
+                      <div key={inst.id} className="bg-white rounded border border-gray-200 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-800">{inst.student_name}</p>
+                            <p className="text-xs text-gray-400 italic truncate">"{inst.evidence}"</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              inst.status === 'confirmed' ? 'bg-green-100 text-green-700'
+                                : inst.status === 'dismissed' ? 'bg-gray-100 text-gray-500'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {inst.status}
+                            </span>
+                            {inst.status === 'unconfirmed' && (
+                              <>
+                                <button
+                                  onClick={() => handleAction(inst.id, 'confirm')}
+                                  className="text-xs font-medium text-green-700 hover:text-green-900"
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  onClick={() => { setEditingId(inst.id); setEditText(m.description); }}
+                                  className="text-xs font-medium text-blue-700 hover:text-blue-900"
+                                >
+                                  Correct
+                                </button>
+                                <button
+                                  onClick={() => handleAction(inst.id, 'dismiss')}
+                                  className="text-xs font-medium text-red-600 hover:text-red-800"
+                                >
+                                  Dismiss
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {editingId === inst.id && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              className="flex-1 text-xs px-2 py-1.5 border border-gray-300 rounded"
+                            />
+                            <button
+                              onClick={() => handleAction(inst.id, 'correct', { description: editText })}
+                              className="text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

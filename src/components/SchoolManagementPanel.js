@@ -20,6 +20,7 @@ import { LoadingSpinner } from '@/components/common';
 export function SchoolManagementPanel({ organisationId = null }) {
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [misconceptions, setMisconceptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedClass, setExpandedClass] = useState(null);
   const [roster, setRoster] = useState(null);
@@ -36,12 +37,14 @@ export function SchoolManagementPanel({ organisationId = null }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [teachersRes, classesRes] = await Promise.all([
+      const [teachersRes, classesRes, misconceptionsRes] = await Promise.all([
         axios.get(`${API}/admin/school/teachers`, orgParams()),
         axios.get(`${API}/admin/school/classes`, orgParams()),
+        axios.get(`${API}/admin/school/misconceptions`, orgParams()),
       ]);
       setTeachers(teachersRes.data.teachers || []);
       setClasses(classesRes.data.classes || []);
+      setMisconceptions(misconceptionsRes.data.misconceptions || []);
     } catch (error) {
       handleApiError(error, 'Failed to load your school');
     } finally {
@@ -170,6 +173,28 @@ export function SchoolManagementPanel({ organisationId = null }) {
                     )}
                   </div>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Misconceptions Across Your School</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          Read-only — misconceptions are reviewed and confirmed by each teacher on their own assessment;
+          this is a school-wide view of patterns across all your teachers, not something to action here.
+        </p>
+        {misconceptions.length === 0 ? (
+          <p className="text-sm text-gray-500">No misconceptions detected yet across your school.</p>
+        ) : (
+          <div className="space-y-2">
+            {misconceptions.map((m) => (
+              <div key={m.canonical_tag} className="border border-gray-200 rounded-lg px-4 py-3">
+                <p className="text-sm font-medium text-gray-900">{m.description}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {m.topic}{m.subtopic ? ` · ${m.subtopic}` : ''} · affects {m.affected_student_count} student{m.affected_student_count === 1 ? '' : 's'} across your school ({m.occurrence_count} occurrence{m.occurrence_count === 1 ? '' : 's'})
+                </p>
               </div>
             ))}
           </div>
