@@ -524,6 +524,18 @@ const QuestionEditor = ({
                       <option value="off">Disabled</option>
                     </select>
                   </div>
+
+                  {(question.questionType === 'NUMERIC' || question.questionType === 'STRUCTURED_WITH_PARTS') && (
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer" title="A wrong earlier value won't zero a later method mark if the student correctly applies method to their own (wrong) value">
+                      <input
+                        type="checkbox"
+                        checked={!!question.errorCarryForward}
+                        onChange={(e) => updateQuestion('errorCarryForward', e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      Error-carry-forward (ECF)
+                    </label>
+                  )}
                 </div>
 
                 <GraphAnswerEditor question={question} updateQuestion={updateQuestion} />
