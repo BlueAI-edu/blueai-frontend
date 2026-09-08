@@ -5,6 +5,7 @@ import LaTeXRenderer from '../components/LaTeXRenderer';
 import { Navbar } from '../components/Navbar';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
+import { teacherApi } from '@/services/api';
 
 export const EnhancedAssessmentDetailPage = ({ user }) => {
   const { assessmentId } = useParams();
@@ -122,7 +123,15 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
     setShowAssignModal(true);
     try {
       const res = await axios.get(`${API}/teacher/classes`);
-      setClasses(res.data.classes || []);
+      const allClasses = res.data.classes || [];
+      
+      // Extract IDs of classes already assigned to this assessment
+      const assignedClassIds = new Set(detailAssignments.map(assignment => assignment.class_id));
+      
+      // Exclude pre-assigned classes from the selection list
+      const availableClasses = allClasses.filter(cls => !assignedClassIds.has(cls.id));
+      
+      setClasses(availableClasses);
     } catch {
       setClasses([]);
     }
@@ -132,11 +141,16 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
     if (!selectedClassId) return;
     setAssigning(true);
     try {
-      const res = await axios.post(`${API}/teacher/assessments/${assessmentId}/assignments`, { class_id: selectedClassId });
+      const res = await teacherApi.createAssignment(assessmentId, { class_id: selectedClassId });
       setAssignResult(res.data);
       loadData();
     } catch (error) {
-      handleApiError(error, 'Failed to assign assessment');
+      if (error.response?.status === 409) {
+        const className = classes.find(c => c.id === selectedClassId)?.class_name || 'Unknown class';
+        handleApiError(error, `${className} is already assigned to this assessment`);
+      } else {
+        handleApiError(error, 'Failed to assign assessment');
+      }
     }
     setAssigning(false);
   };

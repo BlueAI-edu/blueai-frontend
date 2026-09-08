@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import axios from 'axios';
-import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
 import { LoadingSpinner } from '@/components/common';
+import { teacherApi } from '@/services/api';
 
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
@@ -180,12 +179,9 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     if (markSchemeFile) formData.append('mark_scheme', markSchemeFile);
     formData.append('subject', assessmentData.subject);
     formData.append('exam_board', assessmentData.examBoard);
+    
     try {
-      const response = await axios.post(
-        `${API}/teacher/assessments/extract-past-paper`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+      const response = await teacherApi.extractPastPaper(formData);
       clearInterval(progressInterval);
       setExtractProgress(100);
       // Let the user see 100% before the page transitions.
@@ -250,7 +246,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     const fetchClasses = async () => {
       setClassesLoading(true);
       try {
-        const res = await axios.get(`${API}/teacher/classes`);
+        const res = await teacherApi.getClasses();
         setClasses(res.data.classes || []);
       } catch (e) {
         // non-fatal — teacher can still see the empty state
@@ -263,7 +259,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
   const loadAssessment = async () => {
     try {
-      const response = await axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`);
+      const response = await teacherApi.getEnhancedAssessment(assessmentId);
       const assessment = response.data.assessment;
 
       if (assessment.status === 'closed') {
@@ -308,11 +304,29 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   }, []);
 
   const createAssignments = async (newAssessmentId) => {
-    await Promise.all(
-      selectedClassIds.map(classId =>
-        axios.post(`${API}/teacher/assessments/${newAssessmentId}/assignments`, { class_id: classId })
-      )
-    );
+    const errors = [];
+    
+    for (const classId of selectedClassIds) {
+      try {
+        await teacherApi.createAssignment(newAssessmentId, { class_id: classId });
+      } catch (error) {
+        if (error.response?.status === 409) {
+          const className = classes.find(c => c.id === classId)?.class_name || 'Unknown class';
+          errors.push(`${className}: Already assigned to this assessment`);
+        } else if (error.response?.status === 404) {
+          errors.push('Class or assessment not found');
+        } else {
+          const detail = error.response?.data?.detail || 'Unknown error';
+          errors.push(detail);
+        }
+      }
+    }
+    
+    if (errors.length > 0) {
+      const errorMsg = errors.join('; ');
+      showNotification(errorMsg, 'error');
+      throw new Error(errorMsg);
+    }
   };
 
   const addQuestion = useCallback(() => {
@@ -389,9 +403,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     bankInjectedRef.current = true;
     (async () => {
       try {
-        const response = await axios.post(`${API}/teacher/questions/to-enhanced`, {
-          question_ids: bankQuestionIdsFromNav,
-        });
+        const response = await teacherApi.convertBankQuestions(bankQuestionIdsFromNav);
         handleAddFromBank(response.data.questions);
       } catch (err) {
         showNotification(getApiErrorMessage(err, 'Failed to load selected bank questions'), 'error');
@@ -468,36 +480,58 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     return true;
   };
 
-  const saveDraft = () => {
-    if (!validateAssessment()) return;
+ const saveDraft = () => {
+  if (!validateAssessment()) return;
 
-    const isOcrMode = assessmentData.assessmentMode === OCR_GCSE_MODE;
+  const isOcrMode = assessmentData.assessmentMode === OCR_GCSE_MODE;
 
-    runSave(
-      async () => {
-        if (isEdit) {
-          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
-            questions: assessmentData.questions,
-            calculatorAllowed: assessmentData.calculatorAllowed,
-            mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
-          });
-          // For OCR assessments being re-saved after edits, ocrConfirmed stays as-is
-          showNotification('Draft saved successfully!', 'success');
-        } else {
-          // Set ocrConfirmed=true for OCR mode so teacher has explicitly reviewed extraction
-          const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
-          const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
-          const newId = response.data.assessment.id;
-          await createAssignments(newId);
-          showNotification('Assessment created as draft!', 'success');
-          navigate(`/teacher/assessments/${newId}/enhanced`);
+  runSave(
+    async () => {
+      if (isEdit) {
+        // Step 1: Update metadata (title, subject, etc.)
+        await teacherApi.updateAssessment(assessmentId, {
+          title: assessmentData.title,
+          subject: assessmentData.subject,
+          stage: assessmentData.stage,
+          examBoard: assessmentData.examBoard,
+          tier: assessmentData.tier,
+          durationMinutes: assessmentData.durationMinutes,
+          instructions: assessmentData.instructions,
+          shuffleQuestions: assessmentData.shuffleQuestions,
+          shuffleOptions: assessmentData.shuffleOptions,
+          markingStrictness: assessmentData.markingStrictness,
+          topic: assessmentData.topic,
+          subtopic: assessmentData.subtopic,
+          yearSeries: assessmentData.yearSeries,
+        });
+
+        // Step 2: Update questions separately
+        await teacherApi.updateAssessmentQuestions(assessmentId, {
+          questions: assessmentData.questions,
+          calculatorAllowed: assessmentData.calculatorAllowed,
+          mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
+        });
+
+        // Step 3: Update class assignments (NEW)
+        if (selectedClassIds.length > 0) {
+          await teacherApi.updateClassAssignments(assessmentId, selectedClassIds);
         }
-      },
-      (error) => {
-        showNotification(getApiErrorMessage(error, 'Failed to save'), 'error');
+        
+        showNotification('Draft saved successfully!', 'success');
+      } else {
+        const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+        const response = await teacherApi.createEnhancedAssessment(payload);
+        const newId = response.data.assessment.id;
+        await createAssignments(newId);
+        showNotification('Assessment created as draft!', 'success');
+        navigate(`/teacher/assessments/${newId}/enhanced`);
       }
-    );
-  };
+    },
+    (error) => {
+      showNotification(getApiErrorMessage(error, 'Failed to save'), 'error');
+    }
+  );
+};
 
   const handlePublishClick = () => {
     if (!validateAssessment()) return;
@@ -514,18 +548,18 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
         if (!isEdit) {
           const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
-          const response = await axios.post(`${API}/teacher/assessments/enhanced`, payload);
+          const response = await teacherApi.createEnhancedAssessment(payload);
           finalAssessmentId = response.data.assessment.id;
           await createAssignments(finalAssessmentId);
         } else {
-          await axios.put(`${API}/teacher/assessments/${assessmentId}/questions`, {
+          await teacherApi.updateAssessmentQuestions(assessmentId, {
             questions: assessmentData.questions,
             calculatorAllowed: assessmentData.calculatorAllowed,
             mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
           });
         }
 
-        await axios.post(`${API}/teacher/assessments/${finalAssessmentId}/publish`);
+        await teacherApi.publishAssessment(finalAssessmentId);
         showNotification('Assessment published successfully!', 'success');
         setTimeout(() => navigate('/teacher/assessments'), 1500);
       },

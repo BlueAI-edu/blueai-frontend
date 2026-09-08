@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
+import { teacherApi } from '@/services/api';
 
 const AssignAssessmentModal = ({ classId, onClose, onAssigned }) => {
   const [assessments, setAssessments] = useState([]);
@@ -12,7 +13,7 @@ const AssignAssessmentModal = ({ classId, onClose, onAssigned }) => {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    axios.get(`${API}/teacher/assessments`)
+    teacherApi.getAssessments()
       .then(res => setAssessments(res.data || []))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -23,10 +24,15 @@ const AssignAssessmentModal = ({ classId, onClose, onAssigned }) => {
     setSaving(true);
     setError('');
     try {
-      const res = await axios.post(`${API}/teacher/assessments/${selectedId}/assignments`, { class_id: classId });
+      const res = await teacherApi.createAssignment(selectedId, { class_id: classId });
       setResult(res.data);
+      onAssigned();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to assign assessment'));
+      if (err.response?.status === 409) {
+        setError('This class is already assigned to this assessment');
+      } else {
+        setError(getApiErrorMessage(err, 'Failed to assign assessment'));
+      }
     }
     setSaving(false);
   };
