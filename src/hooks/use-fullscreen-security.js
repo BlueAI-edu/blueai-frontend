@@ -33,6 +33,19 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
   const lastExitTimeRef = useRef(0);
   const EXIT_DEBOUNCE_MS = 500;
 
+  // ── Gemini side-panel detection ─────────────────────────────────────────
+  // Chrome's Alt+G shortcut can be handled before the page receives the G
+  // keydown event. We therefore detect the combination indirectly:
+  // Alt is pressed + the assessment viewport suddenly loses significant width.
+  const altPressedRef = useRef(false);
+  const ctrlPressedRef = useRef(false);
+  const previousViewportWidthRef = useRef(window.innerWidth);
+  const geminiDetectedRef = useRef(false);
+
+  // Gemini's side panel produces a large viewport-width reduction.
+  // This threshold is intentionally well above normal 1-10px fluctuations.
+  const GEMINI_WIDTH_REDUCTION_THRESHOLD = 200;
+
   // Keep secondary refs in sync with state (isFullscreenRef is kept current
   // synchronously inside the event handler; these two run after render).
   useEffect(() => { isLockedOutRef.current = isLockedOut; }, [isLockedOut]);
@@ -192,6 +205,112 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [attemptId, enabled, fullscreenSupported]);
+
+  // ── Gemini side-panel monitor ────────────────────────────────────────────
+  // Chrome's Gemini shortcut is handled at the browser level, so the page
+  // cannot reliably intercept Alt+G/Ctrl+G directly.
+  //
+  // Instead, we detect the characteristic combination of:
+  //   1. Alt or Ctrl being held, and
+  //   2. A sudden, significant reduction in the assessment viewport width.
+  //
+  // Gemini detection is treated as an immediate security violation because
+  // the webpage cannot close Chrome's built-in Gemini side panel.
+  useEffect(() => {
+    if (!enabled || !fullscreenSupported) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Alt') {
+        altPressedRef.current = true;
+      }
+
+      if (event.key === 'Control') {
+        ctrlPressedRef.current = true;
+      }
+    };
+
+    const handleKeyUp = (event) => {
+      if (event.key === 'Alt') {
+        altPressedRef.current = false;
+      }
+
+      if (event.key === 'Control') {
+        ctrlPressedRef.current = false;
+      }
+    };
+
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      const previousWidth = previousViewportWidthRef.current;
+      const widthReduction = previousWidth - currentWidth;
+
+      const modifierPressed =
+        altPressedRef.current || ctrlPressedRef.current;
+
+      // Only detect Gemini while the assessment is actually fullscreen.
+      if (
+        isFullscreenRef.current &&
+        modifierPressed &&
+        widthReduction >= GEMINI_WIDTH_REDUCTION_THRESHOLD &&
+        !geminiDetectedRef.current &&
+        !isLockedOutRef.current
+      ) {
+        geminiDetectedRef.current = true;
+
+        const modifier = altPressedRef.current ? 'Alt' : 'Ctrl';
+
+        console.log('🔥 GEMINI DETECTED', {
+          modifier,
+          previousWidth,
+          currentWidth,
+          widthReduction,
+        });
+
+        axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
+          event_type: 'gemini_detected',
+          modifier,
+          previous_viewport_width: previousWidth,
+          current_viewport_width: currentWidth,
+          width_reduction: widthReduction,
+        }).catch(() => {});
+
+        // Gemini cannot be closed by the webpage, so do not show a warning.
+        // Immediately terminate the assessment.
+        setIsLockedOut(true);
+
+        setWarningMessage(
+          'Gemini was detected during your assessment. Your assessment will be automatically submitted.'
+        );
+
+        setShowWarningModal(true);
+
+        setTimeout(() => {
+          onLockout?.('gemini_violation');
+        }, 3000);
+      }
+
+      // The viewport has returned to its previous size, so allow a future
+      // Gemini opening to be detected.
+      if (
+        geminiDetectedRef.current &&
+        currentWidth >= previousWidth
+      ) {
+        geminiDetectedRef.current = false;
+      }
+
+      previousViewportWidthRef.current = currentWidth;
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [attemptId, enabled, fullscreenSupported, onLockout]);
 
   // ── Focus / visibility monitor ───────────────────────────────────────────
   useEffect(() => {
