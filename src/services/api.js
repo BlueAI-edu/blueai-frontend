@@ -27,6 +27,7 @@ export const teacherApi = {
   deleteAssessment: (id) => client.delete(`/teacher/assessments/${id}`),
   startAssessment: (id) => client.post(`/teacher/assessments/${id}/start`),
   closeAssessment: (id) => client.post(`/teacher/assessments/${id}/close`),
+  updateAssessment: (id, data) => client.put(`/teacher/assessments/${id}`, data),
   reopenAssessment: (id) => client.post(`/teacher/assessments/${id}/reopen`),
   publishAssessment: (id) => client.post(`/teacher/assessments/${id}/publish`),
   getDashboard: () => client.get('/teacher/dashboard'),
@@ -43,14 +44,15 @@ export const teacherApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  // Assignments
+  // Assignments — ALWAYS use this; never call axios directly
   getAssignments: () => client.get('/teacher/assignments'),
-  createAssignment: (assessmentId, data) =>
-    client.post(`/teacher/assessments/${assessmentId}/assignments`, data),
+  createAssignment: (assessmentId, data) => client.post(`/teacher/assessments/${assessmentId}/assignments`, data),
+  getAssessmentAssignments: (assessmentId) => client.get(`/teacher/assessments/${assessmentId}/assignments`),
   openAssignment: (id) => client.post(`/teacher/assignments/${id}/open`),
   closeAssignment: (id) => client.post(`/teacher/assignments/${id}/close`),
   deleteAssignment: (id) => client.delete(`/teacher/assignments/${id}`),
   getAssignmentSubmissions: (id) => client.get(`/teacher/assignments/${id}/submissions`),
+  publishAssessment: (id) => client.post(`/teacher/assessments/${id}/publish`),
 
   // Questions
   getQuestions: () => client.get('/teacher/questions'),
@@ -58,6 +60,8 @@ export const teacherApi = {
   updateQuestion: (id, data) => client.put(`/teacher/questions/${id}`, data),
   deleteQuestion: (id) => client.delete(`/teacher/questions/${id}`),
   generateQuestion: (data) => client.post('/teacher/questions/ai-generate', data),
+  updateAssessmentQuestions: (id, data) => client.put(`/teacher/assessments/${id}/questions`, data),
+  convertBankQuestions: (questionIds) => client.post('/teacher/questions/to-enhanced', { question_ids: questionIds }),
 
   // Templates
   getTemplates: () => client.get('/teacher/templates'),
@@ -70,13 +74,32 @@ export const teacherApi = {
   createClass: (data) => client.post('/teacher/classes', data),
   updateClass: (id, data) => client.put(`/teacher/classes/${id}`, data),
   deleteClass: (id) => client.delete(`/teacher/classes/${id}`),
+  getClassDetail: (classId) => client.get(`/teacher/classes/${classId}`),
   getClassAssignments: (classId) => client.get(`/teacher/classes/${classId}/assignments`),
+  getClassAnalytics: (classId) => client.get(`/teacher/classes/${classId}/analytics`),
+  getClassHeatmap: (classId) => client.get(`/teacher/classes/${classId}/analytics/heatmap`),
+  updateClassAssignments: (assessmentId, classIds) =>
+  client.put(`/teacher/assessments/${assessmentId}/update-class-assignments`, { class_ids: classIds }),
+  exportClassAnalyticsCSV: (classId) => 
+    client.get(`/teacher/classes/${classId}/analytics/export-csv`, { responseType: 'blob' }),
+  exportClassAnalyticsPDF: (classId) => 
+    client.get(`/teacher/classes/${classId}/analytics/export-pdf`, { responseType: 'blob' }),
 
   // Students (routes are teacher-scoped, not class-scoped — class_id goes in the body on create)
+  getAllStudents: (classId) => client.get('/teacher/students', classId ? { params: { class_id: classId } } : {}),
   getStudent: (id) => client.get(`/teacher/students/${id}`),
   addStudent: (classId, data) => client.post('/teacher/students', { class_id: classId, ...data }),
   updateStudent: (studentId, data) => client.put(`/teacher/students/${studentId}`, data),
   deleteStudent: (studentId) => client.delete(`/teacher/students/${studentId}`),
+  downloadStudentCSVTemplate: () => client.get('/teacher/students/csv-template', { responseType: 'blob' }),
+  previewStudentCSVImport: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return client.post('/teacher/students/csv-preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  importStudentCSV: (data) => client.post('/teacher/students/csv-import', data),
 
   // Submissions
   getAttempt: (id) => client.get(`/teacher/submissions/${id}`),
@@ -99,9 +122,9 @@ export const teacherApi = {
 export const publicApi = {
   joinAssessment: (data) => client.post('/public/join', data),
   submitAnswer: (attemptId, data) => client.post(`/public/attempt/${attemptId}/submit`, data),
-  submitEnhancedAnswer: (attemptId, data) =>
-    client.post(`/public/enhanced-attempt/${attemptId}/submit`, data),
+  submitEnhancedAnswer: (attemptId, data) => client.post(`/public/enhanced-attempt/${attemptId}/submit`, data),
   getAttempt: (attemptId) => client.get(`/public/attempt/${attemptId}`),
+  getAssessmentClassRoster: (joinCode) => client.get(`/public/assessment/${joinCode}/class-roster`),
 };
 
 // ─── Admin endpoints ──────────────────────────────────────────────────────────
