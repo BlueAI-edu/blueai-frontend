@@ -75,16 +75,26 @@ export const EnhancedAttemptPage = () => {
   const security = useFullscreenSecurity({
     attemptId,
     enabled: !showFeedback && !submitted,
-    onLockout: async () => {
+    onLockout: async (reason) => {
       try {
         await axios.post(`${API}/public/enhanced-attempt/${attemptId}/submit`, {
           answers: answersRef.current, // 🚀 FIX: Use the ref here!
           autoSubmitted: true,
-          reason: 'fullscreen_violation',
+          reason: reason ||'fullscreen_violation',
         });
       } catch {
         // best-effort
       }
+
+      // Exit browser fullscreen before leaving the assessment.
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      } catch {}
+
       navigate('/');
     },
   });

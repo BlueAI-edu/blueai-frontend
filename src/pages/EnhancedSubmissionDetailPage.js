@@ -35,6 +35,16 @@ const formatModelAnswer = (modelAnswer, options) => {
   return match?.text ? `${match.label} - ${match.text}` : trimmed;
 };
 
+const SECURITY_VIOLATION_LABELS = {
+  gemini_detected: 'Gemini/AI assistance detected during assessment',
+  fullscreen_exit_security_breach:
+    'Student exited fullscreen during assessment',
+};
+
+const SECURITY_VIOLATION_TYPES = new Set(
+  Object.keys(SECURITY_VIOLATION_LABELS)
+);
+
 export const EnhancedSubmissionDetailPage = ({ user }) => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -173,6 +183,9 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   }
 
   const { attempt, assessment } = data;
+  const securityViolations = (attempt.security_events || []).filter(
+    (event) => SECURITY_VIOLATION_TYPES.has(event.type)
+  );
   const isFormative = assessment.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
   const answers = attempt.answers || {};
   // Numeric ordering (2 < 3-a < 11) — server sorts too; this covers attempts
@@ -297,6 +310,59 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
             </div>
           </div>
         </div>
+
+        {/* Security Violations */}
+        {securityViolations.length > 0 && (
+          <div className="bg-white p-6 rounded-lg shadow mb-6">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-800">
+                  Assessment Integrity Violations
+                </h3>
+
+                <div className="mt-3 space-y-2">
+                  {securityViolations.map((event, index) => (
+                    <div
+                      key={`${event.timestamp}-${index}`}
+                      className="bg-red-50 border border-red-200 rounded-lg p-3"
+                    >
+                      <p className="text-sm font-medium text-red-800">
+                        {SECURITY_VIOLATION_LABELS[event.type]}
+                      </p>
+
+                      {event.type === 'fullscreen_exit_security_breach' &&
+                        event.exit_attempt && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Fullscreen exit attempt #{event.exit_attempt}
+                          </p>
+                        )}
+
+                      {event.timestamp && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(event.timestamp).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Questions and Answers */}
         <div className="space-y-6 mb-6">
