@@ -53,7 +53,13 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   const [runDownload, downloading] = useAsync();
   const [runRegenerate, regenerating] = useAsync();
   const [data, setData] = useState(null);
-  
+  // AI feedback rating state
+  const [showAIRating, setShowAIRating] = useState(false);
+  const [markAccurate, setMarkAccurate] = useState(null);
+  const [feedbackUseful, setFeedbackUseful] = useState(null);
+  const [aiFlagNote, setAiFlagNote] = useState('');
+  const [submittingAIRating, setSubmittingAIRating] = useState(false);
+
   // Feedback state
   const [questionScores, setQuestionScores] = useState({});
   const [www, setWww] = useState('');
@@ -162,6 +168,30 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
     },
     (error) => handleApiError(error, 'Failed to regenerate PDF')
   );
+
+  const handleSubmitAIRating = async () => {
+    setSubmittingAIRating(true);
+
+    try {
+      await axios.post(`${API}/teacher/submissions/${attemptId}/ai-feedback-rating`, {
+        mark_accurate: markAccurate,
+        feedback_useful: feedbackUseful,
+        flag_note: aiFlagNote.trim() || null,
+      });
+
+      showSuccess('AI feedback submitted successfully!');
+      setShowAIRating(false);
+    } catch (error) {
+      handleApiError(error, 'Failed to submit AI feedback');
+    } finally {
+      setSubmittingAIRating(false);
+    }
+  };
+
+  const hasAIRating =
+    markAccurate !== null ||
+    feedbackUseful !== null ||
+    aiFlagNote.trim() !== '';
 
   if (loading) {
     return (
@@ -580,6 +610,137 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
               </div>
             );
           })}
+        </div>
+        
+        {/* AI Marking Review */}
+        <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
+                <span className="text-lg" aria-hidden="true">✨</span>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  AI Marking Review
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Help us improve the AI marking
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAIRating(prev => !prev)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+                showAIRating
+                  ? 'border-purple-300 bg-purple-50 text-purple-700'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+              aria-expanded={showAIRating}
+              aria-label="Rate AI marking"
+            >
+              <span aria-hidden="true">⚑</span>
+              <span className="text-sm font-medium">
+                Rate AI
+              </span>
+            </button>
+          </div>
+
+          {showAIRating && (
+            <div className="border-t border-gray-100 px-4 pb-5 pt-4">
+              <div className="space-y-5">
+
+                {/* Mark accuracy */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Was this mark accurate?
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'yes', label: 'Yes' },
+                      { value: 'mostly', label: 'Mostly' },
+                      { value: 'no', label: 'No' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setMarkAccurate(option.value)}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          markAccurate === option.value
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Feedback usefulness */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Was the feedback useful?
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'yes', label: 'Yes' },
+                      { value: 'mostly', label: 'Mostly' },
+                      { value: 'no', label: 'No' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setFeedbackUseful(option.value)}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          feedbackUseful === option.value
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Optional flag note */}
+                <div>
+                  <label
+                    htmlFor="ai-flag-note"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Optional note
+                  </label>
+
+                  <input
+                    id="ai-flag-note"
+                    type="text"
+                    value={aiFlagNote}
+                    onChange={(e) => setAiFlagNote(e.target.value)}
+                    placeholder="Tell us what could be improved..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSubmitAIRating}
+                    disabled={!hasAIRating||submittingAIRating}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium text-sm"
+                  >
+                    {submittingAIRating ? 'Submitting...' : 'Submit feedback'}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Overall Feedback Section */}
