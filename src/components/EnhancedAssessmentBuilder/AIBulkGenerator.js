@@ -16,10 +16,24 @@ import { SUBJECT_GROUPS } from '@/pages/EnhancedAssessmentBuilderPage';
  *
  * Without context (defensive fallback only) the full form is shown.
  */
+// Map assessment mode to assessment_type for API
+const getAssessmentType = (mode) => {
+  switch (mode) {
+    case 'FORMATIVE_SINGLE_LONG_RESPONSE':
+      return 'Formative';
+    case 'EXAM_STRUCTURED_GCSE_STYLE':
+      return 'GCSE Structured Exam';
+    case 'SUMMATIVE_ASSESSMENT':
+    default:
+      return 'Summative';
+  }
+};
 const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode, assessmentContext = null }) => {
   // Formative assessments are 1-10 in-depth long-response questions, so the
   // generator locks the question *type* (marks are set per question); other
   // modes get the full type mix.
+  
+  const assessmentType = getAssessmentType(assessmentMode);
   const isFormative = assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
   const isStructured = assessmentMode === 'EXAM_STRUCTURED_GCSE_STYLE';
   const hasContext = Boolean(assessmentContext?.subject);
@@ -94,9 +108,16 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode, assessmentConte
 
     setError('');
     const payload = isFormative
-      ? { ...formData, total_marks: marksPerQuestion * formData.num_questions }
-      : formData;
-    runGenerate(
+    ? { 
+        ...formData, 
+        total_marks: marksPerQuestion * formData.num_questions,
+        assessment_type: assessmentType 
+      }
+    : { 
+        ...formData,
+        assessment_type: assessmentType 
+      };
+      runGenerate(
       async () => {
         const response = await axios.post(`${API}/teacher/questions/ai-generate-multi`, payload);
 
@@ -111,11 +132,16 @@ const AIBulkGenerator = ({ onQuestionsGenerated, assessmentMode, assessmentConte
   return (
     <div className="space-y-5">
       {hasContext ? (
-        /* Inherited assessment facts — set once in Step 2, never re-typed */
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 p-3">
           <span className="text-xl" aria-hidden="true">🤖</span>
           <span className="text-sm text-gray-700">Generating for</span>
-          {[formData.subject, formData.key_stage, formData.exam_board, formData.tier !== 'None' ? `${formData.tier} tier` : null]
+          {[
+            formData.subject, 
+            formData.key_stage, 
+            formData.exam_board, 
+            formData.tier !== 'None' ? `${formData.tier} tier` : null,
+            `${assessmentType} assessment`  // ← NEW
+          ]
             .filter(Boolean)
             .map(fact => (
               <span key={fact} className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-purple-700 shadow-sm">
