@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import { MULTI_UPLOAD_MAX_FILES } from '@/config';
+import FileInputBox from '@/components/FileInputBox';
 
 /**
  * Bulk multi-file assessment upload (#271, pilot release) — sibling to
@@ -26,8 +27,6 @@ export default function MultiFileUploadPage({ user }) {
   const [selectedClass, setSelectedClass] = useState('');
   const [files, setFiles] = useState([]);
   const [starting, setStarting] = useState(false);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -87,31 +86,6 @@ export default function MultiFileUploadPage({ user }) {
       }
       return combined;
     });
-  };
-
-  const handleFileChange = (e) => {
-    processFiles(e.target.files);
-    e.target.value = '';
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    if (starting) return;
-    processFiles(e.dataTransfer.files);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!starting) setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
   };
 
   const removeFile = (index) => {
@@ -235,37 +209,13 @@ export default function MultiFileUploadPage({ user }) {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Student Files <span className="text-red-500">*</span>
                 </label>
-                <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                    isDragActive ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/50'
-                  }`}
-                  onDragEnter={handleDragOver}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="hidden"
-                    id="multi-file-upload"
+                <div>
+                  <FileInputBox
+                    onFileSelect={processFiles}
+                    fileType={['.pdf', '.jpg', '.jpeg', '.png']}
+                    multiple={true}
                     disabled={starting}
                   />
-                  <label htmlFor="multi-file-upload" className="cursor-pointer">
-                    <div className="text-slate-600">
-                      <svg className="mx-auto h-12 w-12 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <p className="mt-3 text-sm">
-                        <span className="font-semibold text-blue-600 hover:text-blue-500">Click to upload</span>
-                        <span className="text-slate-500"> or drag and drop multiple files</span>
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">PDF, JPG or PNG, max 50MB each, up to {MULTI_UPLOAD_MAX_FILES} files</p>
-                    </div>
-                  </label>
                 </div>
 
                 {files.length > 0 && (

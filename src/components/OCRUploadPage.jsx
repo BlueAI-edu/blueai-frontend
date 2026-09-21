@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
+import FileInputBox from '@/components/FileInputBox';
 
 export default function OCRUploadPage({ user }) {
   const navigate = useNavigate();
@@ -16,7 +17,6 @@ export default function OCRUploadPage({ user }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
     fetchAssessments();
@@ -41,51 +41,51 @@ export default function OCRUploadPage({ user }) {
   const MAX_OCR_FILES = 20;
 
   const processFiles = (selectedFiles) => {
-    const nextFiles = [...files, ...selectedFiles];
+    const incoming = Array.from(selectedFiles || []);
+    if (!incoming.length) return;
 
-    if (nextFiles.length > MAX_OCR_FILES) {
-      toast({ title: 'Too many files', description: `Maximum ${MAX_OCR_FILES} files allowed.`, variant: 'destructive' });
-      return;
-    }
+    const acceptedFiles = [];
+    const rejectedFiles = [];
 
-    for (const file of selectedFiles) {
+    for (const file of incoming) {
       if (!ALLOWED_OCR_TYPES.includes(file.type)) {
-        toast({ title: 'Unsupported file type', description: `"${file.name}" is not supported. Only PDF, JPG, and PNG are accepted.`, variant: 'destructive' });
-        return;
+        rejectedFiles.push(`${file.name} (unsupported type)`);
+        continue;
       }
+
       if (file.size > MAX_OCR_FILE_SIZE) {
-        toast({ title: 'File too large', description: `"${file.name}" exceeds the 10MB limit.`, variant: 'destructive' });
-        return;
+        rejectedFiles.push(`${file.name} (over 10MB)`);
+        continue;
       }
+
+      acceptedFiles.push(file);
     }
 
-    setFiles(nextFiles);
-  };
+    if (rejectedFiles.length) {
+      toast({
+        title: `${rejectedFiles.length} file${rejectedFiles.length !== 1 ? 's' : ''} rejected`,
+        description: rejectedFiles.slice(0, 5).join(', '),
+        variant: 'destructive',
+      });
+    }
 
-  const handleFileChange = (e) => {
-    processFiles(Array.from(e.target.files));
-    e.target.value = '';
-  };
+    if (!acceptedFiles.length) return;
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    if (loading) return;
-    processFiles(Array.from(e.dataTransfer.files || []));
-  };
+    setFiles((prev) => {
+      const combined = [...prev, ...acceptedFiles];
 
+      if (combined.length > MAX_OCR_FILES) {
+        toast({
+          title: `Maximum ${MAX_OCR_FILES} files allowed`,
+          description: `Only the first ${MAX_OCR_FILES} files were kept.`,
+          variant: 'destructive',
+        });
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!loading) setIsDragActive(true);
-  };
+        return combined.slice(0, MAX_OCR_FILES);
+      }
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
+      return combined;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -284,35 +284,13 @@ export default function OCRUploadPage({ user }) {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Upload Files <span className="text-red-500">*</span>
                 </label>
-                <div 
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all 
-                  ${isDragActive ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/50'}`}
-                  onDragEnter={handleDragOver}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    multiple
-                    className="hidden"
-                    id="file-upload"
+                <div>
+                  <FileInputBox
+                    onFileSelect={processFiles}
+                    fileType={['.pdf', '.jpg', '.jpeg', '.png']}
+                    multiple={true}
                     disabled={loading}
                   />
-                  <label htmlFor="file-upload" className="cursor-pointer">
-                    <div className="text-slate-600">
-                      <svg className="mx-auto h-12 w-12 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <p className="mt-3 text-sm">
-                        <span className="font-semibold text-blue-600 hover:text-blue-500">Click to upload</span>
-                        <span className="text-slate-500"> or drag and drop</span>
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">PDF, JPG, or PNG (max 10MB each, up to 20 files)</p>
-                    </div>
-                  </label>
                 </div>
                 
                 {/* Selected Files */}

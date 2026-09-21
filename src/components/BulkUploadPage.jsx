@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
+import FileInputBox from '@/components/FileInputBox';
 
 /**
  * Bulk class-set upload (#241) — sibling to OCRUploadPage.jsx's single-script
@@ -25,7 +26,6 @@ export default function BulkUploadPage({ user }) {
   const [batch, setBatch] = useState(null);
   const [starting, setStarting] = useState(false);
   const pollRef = useRef(null);
-  const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -77,31 +77,6 @@ export default function BulkUploadPage({ user }) {
       return;
     }
     setFile(selected);
-  };
-
-  const handleFileChange = (e) => {
-    processFile(e.target.files[0]);
-    e.target.value = '';
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    if (starting) return;
-    processFile(e.dataTransfer.files?.[0]);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!starting) setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
   };
 
   const handleStart = async (e) => {
@@ -221,35 +196,11 @@ export default function BulkUploadPage({ user }) {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Class Set PDF <span className="text-red-500">*</span>
                 </label>
-                <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                  isDragActive ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/50'
-                }`}
-                onDragEnter={handleDragOver}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                >
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".pdf"
-                    className="hidden"
-                    id="bulk-file-upload"
-                    disabled={starting}
-                  />
-                  <label htmlFor="bulk-file-upload" className="cursor-pointer">
-                    <div className="text-slate-600">
-                      <svg className="mx-auto h-12 w-12 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                      <p className="mt-3 text-sm">
-                        <span className="font-semibold text-blue-600 hover:text-blue-500">Click to upload</span>
-                        <span className="text-slate-500"> or drag and drop</span>
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">Single PDF, max 50MB, any number of pages</p>
-                    </div>
-                  </label>
-                </div>
+                <FileInputBox
+                  onFileSelect={processFile}
+                  fileType={['.pdf']}
+                  disabled={starting}
+                />
                 {file && (
                   <div className="mt-4 flex items-center justify-between bg-slate-50 px-4 py-3 rounded-lg border border-slate-200">
                     <div className="min-w-0 flex-1">
