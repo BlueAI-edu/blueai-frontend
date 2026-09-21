@@ -11,6 +11,8 @@ export function hasAnswer(val) {
     const parsed = JSON.parse(val);
     // Handle drawing answers
     if (parsed?._type === 'drawing') return !!parsed.imageData;
+    // Multi-select answers are arrays of ticked options
+    if (Array.isArray(parsed)) return parsed.length > 0;
     // Any other valid JSON (numbers, booleans, objects) counts as answered
     return true;
   } catch {

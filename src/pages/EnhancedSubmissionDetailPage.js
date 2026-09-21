@@ -31,8 +31,16 @@ const toBulletArray = (text) =>
 const formatModelAnswer = (modelAnswer, options) => {
   const trimmed = (modelAnswer || '').trim();
   if (!trimmed || !options?.length) return trimmed;
-  const match = options.find((opt) => (opt.label || '').trim().toLowerCase() === trimmed.toLowerCase());
-  return match?.text ? `${match.label} - ${match.text}` : trimmed;
+  const expand = (label) => {
+    const match = options.find((opt) => (opt.label || '').trim().toLowerCase() === label.trim().toLowerCase());
+    return match?.text ? `${match.label} - ${match.text}` : null;
+  };
+  const single = expand(trimmed);
+  if (single) return single;
+  // Multi-select model answers may list several labels ("A, C")
+  const labels = trimmed.split(/[,;]\s*/);
+  const expanded = labels.length > 1 ? labels.map(expand) : [];
+  return expanded.length && expanded.every(Boolean) ? expanded.join('; ') : trimmed;
 };
 
 const SECURITY_VIOLATION_LABELS = {
