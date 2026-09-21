@@ -4,6 +4,7 @@ import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import DiagramRenderer from '../components/DiagramRenderer';
 import DrawableCanvas, { requiresDrawing } from '../components/DrawableCanvas';
+import MultiSelectInput from '../components/MultiSelectInput';
 import TextAnswerInput from '../components/TextAnswerInput';
 import MathsliveAnswerInput from '../components/MathsliveAnswerInput';
 import MathsliveKeyboardPanel from '../components/MathsliveKeyboardPanel';
@@ -534,6 +535,15 @@ export const EnhancedAttemptPage = () => {
               </div>
             )}
 
+            {currentQuestion.questionType === 'MULTI_SELECT' && currentQuestion.options && (
+              <MultiSelectInput
+                name={`question-${currentQuestion.questionNumber}`}
+                options={currentQuestion.options}
+                value={answers[currentQuestion.questionNumber]}
+                onChange={(next) => handleAnswerChange(currentQuestion.questionNumber, next)}
+              />
+            )}
+
             {currentQuestion.questionType === 'MULTIPLE_CHOICE' && currentQuestion.options && (
               <div className="mt-6 space-y-3">
                 {currentQuestion.options.map((option, idx) => {
@@ -564,6 +574,7 @@ export const EnhancedAttemptPage = () => {
           </div>
 
           {currentQuestion.questionType !== 'MULTIPLE_CHOICE' &&
+           currentQuestion.questionType !== 'MULTI_SELECT' &&
            currentQuestion.questionType !== 'STRUCTURED_WITH_PARTS' && (() => {
             const needsDrawing = shouldDraw(currentQuestion, currentQuestion.questionBody);
             let savedDrawing = null;

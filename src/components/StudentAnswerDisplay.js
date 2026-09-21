@@ -66,6 +66,19 @@ const StudentAnswerDisplay = ({ answer, stimulus }) => {
     );
   }
 
+  if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) {
+    // Multi-select answer: the options the student ticked
+    return (
+      <ul className="flex flex-wrap gap-2" aria-label="Selected options">
+        {parsed.map((option) => (
+          <li key={option} className="px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-sm text-blue-900">
+            <LaTeXRenderer text={option} inline />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return <LaTeXRenderer text={String(answer)} />;
 };
 
