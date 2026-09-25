@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import { MULTI_UPLOAD_MAX_FILES } from '@/config';
+import { useExtractionFeedback } from '@/components/ExtractionFeedback';
 
 /**
  * Bulk multi-file assessment upload (#271, pilot release) — sibling to
@@ -20,6 +21,7 @@ import { MULTI_UPLOAD_MAX_FILES } from '@/config';
 export default function MultiFileUploadPage({ user }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { registerExtractionUse } = useExtractionFeedback();
   const [assessments, setAssessments] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState('');
@@ -146,6 +148,8 @@ export default function MultiFileUploadPage({ user }) {
       if (!uploadRes.ok) {
         throw new Error((await uploadRes.json().catch(() => ({}))).detail || 'Failed to upload files');
       }
+
+      registerExtractionUse();
 
       const processRes = await fetch(`${API_URL}/api/ocr/multi-batches/${batch_id}/process`, {
         method: 'POST',
