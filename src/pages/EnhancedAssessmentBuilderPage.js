@@ -92,7 +92,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     subtopic: '',
     difficulty: 'Medium',
     yearSeries: '',
-    durationMinutes: 90,
+    durationMinutes: 45,
     instructions: '',
     shuffleQuestions: false,
     shuffleOptions: false,
@@ -736,7 +736,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Time limit</label>
               <select
                 value={assessmentData.durationMinutes}
                 onChange={(e) => updateField('durationMinutes', parseInt(e.target.value))}
@@ -900,7 +900,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes) — 1 to 120</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Time limit</label>
               <select
                 value={assessmentData.durationMinutes}
                 onChange={(e) => updateField('durationMinutes', parseInt(e.target.value))}
@@ -1084,7 +1084,6 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   <h2 className="text-2xl font-bold mb-2">{assessmentData.title || 'Untitled Assessment'}</h2>
                   <div className="flex flex-wrap gap-4 text-sm opacity-90">
                     <span>📚 {assessmentData.subject}</span>
-                    <span>⏱️ {assessmentData.durationMinutes} minutes</span>
                     <span>📝 {assessmentData.questions.length} questions</span>
                     <span>🎯 {totalMarks} marks</span>
                   </div>
