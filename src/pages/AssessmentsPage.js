@@ -533,13 +533,10 @@ export const AssessmentsPage = ({ user }) => {
             {/* ── Main column ── */}
             <div className="flex-1 min-w-0">
             {(() => {
-              const FILTER_STATUS_MAP = {
-                started: "started",
-                submissions: "closed",
-              };
-              const activeStatus = FILTER_STATUS_MAP[statusFilter];
-              const filtered = activeStatus
-                ? assessments.filter((a) => a.status === activeStatus)
+              const filtered = statusFilter === "started"
+                ? assessments.filter((a) => a.status === "started")
+                : statusFilter === "submissions"
+                ? assessments.filter((a) => (a.submissions_count ?? 0) > 0)
                 : assessments;
 
               const FILTER_LABELS = {
