@@ -536,7 +536,7 @@ export const AssessmentsPage = ({ user }) => {
               const filtered = statusFilter === "started"
                 ? assessments.filter((a) => a.status === "started")
                 : statusFilter === "submissions"
-                ? assessments.filter((a) => (a.submissions_count ?? 0) > 0)
+                ? assessments.filter((a) => (a.submission_count ?? 0) > 0)
                 : assessments;
 
               const FILTER_LABELS = {
