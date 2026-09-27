@@ -6,10 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import FileInputBox from '@/components/FileInputBox';
+import { useExtractionFeedback } from '@/components/ExtractionFeedback';
 
 export default function OCRUploadPage({ user }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { registerExtractionUse } = useExtractionFeedback();
   const [assessments, setAssessments] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState('');
   const [studentName, setStudentName] = useState('');
@@ -139,6 +141,8 @@ export default function OCRUploadPage({ user }) {
       setUploadProgress(60);
 
       // Step 3: Process OCR
+      registerExtractionUse();
+      
       const processResponse = await fetch(`${API_URL}/api/ocr/submissions/${submission_id}/process`, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },

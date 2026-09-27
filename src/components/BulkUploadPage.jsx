@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import FileInputBox from '@/components/FileInputBox';
+import { useExtractionFeedback } from '@/components/ExtractionFeedback';
 
 /**
  * Bulk class-set upload (#241) — sibling to OCRUploadPage.jsx's single-script
@@ -17,6 +18,7 @@ import FileInputBox from '@/components/FileInputBox';
 export default function BulkUploadPage({ user }) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { registerExtractionUse } = useExtractionFeedback();
   const [assessments, setAssessments] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedAssessment, setSelectedAssessment] = useState('');
@@ -109,6 +111,8 @@ export default function BulkUploadPage({ user }) {
       const { total_pages } = await uploadRes.json();
       setBatch({ status: 'uploaded', total_pages, pages_processed: 0, detected_submission_count: 0 });
 
+      registerExtractionUse();
+      
       const processRes = await fetch(`${API_URL}/api/ocr/batches/${batch_id}/process`, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
