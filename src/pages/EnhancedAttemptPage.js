@@ -369,6 +369,24 @@ export const EnhancedAttemptPage = () => {
     return requiresDrawing(text);
   };
 
+  // Helper function to extract graph and text from a hybrid answer
+  const parseHybridAnswer = (answerStr) => {
+    let graph = null;
+    let text = '';
+    if (answerStr) {
+      try {
+        const parsed = JSON.parse(answerStr);
+        if (parsed?._type === 'graph_plot') {
+          graph = parsed;
+          text = parsed?.text || '';
+        }
+      } catch {
+        // Not a JSON answer, treat as plain text or other type
+      }
+    }
+    return { graph, text };
+  };
+
   return (
     <div
       className="h-screen overflow-hidden bg-gray-50 flex"
@@ -574,13 +592,17 @@ export const EnhancedAttemptPage = () => {
               } catch { }
             }
             const graphSpec = currentQuestion.graphSpec;
-            let savedGraph = null;
-            if (graphSpec && answers[currentQuestion.questionNumber]) {
-              try {
-                const p = JSON.parse(answers[currentQuestion.questionNumber]);
-                if (p?._type === 'graph_plot') savedGraph = p;
-              } catch { /* not a graph answer */ }
-            }
+            
+            // Parse current answer to extract graph and text separately
+            const { graph: savedGraph, text: savedText } = parseHybridAnswer(answers[currentQuestion.questionNumber]);
+            
+            const graphAnswer = savedGraph || {
+              _type: 'graph_plot',
+              axes: graphSpec?.axes,
+              points: [],
+              elements: [],
+            };
+
             const labelImage = currentQuestion.diagramLabels && currentQuestion.stimulusBlock?.type === 'image'
               ? currentQuestion.stimulusBlock.content
               : null;
@@ -590,7 +612,7 @@ export const EnhancedAttemptPage = () => {
                 const p = JSON.parse(answers[currentQuestion.questionNumber]);
                 if (p?._type === 'diagram_labels') savedLabels = p;
               } catch { /* not a labels answer */ }
-            }
+            } 
             return (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
@@ -599,17 +621,48 @@ export const EnhancedAttemptPage = () => {
                     <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
                       Draw / Plot
                     </span>
-                  )}
+                  )}ss
                 </h3>
                 {graphSpec ? (
-                  <GraphPlotInput
-                    key={currentQuestion.questionNumber}
-                    spec={graphSpec}
-                    value={savedGraph}
-                    onChange={(answer) =>
-                      handleAnswerChange(currentQuestion.questionNumber, JSON.stringify(answer))
-                    }
-                  />
+                  // FIX: Render graph and text side-by-side, with proper state isolation
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+                    <GraphPlotInput
+                      key={currentQuestion.questionNumber}
+                      spec={graphSpec}
+                      value={savedGraph}
+                      onChange={(updatedGraph) => {
+                        // When graph updates, preserve the current text from state
+                        const currentText = savedText;
+                        handleAnswerChange(
+                          currentQuestion.questionNumber,
+                          JSON.stringify({ ...updatedGraph, text: currentText })
+                        );
+                      }}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Explain your answer
+                      </label>
+                      <TextAnswerInput
+                        value={savedText}
+                        onChange={(updatedText) => {
+                          // When text updates, preserve the current graph from state
+                          const currentGraph = savedGraph || {
+                            _type: 'graph_plot',
+                            axes: graphSpec?.axes,
+                            points: [],
+                            elements: [],
+                          };
+                          handleAnswerChange(
+                            currentQuestion.questionNumber,
+                            JSON.stringify({ ...currentGraph, text: updatedText })
+                          );
+                        }}
+                        placeholder="Type your explanation here..."
+                        rows={8}
+                      />
+                    </div>
+                  </div>
                 ) : labelImage ? (
                   <DiagramLabelInput
                     key={currentQuestion.questionNumber}
