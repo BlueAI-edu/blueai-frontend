@@ -197,7 +197,6 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                   {!isFormative && <p><strong>Total Marks:</strong> {assessment.totalMarks}</p>}
                 </div>
                 <div>
-                  <p><strong>Duration:</strong> {assessment.durationMinutes} minutes</p>
                   {detailAssignments.length > 0 ? (
                     <div>
                       <strong>Class Join Codes:</strong>

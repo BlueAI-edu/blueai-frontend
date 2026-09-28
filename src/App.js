@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Toaster } from '@/components/ui/toaster';
 import { PageLoader } from '@/components/common';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { ExtractionFeedbackProvider } from '@/components/ExtractionFeedback';
 import './Chunkerrorhandler'; // Import chunk error handler (runs on load)
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
@@ -117,7 +118,9 @@ export default function AppWrapper() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <App />
+        <ExtractionFeedbackProvider>
+          <App />
+        </ExtractionFeedbackProvider>
         <Toaster />
       </BrowserRouter>
     </ErrorBoundary>

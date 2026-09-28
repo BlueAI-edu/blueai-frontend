@@ -407,12 +407,6 @@ export const AssessmentCard = ({
           {qCount > 0 && <span>{qCount} {qCount === 1 ? "question" : "questions"}</span>}
           {qCount > 0 && totalMarks > 0 && <span className="text-gray-300">•</span>}
           {totalMarks > 0 && <span>{totalMarks} marks</span>}
-          {duration && (
-            <>
-              <span className="text-gray-300">•</span>
-              <span>{duration} min</span>
-            </>
-          )}
           {clsName && (
             <>
               <span className="text-gray-300">•</span>
