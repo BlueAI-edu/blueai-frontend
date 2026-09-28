@@ -138,6 +138,7 @@ export const AttemptPage = () => {
       }
       const response = await axios.post(`${API}/public/attempt/${attemptId}/submit`, submissionData);
       setAttempt(response.data.attempt);
+      sessionStorage.removeItem(`fullscreenExitCount_${attemptId}`);
       setShowFeedback(true);
     } catch (error) {
       handleApiError(error, 'Failed to submit');
