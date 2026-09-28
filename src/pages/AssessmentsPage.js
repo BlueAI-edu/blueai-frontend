@@ -37,6 +37,10 @@ export const AssessmentsPage = ({ user }) => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [statusFilter]);
+
   const loadData = async () => {
     try {
       const [assessmentsRes, questionsRes, classesRes, templatesRes, assignmentsRes] =
