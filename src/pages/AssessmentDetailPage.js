@@ -5,6 +5,7 @@ import { API } from "@/config";
 import { handleApiError, showSuccess } from "@/lib/handle-error";
 import { useAsync } from "@/hooks/use-async";
 import { Navbar } from "@/components/Navbar";
+import BackButton from "@/components/BackButton";
 
 export const AssessmentDetailPage = ({ user }) => {
   const { assessmentId } = useParams();
@@ -235,12 +236,7 @@ export const AssessmentDetailPage = ({ user }) => {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Breadcrumb */}
-        <button
-          onClick={() => navigate("/teacher/assessments")}
-          className="text-sm text-gray-600 hover:text-blue-600 mb-4 flex items-center gap-1"
-        >
-          ← Back to Assessments
-        </button>
+        <BackButton to="/teacher/assessments" label="Back to Assessments" />
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="flex justify-between items-start">
             <div>
