@@ -7,7 +7,7 @@ import { useAsync } from "@/hooks/use-async";
 import { Navbar } from "@/components/Navbar";
 import { PageLoader } from "@/components/common";
 import { toDisplayText, toBulletList } from '@/lib/feedback-format';
-
+import BackButton from '@/components/BackButton';
 
 export const SubmissionDetailPage = ({ user }) => {
   const { submissionId } = useParams();
@@ -158,20 +158,13 @@ export const SubmissionDetailPage = ({ user }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={user} />
-
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Breadcrumb */}
-        <button
-          onClick={() =>
-            navigate(`/teacher/assessments/${data.assessment.id}`)
-          }
-          className="text-sm text-gray-600 hover:text-blue-600 mb-4 flex items-center gap-1"
-        >
-          ← Back
-        </button>
         {/* Needs Review Banner */}
         {data.submission.needs_review && (
           <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6 flex justify-between items-center">
+             <BackButton
+               to={data.assessment?.id ? `/teacher/assessments/${data.assessment.id}` : null}
+               label="Back to Submissions"
+             />
             <div className="flex items-center gap-3">
               <svg
                 className="w-6 h-6 text-amber-600"
@@ -556,6 +549,5 @@ export const SubmissionDetailPage = ({ user }) => {
           </div>
         </div>
       </div>
-    </div>
   );
 };
