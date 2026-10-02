@@ -425,7 +425,7 @@ export default function OCRReviewPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
-                onClick={() => navigate("/teacher/dashboard")}
+                onClick={() => navigate(-1)}
                 variant="ghost"
                 className="text-slate-600"
               >
