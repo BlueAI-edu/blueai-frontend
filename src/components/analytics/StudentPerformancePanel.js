@@ -29,7 +29,7 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
 
   // Prepare line chart data (student trends over time)
   const trendData = useMemo(() => heatmapData?.assessments?.map((assessment, idx) => {
-    const dataPoint = { name: assessment.subject?.substring(0, 10) || `A${idx + 1}` };
+    const dataPoint = { name: (assessment.title || assessment.subject)?.substring(0, 14) || `A${idx + 1}` };
     heatmapData.heatmap?.forEach(student => {
       if (student.scores[idx]?.percentage !== null) {
         dataPoint[student.student] = student.scores[idx].percentage;
@@ -83,6 +83,7 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
                   dataKey={student}
                   stroke={PIE_COLORS[idx % PIE_COLORS.length]}
                   strokeWidth={2}
+                  connectNulls
                   dot={{ r: 4 }}
                 />
               ))}
