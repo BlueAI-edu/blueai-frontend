@@ -199,9 +199,9 @@ const ClassAnalyticsTab = ({ classId, className }) => {
                       <th
                         key={idx}
                         className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase min-w-[80px]"
-                        title={`${a.subject} - ${a.topic || 'N/A'}`}
+                        title={`${a.title || a.subject} - ${a.topic || 'N/A'}`}
                       >
-                        <div className="truncate max-w-[80px]">{a.subject}</div>
+                        <div className="truncate max-w-[80px]">{a.title || a.subject}</div>
                         <div className="text-[10px] text-gray-400 font-normal">{a.join_code}</div>
                       </th>
                     ))}
@@ -436,7 +436,7 @@ const ClassAnalyticsTab = ({ classId, className }) => {
             {assessments.slice(0, 5).map((assessment, idx) => (
               <div key={idx} className="p-4 flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-gray-900">{assessment.subject}</p>
+                  <p className="font-medium text-gray-900">{assessment.title || assessment.subject}</p>
                   {assessment.topic && <p className="text-sm text-gray-500">{assessment.topic}</p>}
                   <p className="text-xs text-gray-400">{assessment.marked_count}/{assessment.total_submissions} marked</p>
                 </div>

@@ -632,7 +632,7 @@ export const EnhancedAttemptPage = () => {
                     <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
                       Draw / Plot
                     </span>
-                  )}ss
+                  )}
                 </h3>
                 {graphSpec ? (
                   // FIX: Render graph and text side-by-side, with proper state isolation
