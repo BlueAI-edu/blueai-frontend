@@ -37,6 +37,10 @@ export const AssessmentsPage = ({ user }) => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [statusFilter]);
+
   const loadData = async () => {
     try {
       const [assessmentsRes, questionsRes, classesRes, templatesRes, assignmentsRes] =
@@ -533,13 +537,10 @@ export const AssessmentsPage = ({ user }) => {
             {/* ── Main column ── */}
             <div className="flex-1 min-w-0">
             {(() => {
-              const FILTER_STATUS_MAP = {
-                started: "started",
-                submissions: "closed",
-              };
-              const activeStatus = FILTER_STATUS_MAP[statusFilter];
-              const filtered = activeStatus
-                ? assessments.filter((a) => a.status === activeStatus)
+              const filtered = statusFilter === "started"
+                ? assessments.filter((a) => a.status === "started")
+                : statusFilter === "submissions"
+                ? assessments.filter((a) => (a.submission_count ?? 0) > 0)
                 : assessments;
 
               const FILTER_LABELS = {

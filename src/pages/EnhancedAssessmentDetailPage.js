@@ -6,6 +6,7 @@ import { Navbar } from '../components/Navbar';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { teacherApi } from '@/services/api';
+import BackButton from '@/components/BackButton';
 
 export const EnhancedAssessmentDetailPage = ({ user }) => {
   const { assessmentId } = useParams();
@@ -175,6 +176,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
       <Navbar user={user} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        <BackButton to="/teacher/assessments" label="Back to Assessments" />
         {/* Assessment Header */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="flex justify-between items-start mb-4">
@@ -197,7 +199,6 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                   {!isFormative && <p><strong>Total Marks:</strong> {assessment.totalMarks}</p>}
                 </div>
                 <div>
-                  <p><strong>Duration:</strong> {assessment.durationMinutes} minutes</p>
                   {detailAssignments.length > 0 ? (
                     <div>
                       <strong>Class Join Codes:</strong>

@@ -6,16 +6,27 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(true);
   const [fullscreenSupported, setFullscreenSupported] = useState(true);
-  const [fullscreenExitCount, setFullscreenExitCount] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
   const [isLockedOut, setIsLockedOut] = useState(false);
+
+  const [fullscreenExitCount, setFullscreenExitCount] = useState(() => {
+    const storedCount = sessionStorage.getItem(
+      `fullscreenExitCount_${attemptId}`
+    );
+
+    const parsedCount = Number(storedCount);
+
+    return Number.isFinite(parsedCount) && parsedCount >= 0
+      ? parsedCount
+      : 0;
+  });
 
   // Refs used inside event handlers — updated immediately so every callback
   // sees the correct value regardless of React's async render cycle.
   const isFullscreenRef = useRef(false);
   const isLockedOutRef = useRef(false);
-  const exitCountRef = useRef(0);
+  const exitCountRef = useRef(fullscreenExitCount);
 
   // Guards that prevent false-positive exit detection.
   //
@@ -115,6 +126,8 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
     const newCount = exitCountRef.current + 1;
     setFullscreenExitCount(newCount);
 
+    sessionStorage.setItem(`fullscreenExitCount_${attemptId}`, String(newCount));
+
     await axios.post(`${API}/public/attempt/${attemptId}/log-security-event`, {
       event_type: 'fullscreen_exit_security_breach',
       exit_count: newCount
@@ -125,7 +138,10 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
       setWarningMessage('You have exited fullscreen 3 times. Your assessment will be automatically submitted.');
       setShowWarningModal(true);
       // NEW: Pass 'fullscreen_violation' reason to onLockout callback
-      setTimeout(() => onLockout?.('fullscreen_violation'), 3000);
+      setTimeout(() => {
+        sessionStorage.removeItem(`fullscreenExitCount_${attemptId}`);
+        onLockout?.('fullscreen_violation');
+      }, 3000);
     } else if (newCount === 2) {
       setWarningMessage(`Security breach ${newCount}/3: This is your FINAL warning! Exiting fullscreen one more time will automatically submit your assessment.`);
       setShowWarningModal(true);
@@ -259,7 +275,7 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
 
         const modifier = altPressedRef.current ? 'Alt' : 'Ctrl';
 
-        console.log('🔥 GEMINI DETECTED', {
+        console.log('GEMINI DETECTED', {
           modifier,
           previousWidth,
           currentWidth,
@@ -277,14 +293,13 @@ export const useFullscreenSecurity = ({ attemptId, enabled = true, onLockout }) 
         // Gemini cannot be closed by the webpage, so do not show a warning.
         // Immediately terminate the assessment.
         setIsLockedOut(true);
-
         setWarningMessage(
           'Gemini was detected during your assessment. Your assessment will be automatically submitted.'
         );
-
         setShowWarningModal(true);
-
+        
         setTimeout(() => {
+          sessionStorage.removeItem(`fullscreenExitCount_${attemptId}`);
           onLockout?.('gemini_violation');
         }, 3000);
       }

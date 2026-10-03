@@ -1,14 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API } from '@/config';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { Navbar } from './Navbar';
+import FileInputBox from './FileInputBox';
 
 export const CSVImportPage = ({ user }) => {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   
   const [step, setStep] = useState('upload'); // upload, preview, importing, complete
   const [selectedFile, setSelectedFile] = useState(null);
@@ -17,7 +17,6 @@ export const CSVImportPage = ({ user }) => {
   const [importResult, setImportResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isDragActive, setIsDragActive] = useState(false);
 
   const downloadTemplate = async () => {
     try {
@@ -41,8 +40,10 @@ export const CSVImportPage = ({ user }) => {
   const processFile = (file) => {
     if (!file) return;
 
-    if (!file.name.endsWith('.csv')) {
-      setError('Please select a CSV file (.csv)');
+    const fileName = file.name.toLowerCase();
+
+    if (!file.name.endsWith('.csv') && !fileName.endsWith('.xlsx')) {
+      setError('Please select a CSV or XLSX file (.csv or .xlsx)');
       return;
     }
 
@@ -54,29 +55,6 @@ export const CSVImportPage = ({ user }) => {
     setSelectedFile(file);
     setFileName(file.name);
     setError('');
-  };
-
-  const handleFileSelect = (e) => {
-    processFile(e.target.files[0]);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    processFile(e.dataTransfer.files?.[0]);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
   };
 
   const handlePreview = async () => {
@@ -144,8 +122,8 @@ export const CSVImportPage = ({ user }) => {
 
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900" data-testid="import-title">Import Students from CSV</h2>
-          <p className="text-gray-600 mt-2">Upload a CSV file to bulk import students into your classes</p>
+          <h2 className="text-3xl font-bold text-gray-900" data-testid="import-title">Import Students</h2>
+          <p className="text-gray-600 mt-2">Upload a CSV or XLSX file to bulk import students into your classes</p>
         </div>
 
         {/* Progress Steps */}
@@ -195,9 +173,9 @@ export const CSVImportPage = ({ user }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload CSV File</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload CSV or XLSX File</h3>
               <p className="text-gray-600 mb-4">
-                Select a CSV file with your student data. Classes will be created automatically if they don't exist.
+                Select a CSV or XLSX file with your student data. Classes will be created automatically if they don't exist.
               </p>
               <button
                 onClick={downloadTemplate}
@@ -208,48 +186,23 @@ export const CSVImportPage = ({ user }) => {
               </button>
             </div>
 
-            <div 
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragEnter={handleDragOver}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept=".csv"
-                className="hidden"
-                data-testid="csv-file-input"
+            <div>
+              <FileInputBox
+                onFileSelect={processFile}
+                fileType={['.csv', '.xlsx']}
+                selectedFileName={fileName}
               />
-              
-              {fileName ? (
-                <div>
-                  <svg className="w-12 h-12 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-gray-900 font-medium">{fileName}</p>
-                  <p className="text-sm text-gray-500 mt-1">Click to select a different file</p>
-                </div>
-              ) : (
-                <div>
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-gray-600">Click to select a CSV file</p>
-                  <p className="text-sm text-gray-400 mt-1">or drag and drop</p>
-                </div>
-              )}
             </div>
 
             <div className="mt-6 bg-gray-50 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-2">Required CSV Columns:</h4>
+              <h4 className="font-medium text-gray-900 mb-2">Required Columns:</h4>
+              <p className="text-sm text-gray-600 mb-3">
+                Only class_name and first_name are required. Other fields can be included when available.
+              </p>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-red-500">*</span> class_name</div>
                 <div><span className="text-red-500">*</span> first_name</div>
-                <div><span className="text-red-500">*</span> last_name</div>
+                <div> last_name</div>
                 <div>preferred_name (optional)</div>
                 <div>student_code (optional)</div>
                 <div>sen_flag (TRUE/FALSE)</div>

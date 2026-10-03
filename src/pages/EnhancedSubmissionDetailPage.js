@@ -7,6 +7,7 @@ import { Navbar } from '../components/Navbar';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
+import BackButton from '@/components/BackButton';
 
 // Feedback fields (www / next_steps / overall_feedback) may come back from the
 // backend as an array of bullet points or a legacy plain string — normalise
@@ -249,8 +250,11 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={user} />
-
       <div className="max-w-6xl mx-auto px-6 py-8">
+        <BackButton
+          to={data.assessment?.id ? `/teacher/assessments/${data.assessment.id}` : null}
+          label="Back to Submissions"
+        />
         {/* Manual diagram/graph marking gate — feedback release is blocked
             server-side until the teacher enters marks and saves. */}
         {manualQuestions.length > 0 && (

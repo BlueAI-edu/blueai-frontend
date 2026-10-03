@@ -13,6 +13,9 @@ import DiagramLabelInput from './DiagramLabelInput';
  * which defeats the point of the manual diagram/graph review gate (see
  * "AI Marking Flow" in CLAUDE.md) — the teacher can't review what they can't see.
  *
+ * For hybrid answers (graph_plot with text field), both the graph and text
+ * explanation are rendered side-by-side so teachers have full context.
+ *
  * Props:
  *   answer   — the raw answer value from attempt.answers (string or falsy)
  *   stimulus — the question/part's stimulusBlock (needed to render
@@ -44,15 +47,42 @@ const StudentAnswerDisplay = ({ answer, stimulus }) => {
     );
   }
 
+  // FIX: Handle hybrid graph_plot answers with text explanation
   if (parsed?._type === 'graph_plot' && parsed.axes) {
-    return (
-      <GraphPlotInput
-        spec={{ axes: parsed.axes }}
-        value={parsed}
-        onChange={() => {}}
-        readOnly
-      />
-    );
+    const hasText = parsed.text && parsed.text.trim();
+    
+    if (hasText) {
+      // Render graph and text side-by-side for hybrid answers
+      return (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start">
+          <div>
+            <p className="text-sm font-medium text-gray-600 mb-2">Plotted Graph:</p>
+            <GraphPlotInput
+              spec={{ axes: parsed.axes }}
+              value={parsed}
+              onChange={() => {}}
+              readOnly
+            />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-600 mb-2">Explanation:</p>
+            <div className="p-3 bg-gray-50 rounded border border-gray-200 max-h-96 overflow-y-auto">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{parsed.text}</p>
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      // Graph-only answer (no explanation)
+      return (
+        <GraphPlotInput
+          spec={{ axes: parsed.axes }}
+          value={parsed}
+          onChange={() => {}}
+          readOnly
+        />
+      );
+    }
   }
 
   if (parsed?._type === 'diagram_labels' && stimulus?.type === 'image') {
