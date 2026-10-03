@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "@/config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Navbar } from "@/components/Navbar";
+import BatchScriptNav from "@/components/BatchScriptNav";
 import { useToast } from "@/hooks/use-toast";
 import {
   getPageTypeLabel,
@@ -14,6 +16,7 @@ import {
   getPageTypeColor,
   getReviewRequiredCount,
 } from "@/utils/ocrHelpers";
+import { useBatchNav, scriptPath } from "@/hooks/useBatchNav";
 
 const VISUAL_RESPONSE_TYPES = new Set([
   "graph_reading",
@@ -23,9 +26,13 @@ const VISUAL_RESPONSE_TYPES = new Set([
   "table_completion",
 ]);
 
-export default function OCRReviewPage() {
+export default function OCRReviewPage({ user }) {
   const navigate = useNavigate();
   const { submissionId } = useParams();
+  const [searchParams] = useSearchParams();
+  const batchId = searchParams.get("batch");
+  const batchQuery = batchId ? `?batch=${batchId}` : "";
+  const { total, position, prev, next } = useBatchNav(batchId, submissionId);
   const { toast } = useToast();
   const [submission, setSubmission] = useState(null);
   const [pages, setPages] = useState([]);
@@ -37,15 +44,31 @@ export default function OCRReviewPage() {
   const [reExtracting, setReExtracting] = useState(false);
 
   useEffect(() => {
-    fetchSubmission();
-  }, [submissionId]);
-
+  setLoading(true);
+  setCurrentPageIndex(0);
+  setPages([]);
+  fetchSubmission();
+}, [submissionId]);
   useEffect(() => {
     if (pages.length > 0) {
       const page = pages[currentPageIndex];
       setEditedText(getPageAnswerText(page));
     }
   }, [currentPageIndex, pages]);
+
+  const currentIdRef = useRef(submissionId);
+
+  useEffect(() => {
+    currentIdRef.current = submissionId;
+    setLoading(true);
+    setCurrentPageIndex(0);
+    setPages([]);
+    setResponseBlocks([]);
+    setEditedText("");
+    setSaving(false);
+    setReExtracting(false);
+    fetchSubmission();
+  }, [submissionId]);
 
   const getSelectionPreview = (selection) => {
     const selected = [];
@@ -165,6 +188,32 @@ export default function OCRReviewPage() {
     }
     return page?.raw_ocr_text || "";
   };
+  
+  // Unsaved edits: the textarea differs from what's stored for this page.
+  // Saving updates pages[...].approved_ocr_text, so a saved page isn't dirty.
+  const isDirty =
+    !loading &&
+    pages.length > 0 &&
+    editedText !== getPageAnswerText(pages[currentPageIndex]);
+
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn); // refresh / close tab
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty]);
+
+  const confirmDiscard = (
+    message = "You have unsaved edits on this page. Leave without saving them?",
+  ) => !isDirty || window.confirm(message);
+
+  const goToPage = (index) => {
+    if (index === currentPageIndex || !confirmDiscard()) return;
+    setCurrentPageIndex(index);
+  };
 
   const isVisualResponse = (response) =>
     VISUAL_RESPONSE_TYPES.has(response?.response_type) ||
@@ -261,88 +310,91 @@ export default function OCRReviewPage() {
     }
   };
 
-  const handleSavePage = async () => {
-    setSaving(true);
-    try {
-      const currentPage = pages[currentPageIndex];
-      const response = await fetch(
-        `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            approved_ocr_text: editedText,
-            is_approved: true,
-          }),
+  const handleSavePage = async (keepBusy = false) => {
+  setSaving(true);
+  try {
+    const currentPage = pages[currentPageIndex];
+    const response = await fetch(
+      `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
         },
-      );
+        credentials: "include",
+        body: JSON.stringify({
+          approved_ocr_text: editedText,
+          is_approved: true,
+        }),
+      },
+    );
 
-      if (!response.ok) {
-        throw new Error("Failed to save page");
-      }
-
-      const updatedPages = [...pages];
-      updatedPages[currentPageIndex] = {
-        ...updatedPages[currentPageIndex],
-        approved_ocr_text: editedText,
-        is_approved: true,
-      };
-
-      setPages(updatedPages);
-      toast({ title: "Saved", description: "Page saved and approved." });
-    } catch (err) {
-      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
+    if (!response.ok) {
+      throw new Error("Failed to save page");
     }
-  };
+
+    const updatedPages = [...pages];
+    updatedPages[currentPageIndex] = {
+      ...updatedPages[currentPageIndex],
+      approved_ocr_text: editedText,
+      is_approved: true,
+    };
+
+    setPages(updatedPages);
+    if (!keepBusy) {
+      toast({ title: "Saved", description: "Page saved and approved." });
+    }
+    return true;
+  } catch (err) {
+    toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+    return false;
+  } finally {
+    if (!keepBusy) setSaving(false);
+  }
+};
 
   const handleApproveAll = async () => {
+    if (alreadyMarked) return;
+    const targetId = submissionId;
     setSaving(true);
     try {
-      await handleSavePage();
+      const saved = await handleSavePage(true);
+      if (!saved) return;
 
       const approveResponse = await fetch(
-        `${API_URL}/api/ocr/submissions/${submissionId}/approve`,
+        `${API_URL}/api/ocr/submissions/${targetId}/approve`,
         {
           method: "POST",
           headers: { "X-Requested-With": "XMLHttpRequest" },
           credentials: "include",
         },
       );
-
-      if (!approveResponse.ok) {
-        throw new Error("Failed to approve submission");
-      }
+      if (!approveResponse.ok) throw new Error("Failed to approve submission");
 
       const markResponse = await fetch(
-        `${API_URL}/api/ocr/submissions/${submissionId}/mark`,
+        `${API_URL}/api/ocr/submissions/${targetId}/mark`,
         {
           method: "POST",
           headers: { "X-Requested-With": "XMLHttpRequest" },
           credentials: "include",
         },
       );
+      if (!markResponse.ok) throw new Error("Failed to mark submission");
 
-      if (!markResponse.ok) {
-        throw new Error("Failed to mark submission");
-      }
-
+      if (currentIdRef.current !== targetId) return; // teacher navigated away while saving, don't redirect
       toast({ title: "Approved", description: "Submission approved and marked. Redirecting..." });
-      navigate(`/teacher/ocr-moderate/${submissionId}`);
+      navigate(`/teacher/ocr-moderate/${targetId}${batchQuery}`);
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
-      setSaving(false);
+      if (currentIdRef.current === targetId) setSaving(false);
     }
   };
 
   const handleReExtractPage = async () => {
     const currentPage = pages[currentPageIndex];
+    if (!confirmDiscard("Re-extracting will replace your unsaved edits on this page. Continue?")) return;
     setReExtracting(true);
     try {
       const response = await fetch(
@@ -390,10 +442,13 @@ export default function OCRReviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading submission...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <Navbar user={user} />
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Loading submission...</p>
+          </div>
         </div>
       </div>
     );
@@ -401,15 +456,19 @@ export default function OCRReviewPage() {
 
   if (!submission) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">Submission not found</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <Navbar user={user} />
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600">Submission not found</p>
+          </div>
         </div>
       </div>
     );
   }
 
   const currentPage = pages[currentPageIndex];
+  const alreadyMarked = ["marked_draft", "finalized"].includes(submission.status);
   const currentPageType = currentPage?.page_type;
   const currentPageFailed = isPageFailed(currentPageType);
   const visualResponses = getVisualResponsesForPage(currentPage);
@@ -420,30 +479,28 @@ export default function OCRReviewPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <Navbar user={user} />
       <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <Button
-                onClick={() => navigate("/teacher/dashboard")}
+               onClick={() => {
+                    if (!confirmDiscard()) return;
+                    navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
+                  }}
                 variant="ghost"
-                className="text-slate-600"
+                size="sm"
+                className="shrink-0 px-2 text-slate-600"
               >
-                &larr; Back
+                &larr; Back<span className="hidden sm:inline">&nbsp;to {batchId ? "Batch" : "Dashboard"}</span>
               </Button>
-              <div className="h-6 w-px bg-slate-300" />
-                <h1 className="text-2xl font-bold text-slate-900">Review Extracted Answers</h1>
+              <div className="hidden h-6 w-px bg-slate-300 sm:block" />
+              <h1 className="truncate text-lg font-bold text-slate-900 sm:text-2xl">Review Extracted Answers</h1>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-slate-600">
-                Student:{" "}
-                <span className="font-medium text-slate-900">
-                  {submission.student_name}
-                </span>
-              </div>
-              <Badge variant="secondary">
-                {pages.length} {pages.length === 1 ? "page" : "pages"}
-              </Badge>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 sm:gap-4">
+              <span>Student: <span className="font-medium text-slate-900">{submission.student_name}</span></span>
+              <Badge variant="secondary">{pages.length} {pages.length === 1 ? "page" : "pages"}</Badge>
               {failedPageCount > 0 && (
                 <Badge className="bg-red-100 text-red-700 border-red-300 border animate-pulse">
                   &#9888; {failedPageCount} {failedPageCount === 1 ? "page" : "pages"} need attention
@@ -453,14 +510,14 @@ export default function OCRReviewPage() {
           </div>
         </div>
       </div>
-
+      <BatchScriptNav batchId={batchId} position={position} total={total} prev={prev} next={next} busy={saving || reExtracting} isDirty={isDirty} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <Button
-                  onClick={() => setCurrentPageIndex(Math.max(0, currentPageIndex - 1))}
+                  onClick={() => goToPage(Math.max(0, currentPageIndex - 1))}
                   disabled={currentPageIndex === 0}
                   variant="outline"
                 >
@@ -470,9 +527,7 @@ export default function OCRReviewPage() {
                   Page {currentPageIndex + 1} of {pages.length}
                 </span>
                 <Button
-                  onClick={() =>
-                    setCurrentPageIndex(Math.min(pages.length - 1, currentPageIndex + 1))
-                  }
+                  onClick={() => goToPage(Math.min(pages.length - 1, currentPageIndex + 1))}
                   disabled={currentPageIndex === pages.length - 1}
                   variant="outline"
                 >
@@ -514,7 +569,7 @@ export default function OCRReviewPage() {
                     items.push(
                       <button
                         key={page.page_id || page.page_number || pageIdx}
-                        onClick={() => setCurrentPageIndex(pageIdx)}
+                        onClick={() => goToPage(pageIdx)}
                         title={
                           failed
                             ? `Page ${pageIdx + 1}: OCR failed — needs attention`
@@ -596,7 +651,7 @@ export default function OCRReviewPage() {
             </CardHeader>
             <CardContent>
               <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-                <div className="flex items-center justify-center min-h-[400px]">
+                <div className="flex items-center justify-center min-h-[240px] sm:min-h-[400px]">
                   <img
                     key={currentPage?.page_id || currentPage?.page_number}
                     src={`${API_URL}/api/ocr/submissions/${submissionId}/image/${currentPage?.page_number}`}
@@ -661,7 +716,7 @@ export default function OCRReviewPage() {
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
                 className={[
-                  "w-full h-[500px] p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none",
+                  "w-full h-72 sm:h-[500px] p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none",
                   currentPageFailed ? "border-red-300 bg-red-50/30" : "border-slate-300",
                 ].join(" ")}
                 placeholder={
@@ -671,7 +726,7 @@ export default function OCRReviewPage() {
                 }
               />
 
-              <div className="mt-4 flex gap-3">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button onClick={handleSavePage} disabled={saving || reExtracting} className="flex-1">
                   {saving && (
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -770,23 +825,34 @@ export default function OCRReviewPage() {
 
         <Card className="mt-8">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Ready to Send to Marking?</h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  Review each extracted answer, then approve all and continue to AI marking.
+                  {alreadyMarked
+                    ? "This script has already been marked. Open the marks to moderate or finalise."
+                    : "Review each extracted answer, then approve all and continue to AI marking."}
                 </p>
               </div>
-              <Button onClick={handleApproveAll} disabled={saving} size="lg">
-                {saving && (
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                )}
-                {saving ? "Processing..." : "Approve & Send to Marking"}
-              </Button>
-            </div>
+              {alreadyMarked ? (
+                <Button
+                  onClick={() => navigate(`/teacher/ocr-moderate/${submissionId}${batchQuery}`)}
+                  size="lg"
+                >
+                  View marks
+                </Button>
+              ) : (
+                <Button onClick={handleApproveAll} disabled={saving} size="lg">
+                  {saving && (
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {saving ? "Processing..." : "Approve & Send to Marking"}
+                </Button>
+              )}
+              </div>
           </CardContent>
         </Card>
       </div>

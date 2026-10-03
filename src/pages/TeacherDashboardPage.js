@@ -7,7 +7,7 @@ import UsageBanner from '../components/UsageBanner';
 import { useHasNewSubmissions } from '@/hooks/useHasNewSubmissions';
 import {
   ClipboardList, Upload, BarChart3, AlertCircle, CheckCircle2,
-  ChevronRight, RefreshCw, FileText, Flag, Plus, ArrowRight, Radio,
+  ChevronRight, RefreshCw, FileText, Flag, Plus, ArrowRight, Radio, Layers,
 } from 'lucide-react';
 import {
   StatRowSkeleton,
@@ -38,6 +38,8 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+
+
 const SectionError = ({ onRetry }) => (
   <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
     <AlertCircle className="w-8 h-8 text-red-400" />
@@ -49,6 +51,20 @@ const SectionError = ({ onRetry }) => (
     )}
   </div>
 );
+
+// Class-set (bulk OCR) batches that still have scripts to extract, review or
+// finalise. Mirrors the per-script status wording on the batch page so the
+// "X of Y reviewed" a teacher sees here matches the batch itself.
+const MAX_BATCHES_SHOWN = 5;
+
+
+const batchSummary = (batch) => {
+  const c = batch.counts || {};
+  if (batch.status === 'processing') return 'Detecting scripts…';
+  if (batch.status === 'ready_for_review') return `${c.total || 0} scripts detected · awaiting your confirmation`;
+  if (c.extracting > 0) return `Extracting ${c.extracting} script${c.extracting !== 1 ? 's' : ''}…`;
+  return `${c.reviewed || 0} of ${c.reviewable || 0} reviewed · ${c.marked || 0} marked · ${c.finalized || 0} finalised`;
+};
 
 export const TeacherDashboard = ({ user }) => {
   const navigate = useNavigate();
@@ -62,6 +78,11 @@ export const TeacherDashboard = ({ user }) => {
   const [reviewItems, setReviewItems] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(true);
   const [reviewError, setReviewError] = useState(false);
+
+  const [batches, setBatches] = useState([]);
+  const [batchesLoading, setBatchesLoading] = useState(true);
+  const [batchesError, setBatchesError] = useState(false);
+const [showArchived, setShowArchived] = useState(false);
 
   const loadStats = useCallback(async () => {
     try {
@@ -102,11 +123,58 @@ export const TeacherDashboard = ({ user }) => {
     }
   }, []);
 
+  const loadBatches = useCallback(async () => {
+    setBatchesLoading(true);
+    setBatchesError(false);
+    try {
+      const res = await axios.get(`${API}/ocr/batches`, {
+        params: { include_archived: showArchived }
+      });
+      setBatches(res.data?.batches || []);
+    } catch {
+      setBatchesError(true);
+    } finally {
+      setBatchesLoading(false);
+    }
+  }, []);
+  const archiveBatch = useCallback(async (batch) => {
+    const label = batch.assessment_title || batch.assessment_subject || 'this batch';
+    const ok = window.confirm(
+      `Hide "${label}" from your in-progress list?\n\n` +
+      'Nothing is deleted. You can restore it any time from "Show archived".'
+    );
+    if (!ok) return;
+    try {
+      await axios.post(
+        `${API}/ocr/batches/${batch.id}/archive`,
+        null,
+        { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+      );
+      setBatches((prev) => prev.map((x) => (x.id === batch.id ? { ...x, archived: true } : x)));
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || 'Could not archive this batch. Please try again.');
+    }
+  }, []);
+
+  const unarchiveBatch = useCallback(async (batch) => {
+    try {
+      await axios.post(
+        `${API}/ocr/batches/${batch.id}/unarchive`,
+        null,
+        { headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+      );
+      setBatches((prev) => prev.map((x) => (x.id === batch.id ? { ...x, archived: false } : x)));
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || 'Could not restore this batch. Please try again.');
+    }
+  }, []);
+
   useEffect(() => {
     loadStats();
     loadAssessments();
     loadReviewQueue();
-  }, [loadStats, loadAssessments, loadReviewQueue]);
+    loadBatches();
+  }, [loadStats, loadAssessments, loadReviewQueue, loadBatches]);
 
   const formatTime = (iso) => {
     if (!iso) return '—';
@@ -129,6 +197,8 @@ export const TeacherDashboard = ({ user }) => {
   const liveAssessments = assessments.filter(a => a.status === 'started');
   const needsReview = reviewItems.length;
   const recentAssessments = assessments.slice(0, 6);
+  const activeBatches = batches.filter((b) => !b.archived);
+  const archivedBatches = batches.filter((b) => b.archived);
 
   const statCards = [
     {
@@ -256,6 +326,129 @@ export const TeacherDashboard = ({ user }) => {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+                {/* ── In-progress class-set batches (resume without re-uploading) ── */}
+        {batchesError ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-testid="in-progress-batches">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">In-progress batches</h2>
+            <SectionError onRetry={loadBatches} />
+          </div>
+        ) : !batchesLoading && (activeBatches.length > 0 || archivedBatches.length > 0) && (
+          <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5" data-testid="in-progress-batches">
+            <div className="flex items-center gap-2 mb-3">
+              <Layers className="w-4 h-4 text-blue-600" />
+              <h2 className="text-base font-semibold text-gray-900">In-progress batches</h2>
+              {activeBatches.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 bg-blue-600 text-white text-[10px] font-bold rounded-full">
+                  {activeBatches.length}
+                </span>
+              )}
+            </div>
+
+            {activeBatches.length === 0 && (
+              <p className="py-2 text-sm text-gray-500">No batches in progress.</p>
+            )}
+
+            <div className="divide-y divide-gray-50">
+              {activeBatches.slice(0, MAX_BATCHES_SHOWN).map(b => {
+                const c = b.counts || {};
+                const pct = c.reviewable ? Math.round(((c.reviewed || 0) / c.reviewable) * 100) : 0;
+                return (
+                  <div key={b.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {b.assessment_title || b.assessment_subject || 'Class set'}
+                        <span className="text-gray-400 font-normal"> · {c.total || 0} scripts</span>
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {batchSummary(b)} · started {formatTime(b.created_at)}
+                      </p>
+                      {b.status === 'confirmed' && c.reviewable > 0 && (
+                        <div className="mt-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-gray-100">
+                          <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      )}
+                      {b.approve_all_status === 'running' && (
+                        <p className="mt-1 text-xs font-medium text-amber-600">Sending scripts to marking…</p>
+                      )}
+                      {c.errors > 0 && (
+                        <p className="mt-1 text-xs font-medium text-red-600">
+                          {c.errors} script{c.errors !== 1 ? 's' : ''} failed extraction
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => archiveBatch(b)}
+                        className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                        data-testid={`archive-batch-${b.id}`}
+                      >
+                        Archive
+                      </button>
+                      <button
+                        onClick={() => navigate(`/teacher/ocr-bulk-review/${b.id}`)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
+                        data-testid={`resume-batch-${b.id}`}
+                      >
+                        Resume <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {activeBatches.length > MAX_BATCHES_SHOWN && (
+              <p className="text-xs text-gray-400 text-center pt-2">
+                Showing {MAX_BATCHES_SHOWN} of {activeBatches.length} in-progress batches.
+              </p>
+            )}
+
+            {archivedBatches.length > 0 && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <button
+                  onClick={() => setShowArchived((v) => !v)}
+                  className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                  data-testid="toggle-archived-batches"
+                >
+                  {showArchived ? 'Hide archived' : `Show archived (${archivedBatches.length})`}
+                </button>
+
+                {showArchived && (
+                  <div className="mt-2 divide-y divide-gray-50">
+                    {archivedBatches.map((b) => (
+                      <div key={b.id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-600 truncate">
+                            {b.assessment_title || b.assessment_subject || 'Class set'}
+                            <span className="text-gray-400 font-normal"> · {b.counts?.total || 0} scripts</span>
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">
+                            {batchSummary(b)} · started {formatTime(b.created_at)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            onClick={() => navigate(`/teacher/ocr-bulk-review/${b.id}`)}
+                            className="inline-flex items-center justify-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                          >
+                            Open
+                          </button>
+                          <button
+                            onClick={() => unarchiveBatch(b)}
+                            className="inline-flex items-center justify-center rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                            data-testid={`unarchive-batch-${b.id}`}
+                          >
+                            Restore
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
