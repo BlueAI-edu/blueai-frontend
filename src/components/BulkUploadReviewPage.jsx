@@ -276,7 +276,6 @@ export default function BulkUploadReviewPage({ user }) {
           </div>
         )}
           
-        </div>
 
           <div className="flex items-center justify-center mb-8">
             {/* Step 1 — Prepare */}
