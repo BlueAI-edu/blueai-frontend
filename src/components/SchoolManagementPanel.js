@@ -4,6 +4,8 @@ import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { LoadingSpinner } from '@/components/common';
 
+const MISCONCEPTION_PREVIEW_COUNT = 10;
+
 /**
  * School Admin console — teacher/class visibility (#307).
  *
@@ -26,6 +28,7 @@ export function SchoolManagementPanel({ organisationId = null }) {
   const [roster, setRoster] = useState(null);
   const [rosterLoading, setRosterLoading] = useState(false);
   const [removingId, setRemovingId] = useState(null);
+  const [showAllMisconceptions, setShowAllMisconceptions] = useState(false);
 
   const orgParams = useCallback(
     (extra = {}) => ({
@@ -189,7 +192,8 @@ export function SchoolManagementPanel({ organisationId = null }) {
           <p className="text-sm text-gray-500">No misconceptions detected yet across your school.</p>
         ) : (
           <div className="space-y-2">
-            {misconceptions.map((m) => (
+            {/* Groups arrive ranked by students affected; a school can have hundreds, so show the top few */}
+            {(showAllMisconceptions ? misconceptions : misconceptions.slice(0, MISCONCEPTION_PREVIEW_COUNT)).map((m) => (
               <div key={m.canonical_tag} className="border border-gray-200 rounded-lg px-4 py-3">
                 <p className="text-sm font-medium text-gray-900">{m.description}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -197,6 +201,15 @@ export function SchoolManagementPanel({ organisationId = null }) {
                 </p>
               </div>
             ))}
+            {misconceptions.length > MISCONCEPTION_PREVIEW_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAllMisconceptions((v) => !v)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                {showAllMisconceptions ? 'Show fewer' : `Show all ${misconceptions.length} misconceptions`}
+              </button>
+            )}
           </div>
         )}
       </section>
