@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useBatchNav, scriptPath } from '@/hooks/useBatchNav';
 import { API_URL } from '@/config';
 import { useAsync } from '../hooks/use-async';
 import { useToast } from '@/hooks/use-toast';
 import { toDisplayText, toBulletList } from '@/lib/feedback-format';
+import BatchScriptNav from "@/components/BatchScriptNav";
+import { Navbar } from "@/components/Navbar"
 
 
 export default function OCRModerationPage({ user }) {
   const navigate = useNavigate();
   const { submissionId } = useParams();
+  const [searchParams] = useSearchParams();
+  const batchId = searchParams.get('batch');
+  const { total, position, prev, next } = useBatchNav(batchId, submissionId);
+  const exitPath = batchId ? `/teacher/ocr-bulk-review/${batchId}` : '/teacher/dashboard';
   const { toast } = useToast();
   const [submission, setSubmission] = useState(null);
   const [markingResult, setMarkingResult] = useState(null);
@@ -23,12 +30,35 @@ export default function OCRModerationPage({ user }) {
   const [www, setWww] = useState('');
   const [nextSteps, setNextSteps] = useState('');
   const [overallFeedback, setOverallFeedback] = useState('');
+  const [baseline, setBaseline] = useState(null); 
+
 
   useEffect(() => {
     fetchData();
   }, [submissionId]);
+ 
+  const isDirty = 
+    !!baseline &&
+    (totalScore !== baseline.totalScore ||
+      www !== baseline.www ||
+      nextSteps !== baseline.nextSteps ||
+      overallFeedback !== baseline.overallFeedback);
+
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn); // refresh / close tab
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [isDirty]);
+
+  const confirmDiscard = () =>
+    !isDirty || window.confirm('You have unsaved changes to these marks. Leave without saving them?');
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const submissionResponse = await fetch(`${API_URL}/api/ocr/submissions/${submissionId}`, {
         credentials: 'include'
@@ -44,10 +74,18 @@ export default function OCRModerationPage({ user }) {
       const markingData = await markingResponse.json();
       setMarkingResult(markingData);
 
-      setTotalScore(markingData.total_score || 0);
-      setWww(toDisplayText(markingData.www));
-      setNextSteps(toDisplayText(markingData.next_steps));
-      setOverallFeedback(toDisplayText(markingData.overall_feedback));
+      const base = {
+        totalScore: markingData.total_score || 0,
+        www: toDisplayText(markingData.www),
+        nextSteps: toDisplayText(markingData.next_steps),
+        overallFeedback: toDisplayText(markingData.overall_feedback),
+      };
+      
+      setTotalScore(base.totalScore);
+      setWww(base.www);
+      setNextSteps(base.nextSteps);
+      setOverallFeedback(base.overallFeedback);
+      setBaseline(base);
 
       const assessmentResponse = await fetch(`${API_URL}/api/teacher/assessments`, {
         credentials: 'include'
@@ -106,6 +144,7 @@ export default function OCRModerationPage({ user }) {
       if (!response.ok) {
         throw new Error('Failed to save changes');
       }
+      setBaseline({ totalScore, www, nextSteps, overallFeedback });
 
       toast({ title: "Saved", description: "Changes saved successfully." });
     } catch (err) {
@@ -173,7 +212,7 @@ export default function OCRModerationPage({ user }) {
 
       toast({ title: "Finalized", description: "Submission finalized and PDF downloaded." });
 
-      navigate(-2, {
+      navigate(exitPath, {
         state: { message: 'Submission finalized and PDF downloaded!' }
       });
     } catch (pdfErr) {
@@ -187,10 +226,13 @@ export default function OCRModerationPage({ user }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading marking results...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <Navbar user={user} />
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading marking results...</p>
+          </div>
         </div>
       </div>
     );
@@ -198,9 +240,12 @@ export default function OCRModerationPage({ user }) {
 
   if (!submission || !markingResult) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">Marking results not found for this submission.</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <Navbar user={user} />
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600">Marking results not found for this submission.</p>
+          </div>
         </div>
       </div>
     );
@@ -208,18 +253,19 @@ export default function OCRModerationPage({ user }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <Navbar user={user} />
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/teacher/dashboard')}
+                onClick={() => { if (confirmDiscard()) navigate(exitPath); }}
                 className="text-gray-600 hover:text-gray-900 transition-colors"
               >
-                ← Back to Dashboard
+                {batchId ? '← Back to Batch' : '← Back to Dashboard'}
               </button>
-                <h1 className="text-2xl font-bold text-gray-900">Review AI Marks</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Review AI Marks</h1>
             </div>
             <div className="text-sm text-gray-500">
               Student: <span className="font-medium text-gray-900">{submission.student_name}</span>
@@ -228,6 +274,7 @@ export default function OCRModerationPage({ user }) {
         </div>
       </div>
 
+      <BatchScriptNav batchId={batchId} position={position} total={total} prev={prev} next={next} busy={isBusy} isDirty={isDirty} />
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Assessment Context */}
@@ -388,7 +435,7 @@ export default function OCRModerationPage({ user }) {
 
         {/* Action Buttons */}
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex space-x-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={handleSaveChanges}
               disabled={isBusy}
@@ -416,11 +463,11 @@ export default function OCRModerationPage({ user }) {
               {finalizing ? 'Finalising...' : 'Finalise & Download'}
             </button>
             <button
-              onClick={() => navigate('/teacher/dashboard')}
+              onClick={() => { if (confirmDiscard()) navigate(next ? scriptPath(next, batchId) : exitPath); }}
               disabled={isBusy}
               className="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
             >
-              Cancel
+              {next ? 'Skip to next script' : 'Back to batch'}
             </button>
           </div>
         </div>
