@@ -151,7 +151,7 @@ export default function BulkUploadReviewPage({ user }) {
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Failed to confirm batch');
       await load();
-      toast({ title: 'Batch confirmed', description: 'Extraction complete — review each submission below.' });
+      toast({ title: 'Class set extracted', description: 'The student submissions are ready for individual review.' });
     } catch (err) {
       toast({ title: 'Confirm failed', description: err.message, variant: 'destructive' });
     } finally {
@@ -218,7 +218,9 @@ export default function BulkUploadReviewPage({ user }) {
             <p className="text-sm text-slate-600 mt-1">
               {submissions.length} student{submissions.length !== 1 ? 's' : ''} detected across {batch?.total_pages} pages.
               {needsReviewCount > 0 && !confirmedDone && (
-                <span className="text-amber-600 font-medium"> {needsReviewCount} need{needsReviewCount === 1 ? 's' : ''} your review.</span>
+                <span className="text-amber-600 font-medium"> 
+                  {' '}{needsReviewCount} need{needsReviewCount === 1 ? 's' : ''} your review.
+                </span>
               )}
             </p>
             {confirmedDone && (
@@ -273,6 +275,70 @@ export default function BulkUploadReviewPage({ user }) {
             {approveAllFailed !== 1 ? ' them' : ' it'} and use Approve &amp; Send to Marking to retry.
           </div>
         )}
+          
+        </div>
+
+          <div className="flex items-center justify-center mb-8">
+            {/* Step 1 — Prepare */}
+            <div className={`flex items-center ${!confirmedDone && !confirming ? 'text-blue-600' : 'text-gray-400'}`}>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-medium ${
+                  !confirmedDone && !confirming ? 'bg-blue-600 text-white' 
+                  : confirmedDone || confirming ? 'bg-green-500 text-white' : 'bg-gray-200'}`
+                }>
+                {confirmedDone || confirming ? '✓' : '1'}
+              </div>
+
+              <span className="ml-2 font-medium">Prepare</span>
+            </div>
+
+            {/* Connector */}
+            <div className="w-16 h-1 bg-gray-200 mx-2"></div>
+
+            {/* Step 2 — Extract */}
+            <div
+              className={`flex items-center ${
+                confirming
+                  ? 'text-blue-600'
+                  : confirmedDone
+                    ? 'text-gray-400'
+                    : 'text-gray-400'
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-medium ${
+                  confirming ? 'bg-blue-600 text-white' : confirmedDone ? 'bg-green-500 text-white' : 'bg-gray-200'
+                }`}
+              >
+                {confirmedDone ? '✓' : '2'}
+              </div>
+
+              <span className="ml-2 font-medium">Extract</span>
+            </div>
+
+            {/* Connector */}
+            <div className="w-16 h-1 bg-gray-200 mx-2"></div>
+
+            {/* Step 3 — Review */}
+            <div
+              className={`flex items-center ${
+                confirmedDone ? 'text-green-600' : 'text-gray-400'
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-medium ${
+                  confirmedDone
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-200'
+                }`}
+              >
+                {confirmedDone ? '✓' : '3'}
+              </div>
+
+              <span className="ml-2 font-medium">Review</span>
+            </div>
+          </div>
+        
 
         <div className="space-y-4">
           {submissions.map((sub) => {
@@ -337,32 +403,37 @@ export default function BulkUploadReviewPage({ user }) {
                     </div>
                   )}
                   {isPending && (
-                    <div className="flex items-end gap-2">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">First page</label>
-                        <input
-                          type="number"
-                          min={1}
-                          defaultValue={sub.page_range?.start}
-                          onChange={(e) => handleEditPageRange(sub.id, 'pageStart', e.target.value)}
-                          className="w-20 px-2 py-1.5 border border-slate-300 rounded text-sm"
-                        />
+                    <div>
+                      <p className="text-xs text-slate-500 mb-2">
+                        Confirm which pages belong to this student.
+                      </p>
+                      <div className="flex items-end gap-2">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">Start page</label>
+                          <input
+                            type="number"
+                            min={1}
+                            defaultValue={sub.page_range?.start}
+                            onChange={(e) => handleEditPageRange(sub.id, 'pageStart', e.target.value)}
+                            className="w-20 px-2 py-1.5 border border-slate-300 rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">End page</label>
+                          <input
+                            type="number"
+                            min={1}
+                            defaultValue={sub.page_range?.end}
+                            onChange={(e) => handleEditPageRange(sub.id, 'pageEnd', e.target.value)}
+                            className="w-20 px-2 py-1.5 border border-slate-300 rounded text-sm"
+                          />
+                        </div>
+                        {(edit.pageStart !== undefined || edit.pageEnd !== undefined) && (
+                          <Button size="sm" variant="outline" onClick={() => handleSavePageRange(sub.id)}>
+                            Save range
+                          </Button>
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Last page</label>
-                        <input
-                          type="number"
-                          min={1}
-                          defaultValue={sub.page_range?.end}
-                          onChange={(e) => handleEditPageRange(sub.id, 'pageEnd', e.target.value)}
-                          className="w-20 px-2 py-1.5 border border-slate-300 rounded text-sm"
-                        />
-                      </div>
-                      {(edit.pageStart !== undefined || edit.pageEnd !== undefined) && (
-                        <Button size="sm" variant="outline" onClick={() => handleSavePageRange(sub.id)}>
-                          Save range
-                        </Button>
-                      )}
                     </div>
                   )}
                   {!isPending && sub.mark_error && sub.status === 'approved' && (

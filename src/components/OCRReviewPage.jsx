@@ -489,6 +489,7 @@ export default function OCRReviewPage({ user }) {
                     if (!confirmDiscard()) return;
                     navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
                   }}
+                onClick={() => navigate(-1)}
                 variant="ghost"
                 size="sm"
                 className="shrink-0 px-2 text-slate-600"
