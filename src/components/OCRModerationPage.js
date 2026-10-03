@@ -173,7 +173,7 @@ export default function OCRModerationPage({ user }) {
 
       toast({ title: "Finalized", description: "Submission finalized and PDF downloaded." });
 
-      navigate('/teacher/dashboard', {
+      navigate(-2, {
         state: { message: 'Submission finalized and PDF downloaded!' }
       });
     } catch (pdfErr) {
