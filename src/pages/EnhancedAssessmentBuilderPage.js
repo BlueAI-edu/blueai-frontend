@@ -4,6 +4,7 @@ import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
 import { LoadingSpinner } from '@/components/common';
 import { teacherApi } from '@/services/api';
+import { isTieredSubject } from '@/lib/subject-profiles';
 
 const AssessmentModeSelector = lazy(() => import('../components/EnhancedAssessmentBuilder/AssessmentModeSelector'));
 const QuestionEditor = lazy(() => import('../components/EnhancedAssessmentBuilder/QuestionEditor'));
@@ -294,7 +295,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   };
 
   const updateField = useCallback((field, value) => {
-    setAssessmentData(prev => ({ ...prev, [field]: value }));
+    setAssessmentData(prev => {
+      const next = { ...prev, [field]: value };
+      // Untiered subjects (History, English...) have no Foundation/Higher; the
+      // "Higher" default used to end up printed on their reports (#328 BLU-103).
+      if (field === 'subject' && !isTieredSubject(value)) next.tier = 'None';
+      return next;
+    });
   }, []);
 
   const toggleClass = useCallback((classId) => {
@@ -714,7 +721,9 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                 <select
                   value={assessmentData.tier}
                   onChange={(e) => updateField('tier', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={!isTieredSubject(assessmentData.subject)}
+                  title={isTieredSubject(assessmentData.subject) ? undefined : `${assessmentData.subject} is not tiered`}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                 >
                   <option>Higher</option>
                   <option>Foundation</option>
@@ -889,7 +898,9 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                 <select
                   value={assessmentData.tier}
                   onChange={(e) => updateField('tier', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={!isTieredSubject(assessmentData.subject)}
+                  title={isTieredSubject(assessmentData.subject) ? undefined : `${assessmentData.subject} is not tiered`}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                 >
                   <option>Foundation</option>
                   <option>Higher</option>
