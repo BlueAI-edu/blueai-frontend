@@ -68,6 +68,8 @@ const FLAG_LABELS = {
   question_text_very_short:     'Question text is very short',
   diagram_referenced_but_missing: 'Diagram referenced but not extracted',
   scanned_page_fallback:        'Extracted via Vision (scanned page)',
+  marks_conflict:               'Mark scheme gives a different total than the paper — check the marks',
+  mark_bands_mismatch:          "Level bands don't match this question's marks — check the mark scheme",
 };
 
 // ─── Mark scheme image panel ──────────────────────────────────────────────────
