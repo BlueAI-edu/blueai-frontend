@@ -7,7 +7,7 @@ import StimulusUploader from './StimulusUploader';
 import MixedMathEditor from '../MixedMathEditor';
 import DiagramRenderer from '../DiagramRenderer';
 
-const LONG_RESPONSE_MIN_MARKS = 1;
+const LONG_RESPONSE_MIN_MARKS = 6;
 const LONG_RESPONSE_MAX_MARKS = 15;
 
 /**

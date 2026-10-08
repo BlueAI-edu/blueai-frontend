@@ -8,7 +8,7 @@ const QuestionTypeSelector = ({ selectedType, onTypeChange, mode }) => {
       description: '1-3 marks, brief written response',
       icon: '✍️',
       marks: '1-3',
-      available: ['SUMMATIVE_MULTI_QUESTION', 'EXAM_STRUCTURED_GCSE_STYLE']
+      available: ['SUMMATIVE_MULTI_QUESTION', 'EXAM_STRUCTURED_GCSE_STYLE','FORMATIVE_SINGLE_LONG_RESPONSE']
     },
     {
       id: 'MULTIPLE_CHOICE',
@@ -16,7 +16,7 @@ const QuestionTypeSelector = ({ selectedType, onTypeChange, mode }) => {
       description: 'A-D options, single correct answer',
       icon: '🔘',
       marks: '1',
-      available: ['SUMMATIVE_MULTI_QUESTION']
+      available: ['SUMMATIVE_MULTI_QUESTION','FORMATIVE_SINGLE_LONG_RESPONSE']
     },
     {
       id: 'MULTI_SELECT',
@@ -24,7 +24,7 @@ const QuestionTypeSelector = ({ selectedType, onTypeChange, mode }) => {
       description: 'Multiple correct answers possible',
       icon: '☑️',
       marks: '2-3',
-      available: ['SUMMATIVE_MULTI_QUESTION']
+      available: ['SUMMATIVE_MULTI_QUESTION','FORMATIVE_SINGLE_LONG_RESPONSE']
     },
     {
       id: 'NUMERIC',
@@ -32,7 +32,7 @@ const QuestionTypeSelector = ({ selectedType, onTypeChange, mode }) => {
       description: 'Calculation question with numeric answer',
       icon: '🔢',
       marks: '1-3',
-      available: ['SUMMATIVE_MULTI_QUESTION', 'EXAM_STRUCTURED_GCSE_STYLE']
+      available: ['SUMMATIVE_MULTI_QUESTION', 'EXAM_STRUCTURED_GCSE_STYLE','FORMATIVE_SINGLE_LONG_RESPONSE']
     },
     {
       id: 'LONG_RESPONSE',

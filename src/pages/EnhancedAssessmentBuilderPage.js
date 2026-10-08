@@ -331,13 +331,13 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
   const addQuestion = useCallback(() => {
     setAssessmentData(prev => {
-      const isFormative = prev.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
+      // const isFormative = prev.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
       const newQuestion = {
         questionNumber: prev.questions.length + 1,
-        questionType: isFormative ? 'LONG_RESPONSE' : '',
+        questionType: '',
         questionBody: '',
         stimulusBlock: null,
-        maxMarks: isFormative ? 6 : 1,
+        maxMarks: 1,
         subject: prev.subject,
         topic: '',
         difficulty: 'Medium',
@@ -448,11 +448,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
 
     if (assessmentData.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE') {
       if (assessmentData.questions.length < 1 || assessmentData.questions.length > 10) {
-        showNotification('Formative mode requires 1-10 long-response questions', 'error');
-        return false;
-      }
-      if (assessmentData.questions.some(q => q.questionType !== 'LONG_RESPONSE')) {
-        showNotification('All formative questions must be long-response', 'error');
+        showNotification('Formative mode requires 1-10 questions', 'error');
         return false;
       }
     }
