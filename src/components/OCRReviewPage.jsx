@@ -311,48 +311,48 @@ export default function OCRReviewPage({ user }) {
   };
 
   const handleSavePage = async (keepBusy = false) => {
-  setSaving(true);
-  try {
-    const currentPage = pages[currentPageIndex];
-    const response = await fetch(
-      `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
+    setSaving(true);
+    try {
+      const currentPage = pages[currentPageIndex];
+      const response = await fetch(
+        `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            approved_ocr_text: editedText,
+            is_approved: true,
+          }),
         },
-        credentials: "include",
-        body: JSON.stringify({
-          approved_ocr_text: editedText,
-          is_approved: true,
-        }),
-      },
-    );
+      );
 
-    if (!response.ok) {
-      throw new Error("Failed to save page");
+      if (!response.ok) {
+        throw new Error("Failed to save page");
+      }
+
+      const updatedPages = [...pages];
+      updatedPages[currentPageIndex] = {
+        ...updatedPages[currentPageIndex],
+        approved_ocr_text: editedText,
+        is_approved: true,
+      };
+
+      setPages(updatedPages);
+      if (!keepBusy) {
+        toast({ title: "Saved", description: "Page saved and approved." });
+      }
+      return true;
+    } catch (err) {
+      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+      return false;
+    } finally {
+      if (!keepBusy) setSaving(false);
     }
-
-    const updatedPages = [...pages];
-    updatedPages[currentPageIndex] = {
-      ...updatedPages[currentPageIndex],
-      approved_ocr_text: editedText,
-      is_approved: true,
-    };
-
-    setPages(updatedPages);
-    if (!keepBusy) {
-      toast({ title: "Saved", description: "Page saved and approved." });
-    }
-    return true;
-  } catch (err) {
-    toast({ title: "Save Failed", description: err.message, variant: "destructive" });
-    return false;
-  } finally {
-    if (!keepBusy) setSaving(false);
-  }
-};
+  };
 
   const handleApproveAll = async () => {
     if (alreadyMarked) return;
@@ -485,11 +485,10 @@ export default function OCRReviewPage({ user }) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <Button
-               onClick={() => {
-                    if (!confirmDiscard()) return;
-                    navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
-                  }}
-                onClick={() => navigate(-1)}
+                onClick={() => {
+                  if (!confirmDiscard()) return;
+                  navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
+                }}
                 variant="ghost"
                 size="sm"
                 className="shrink-0 px-2 text-slate-600"
@@ -728,7 +727,7 @@ export default function OCRReviewPage({ user }) {
               />
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button onClick={handleSavePage} disabled={saving || reExtracting} className="flex-1">
+                <Button onClick={() => handleSavePage()} disabled={saving || reExtracting} className="flex-1">
                   {saving && (
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
