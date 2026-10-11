@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { handleApiError, showSuccess } from "@/lib/handle-error";
 import { teacherApi } from "@/services/api";
@@ -6,6 +6,23 @@ import { Navbar } from "@/components/Navbar";
 import { AssessmentHero } from "@/components/AssessmentHero";
 import { AssessmentCard, AssessmentCardSkeleton, AssessmentEmptyState } from "@/components/AssessmentCard";
 import { AssessmentStatsRow } from "@/components/AssessmentStatsRow";
+import { AssessmentsToolbar, EMPTY_FILTERS } from "@/components/AssessmentsToolbar";
+
+// Field on the assessment object used for date sorting / filtering.
+// Confirmed against the getAssessments response (ISO string with +00:00 offset).
+const DATE_FIELD = "created_at";
+
+// Calendar date (YYYY-MM-DD) in the teacher's local timezone.
+// Timestamps without a timezone suffix are treated as UTC.
+const toDateKey = (value) => {
+  if (!value) return "";
+  let s = String(value);
+  if (s.includes("T") && !/(Z|[+-]\d{2}:?\d{2})$/.test(s)) s += "Z";
+  const d = new Date(s);
+  if (isNaN(d)) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 export const AssessmentsPage = ({ user }) => {
   const [assessments, setAssessments] = useState([]);
@@ -18,6 +35,8 @@ export const AssessmentsPage = ({ user }) => {
   const [activeTab, setActiveTab] = useState("assessments"); // assessments, templates
   const [visibleCount, setVisibleCount] = useState(10);
   const [statusFilter, setStatusFilter] = useState(null); // null | "all" | "started" | "submissions"
+  const [sortBy, setSortBy] = useState("date_desc");
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [submissionsCardHasNew, setSubmissionsCardHasNew] = useState(false);
   const [reviewCount, setReviewCount] = useState(0);
@@ -33,13 +52,16 @@ export const AssessmentsPage = ({ user }) => {
   const listRef = useRef(null);
   const scrollToList = () => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
+  const clearFilters = () => setFilters(EMPTY_FILTERS);
+
   useEffect(() => {
     loadData();
   }, []);
 
   useEffect(() => {
     setVisibleCount(10);
-  }, [statusFilter]);
+  }, [statusFilter, sortBy, filters]);
 
   const loadData = async () => {
     try {
@@ -193,6 +215,77 @@ export const AssessmentsPage = ({ user }) => {
         {labels[status] || status}
       </span>
     );
+  };
+
+  // ── Sort + filter pipeline ──
+  const enriched = useMemo(() => {
+    const qMap = new Map(questions.map((q) => [q.id, q]));
+    const classMap = new Map(classes.map((c) => [c.id, c.class_name]));
+    return assessments.map((a) => {
+      const subject = String(a.subject || qMap.get(a.question_id)?.subject || "").trim();
+      const classIds = (assignmentsByAssessment[a.id] || []).map((x) => x.class_id).filter(Boolean);
+      const classNames = classIds.map((id) => classMap.get(id)).filter(Boolean).sort();
+      return {
+        a,
+        subject,
+        classIds,
+        className: classNames[0] || "",
+        dateKey: toDateKey(a[DATE_FIELD]),
+        ts: a[DATE_FIELD] ? new Date(a[DATE_FIELD]).getTime() || 0 : 0,
+        submissions: a.submission_count ?? 0,
+      };
+    });
+  }, [assessments, questions, classes, assignmentsByAssessment]);
+
+  // { "mathematics": { label: "Mathematics", count: 6 }, ... }
+  const subjectCounts = useMemo(() => {
+    const counts = {};
+    for (const r of enriched) {
+      if (!r.subject) continue;
+      const key = r.subject.toLowerCase();
+      counts[key] = counts[key] || { label: r.subject, count: 0 };
+      counts[key].count += 1;
+    }
+    return counts;
+  }, [enriched]);
+
+  const filtered = useMemo(() => {
+    const { subject, classId, status, from, to } = filters;
+    const byText = (x, y) => (x || "\uffff").localeCompare(y || "\uffff"); // blanks last
+
+    const rows = enriched.filter((r) => {
+      // existing stat-card filter
+      if (statusFilter === "started" && r.a.status !== "started") return false;
+      if (statusFilter === "submissions" && r.submissions <= 0) return false;
+      // toolbar filters
+      if (status && r.a.status !== status) return false;
+      if (subject && r.subject.toLowerCase() !== subject.toLowerCase()) return false;
+      if (classId && !r.classIds.includes(classId)) return false;
+      if (from || to) {
+        if (!r.dateKey) return false;
+        if (from && r.dateKey < from) return false; // inclusive
+        if (to && r.dateKey > to) return false; // inclusive
+      }
+      return true;
+    });
+
+    rows.sort((x, y) => {
+      let c = 0;
+      if (sortBy === "date_asc") c = x.ts - y.ts;
+      else if (sortBy === "subject") c = byText(x.subject, y.subject);
+      else if (sortBy === "class") c = byText(x.className, y.className);
+      else if (sortBy === "submissions") c = y.submissions - x.submissions;
+      else c = y.ts - x.ts; // date_desc (default)
+      return c !== 0 ? c : y.ts - x.ts; // stable tie-break: newest first
+    });
+
+    return rows.map((r) => r.a);
+  }, [enriched, filters, sortBy, statusFilter]);
+
+  const FILTER_LABELS = {
+    all: "All Assessments",
+    started: "Live Assessments",
+    submissions: "With Submissions",
   };
 
   return (
@@ -536,25 +629,27 @@ export const AssessmentsPage = ({ user }) => {
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             {/* ── Main column ── */}
             <div className="flex-1 min-w-0">
-            {(() => {
-              const filtered = statusFilter === "started"
-                ? assessments.filter((a) => a.status === "started")
-                : statusFilter === "submissions"
-                ? assessments.filter((a) => (a.submission_count ?? 0) > 0)
-                : assessments;
-
-              const FILTER_LABELS = {
-                all: "All Assessments",
-                started: "Live Assessments",
-                submissions: "With Submissions",
-              };
-
-              return loading ? (
+              {loading ? (
                 <div className="space-y-4" data-testid="assessments-loading">
                   {[1, 2, 3].map((n) => <AssessmentCardSkeleton key={n} />)}
                 </div>
               ) : (
                 <div ref={listRef}>
+                  {/* Sort + filter toolbar */}
+                  {assessments.length > 0 && (
+                    <AssessmentsToolbar
+                      sortBy={sortBy}
+                      onSortChange={setSortBy}
+                      filters={filters}
+                      onFilterChange={setFilter}
+                      onClear={clearFilters}
+                      classes={classes}
+                      subjectCounts={subjectCounts}
+                      resultCount={filtered.length}
+                      totalCount={assessments.length}
+                    />
+                  )}
+
                   {/* Active filter pill */}
                   {statusFilter && statusFilter !== "all" && (
                     <div className="flex items-center gap-2 mb-4">
@@ -582,7 +677,7 @@ export const AssessmentsPage = ({ user }) => {
                       <p className="text-sm font-medium text-gray-600 mb-1">No assessments match this filter</p>
                       <p className="text-xs text-gray-400 mb-4">Try a different view or clear the filter</p>
                       <button
-                        onClick={() => setStatusFilter(null)}
+                        onClick={() => { setStatusFilter(null); clearFilters(); }}
                         className="text-xs text-indigo-600 font-medium hover:underline"
                       >
                         Clear filter
@@ -626,8 +721,7 @@ export const AssessmentsPage = ({ user }) => {
                     </>
                   )}
                 </div>
-              );
-            })()}
+              )}
             </div>{/* end main column */}
           </div>
         )}
