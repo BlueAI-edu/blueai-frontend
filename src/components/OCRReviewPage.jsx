@@ -43,12 +43,8 @@ export default function OCRReviewPage({ user }) {
   const [saving, setSaving] = useState(false);
   const [reExtracting, setReExtracting] = useState(false);
 
-  useEffect(() => {
-  setLoading(true);
-  setCurrentPageIndex(0);
-  setPages([]);
-  fetchSubmission();
-}, [submissionId]);
+  const currentIdRef = useRef(submissionId);
+
   useEffect(() => {
     if (pages.length > 0) {
       const page = pages[currentPageIndex];
@@ -56,8 +52,8 @@ export default function OCRReviewPage({ user }) {
     }
   }, [currentPageIndex, pages]);
 
-  const currentIdRef = useRef(submissionId);
-
+  // Single effect that resets state and loads the submission whenever the
+  // route changes. (A duplicate effect used to fetch the submission twice.)
   useEffect(() => {
     currentIdRef.current = submissionId;
     setLoading(true);
@@ -281,8 +277,9 @@ export default function OCRReviewPage({ user }) {
   };
 
   const fetchSubmission = async () => {
+    const targetId = submissionId;
     try {
-      const response = await fetch(`${API_URL}/api/ocr/submissions/${submissionId}`, {
+      const response = await fetch(`${API_URL}/api/ocr/submissions/${targetId}`, {
         credentials: "include",
       });
 
@@ -291,6 +288,8 @@ export default function OCRReviewPage({ user }) {
       }
 
       const data = await response.json();
+      // Teacher moved to another script while this was loading: drop the response.
+      if (currentIdRef.current !== targetId) return;
       const normalizedPages = (data.pages || []).map((page) => ({
         ...page,
         page_type: page.page_type || page.page_classification?.page_type || "unknown",
@@ -304,13 +303,18 @@ export default function OCRReviewPage({ user }) {
         setEditedText(getPageAnswerText(normalizedPages[0]));
       }
     } catch (err) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      if (currentIdRef.current === targetId) {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      }
     } finally {
-      setLoading(false);
+      if (currentIdRef.current === targetId) setLoading(false);
     }
   };
 
-  const handleSavePage = async (keepBusy = false) => {
+  // Takes an options object, NOT a bare boolean: when used directly as an
+  // onClick handler React passes the click event as the first argument, which
+  // used to be read as a truthy `keepBusy` and left the spinner stuck forever.
+  const handleSavePage = async ({ keepBusy = false } = {}) => {
     setSaving(true);
     try {
       const currentPage = pages[currentPageIndex];
@@ -356,10 +360,41 @@ export default function OCRReviewPage({ user }) {
 
   const handleApproveAll = async () => {
     if (alreadyMarked) return;
+
+    // Guard: pages that failed OCR or have no answer text would be sent to
+    // marking as "No answer provided". Make the teacher confirm first.
+    const pageText = (p) =>
+      (p.page_number === currentPage?.page_number ? editedText : getPageAnswerText(p)).trim();
+    const emptyPages = pages.filter(
+      (p) =>
+        !isPageSkipped(p.page_type) && !isPageFailed(p.page_type) && !pageText(p),
+    );
+    // A page classified cover/instruction/blank is excluded from marking. If it
+    // nevertheless holds extracted text, it was probably misclassified and its
+    // answers would be silently dropped.
+    const skippedWithText = pages.filter(
+      (p) => isPageSkipped(p.page_type) && pageText(p),
+    );
+    const problemPages = failedPageCount + emptyPages.length;
+    const warnings = [];
+    if (problemPages > 0) {
+      warnings.push(
+        `${problemPages} page${problemPages !== 1 ? "s have" : " has"} no usable answer text and will be marked as blank.`,
+      );
+    }
+    if (skippedWithText.length > 0) {
+      warnings.push(
+        `${skippedWithText.length} page${skippedWithText.length !== 1 ? "s are" : " is"} classified as skipped (cover/instructions/blank) but contain text, so ${skippedWithText.length !== 1 ? "their answers" : "its answers"} will NOT be marked.`,
+      );
+    }
+    if (warnings.length > 0) {
+      if (!window.confirm(`${warnings.join("\n\n")}\n\nSend to marking anyway?`)) return;
+    }
+
     const targetId = submissionId;
     setSaving(true);
     try {
-      const saved = await handleSavePage(true);
+      const saved = await handleSavePage({ keepBusy: true });
       if (!saved) return;
 
       const approveResponse = await fetch(
@@ -486,8 +521,8 @@ export default function OCRReviewPage({ user }) {
             <div className="flex min-w-0 items-center gap-3">
               <Button
                 onClick={() => {
-                  if (!confirmDiscard()) return;
-                  navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
+                    if (!confirmDiscard()) return;
+                    navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
                 }}
                 variant="ghost"
                 size="sm"
