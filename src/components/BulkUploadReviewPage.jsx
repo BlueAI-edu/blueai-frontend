@@ -487,7 +487,7 @@ export default function BulkUploadReviewPage({ user }) {
                         isOpen={isExpanded}
                       />
 
-                      {['marked_draft', 'finalized'].includes(sub.status) && (
+                      {REVIEWABLE.includes(sub.status) && (
                         <Link
                           to={`/teacher/ocr-review/${sub.id}?batch=${batchId}`}
                           className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
