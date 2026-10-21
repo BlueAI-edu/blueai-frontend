@@ -128,6 +128,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   // Server-side extraction session id — pages persist under it so diagram
   // crops can be reproduced later (diagram pipeline D1)
   const [extractionId, setExtractionId] = useState(null);
+  const [validation, setValidation] = useState(null);
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -193,6 +194,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setPageImages(response.data.page_images || {});
       setMsPageThumbnails(response.data.ms_page_thumbnails || {});
       setExtractionId(response.data.extraction_id || null);
+      setValidation(response.data.validation || null);
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -222,6 +224,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setPageImages({});
     setMsPageThumbnails({});
     setExtractionId(null);
+    setValidation(null);
     setOcrReviewState('uploading');
   }, []);
 
@@ -1122,6 +1125,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   pageImages={pageImages}
                   msPageThumbnails={msPageThumbnails}
                   extractionId={extractionId}
+                  validation={validation}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />

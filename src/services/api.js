@@ -43,6 +43,8 @@ export const teacherApi = {
     client.post('/teacher/assessments/extract-past-paper', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  reprocessExtraction: (extractionId, payload) =>
+    client.post(`/teacher/extractions/${extractionId}/reprocess`, payload),
 
   // Assignments — ALWAYS use this; never call axios directly
   getAssignments: () => client.get('/teacher/assignments'),

@@ -1,4 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { teacherApi } from '@/services/api';
+import ValidationPanel from './ValidationPanel';
+import { mergeReprocessedQuestions, mergeMarkSchemeUpdates, withBaseline } from './OCRReprocess';
 import DiagramRenderer from '../DiagramRenderer';
 import DiagramCropModal from './DiagramCropModal';
 import LaTeXRenderer from '../LaTeXRenderer';
@@ -26,12 +29,30 @@ const getEffectiveTier = (question) => {
 
 // A question needs attention when its confidence is not high, OR when its mark
 // scheme is missing (extraction succeeded but no mark scheme was found for it).
+const MS_ATTENTION = ['not_found', 'ms_incomplete', 'candidate', 'matched_parent'];
+const MS_PRIORITY = ['ms_incomplete', 'not_found', 'candidate', 'matched_parent', 'matched'];
+const MS_BADGE = {
+  not_found:      ['Mark scheme not found in uploaded document', 'text-amber-700 bg-amber-50 border-amber-200'],
+  ms_incomplete:  ['Mark scheme extraction incomplete', 'text-red-700 bg-red-50 border-red-200'],
+  candidate:      ['Mark scheme: verify match', 'text-amber-700 bg-amber-50 border-amber-200'],
+  matched_parent: ['Mark scheme: verify match', 'text-amber-700 bg-amber-50 border-amber-200'],
+};
+const msStates = (q) =>
+  q.questionType === 'STRUCTURED_WITH_PARTS' && q.parts?.length
+    ? q.parts.map(p => p.msStatus)
+    : [q.msStatus];
+const worstMs = (q) => MS_PRIORITY.find(s => msStates(q).includes(s)) || null;
+
 const questionNeedsAttention = (q) => {
   if (getEffectiveTier(q) !== 'high') return true;
-  if (q.questionType === 'STRUCTURED_WITH_PARTS') {
-    return (q.parts || []).some(p => !p.markScheme?.trim());
+  if ((q.parts || []).some(p => p.diagramMissing)) return true;
+  if (worstMs(q) || msStates(q).some(Boolean)) {
+    return MS_ATTENTION.includes(worstMs(q));
   }
-  return !q.markScheme?.trim();
+  // old pipeline (no msStatus): previous behaviour
+  return q.questionType === 'STRUCTURED_WITH_PARTS'
+    ? (q.parts || []).some(p => !p.markScheme?.trim())
+    : !q.markScheme?.trim();
 };
 
 const ConfidenceBadge = ({ question }) => {
@@ -68,6 +89,7 @@ const FLAG_LABELS = {
   question_text_very_short:     'Question text is very short',
   diagram_referenced_but_missing: 'Diagram referenced but not extracted',
   scanned_page_fallback:        'Extracted via Vision (scanned page)',
+  multiple_diagrams:            'Several diagrams were combined into one image — check it',
 };
 
 // ─── Mark scheme image panel ──────────────────────────────────────────────────
@@ -111,9 +133,13 @@ const MarkSchemeImagePanel = ({ msPageNum, msPageThumbnails }) => {
 
 const inputCls = "w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500";
 
-const QuestionInlineEditor = ({ question, onChange }) => {
+const QuestionInlineEditor = ({ question, onChange, pageImages, extractionId }) => {
   const handleField = (field, value) => onChange({ ...question, [field]: value });
   const isStructured = question.questionType === 'STRUCTURED_WITH_PARTS';
+  const [cropPartIdx, setCropPartIdx] = useState(null);
+  const cropPart = cropPartIdx != null ? (question.parts || [])[cropPartIdx] : null;
+  const cropPage = cropPart ? (cropPart.pageNum || question.page_num) : null;
+  const cropPageImage = cropPage && pageImages ? pageImages[String(cropPage)] : null;
 
   const handlePartField = (partIdx, field, value) => {
     const newParts = [...(question.parts || [])];
@@ -121,8 +147,30 @@ const QuestionInlineEditor = ({ question, onChange }) => {
     onChange({ ...question, parts: newParts });
   };
 
+  const setPartDiagram = (stimulus) => {
+    const newParts = [...(question.parts || [])];
+    newParts[cropPartIdx] = { ...newParts[cropPartIdx], partStimulus: stimulus, diagramMissing: false };
+    onChange({ ...question, parts: newParts });
+    setCropPartIdx(null);
+  };
+
+  const handlePartCropConfirm = (newStimulus) => {
+    const { bboxPct, ...stimulus } = newStimulus;
+    if (extractionId && cropPage && bboxPct) stimulus.source = { extractionId, page: cropPage, bboxPct };
+    setPartDiagram(stimulus);
+  };
+
   return (
     <div className="mt-3 space-y-3 border-t pt-3">
+      {cropPageImage && (
+        <DiagramCropModal
+          pageImage={cropPageImage}
+          currentDiagram={cropPart?.partStimulus}
+          onConfirm={handlePartCropConfirm}
+          onRemove={cropPart?.partStimulus ? () => setPartDiagram(null) : null}
+          onClose={() => setCropPartIdx(null)}
+        />
+      )}
       {/* Root question text */}
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -206,6 +254,38 @@ const QuestionInlineEditor = ({ question, onChange }) => {
                   className={inputCls}
                 />
               </div>
+                            {part.partStimulus && (
+                <div className="max-w-xs border border-gray-200 rounded overflow-hidden bg-white">
+                  <DiagramRenderer diagram={part.partStimulus} />
+                </div>
+              )}
+              {part.diagramMissing && (
+                <div className="flex items-center justify-between gap-2 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded">
+                  <span className="text-xs text-amber-800">⚠ This part refers to a diagram that wasn't extracted.</span>
+                  <button
+                    onClick={() => {
+                      const newParts = [...question.parts];
+                      newParts[partIdx] = { ...newParts[partIdx], diagramMissing: false };
+                      onChange({ ...question, parts: newParts });
+                    }}
+                    className="text-xs text-gray-600 border border-gray-300 rounded px-2 py-0.5 hover:bg-gray-50"
+                  >Skip</button>
+                </div>
+              )}
+              {(pageImages && (part.pageNum || question.page_num)) && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCropPartIdx(partIdx)}
+                    className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded px-2 py-0.5 hover:bg-blue-50"
+                  >✂ {part.partStimulus ? 'Fix crop' : 'Add diagram crop'}</button>
+                  {part.partStimulus && (
+                    <button
+                      onClick={() => { setCropPartIdx(partIdx); setPartDiagram(null); }}
+                      className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-0.5 hover:bg-red-50"
+                    >Remove diagram</button>
+                  )}
+                </div>
+              )}
               <div className="flex gap-3">
                 <div className="w-24">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Marks</label>
@@ -304,6 +384,8 @@ const QuestionCard = ({
   const missingMarkScheme = hasSubParts
     ? (question.parts || []).some(p => !p.markScheme?.trim())
     : !question.markScheme?.trim();
+  const usesMsStatus = msStates(question).some(Boolean);
+  const msBadge = MS_BADGE[worstMs(question)];
 
   // Border: red when needing attention and not yet reviewed; green once reviewed; gray otherwise
   let borderLeft;
@@ -315,7 +397,13 @@ const QuestionCard = ({
     borderLeft = 'border-l-green-400';
   }
 
-  const bodyText = (question.questionBody || question.question_text || '').trim();
+  // A question that starts straight with part (a) has no shared stem; the route fills in a placeholder.
+  // Show the first part's text instead, so the card reads as the question.
+  const firstPart = (question.parts || [])[0];
+  const previewFromPart = question.stemIsPlaceholder && firstPart && (firstPart.partPrompt || '').trim();
+  const bodyText = (previewFromPart
+    ? `(${firstPart.partLabel}) ${firstPart.partPrompt}`
+    : (question.questionBody || question.question_text || '')).trim();
   const preview = bodyText.length > 100 ? bodyText.slice(0, 100) + '…' : bodyText;
 
   return (
@@ -372,11 +460,15 @@ const QuestionCard = ({
                   Has diagram
                 </span>
               )}
-              {missingMarkScheme && (
-                <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                  Mark scheme missing
-                </span>
-              )}
+              {usesMsStatus
+                ? (msBadge && (
+                    <span className={`text-xs border px-1.5 py-0.5 rounded ${msBadge[1]}`}>{msBadge[0]}</span>
+                  ))
+                : (missingMarkScheme && (
+                    <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                      Mark scheme missing
+                    </span>
+              ))}
               {isReviewed && (
                 <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
                   ✓ Reviewed
@@ -476,6 +568,12 @@ const QuestionCard = ({
               </div>
             )}
             {/* Mark scheme page image — always visible so teacher can check without expanding */}
+            {(question.markSchemeImages || []).map((d, i) => (
+              <div key={i} className="max-w-xs border border-gray-200 rounded overflow-hidden mt-1">
+                <p className="text-xs text-gray-500 px-2 pt-1">Mark scheme diagram</p>
+                <DiagramRenderer diagram={d} />
+              </div>
+            ))}
             <MarkSchemeImagePanel
               msPageNum={question.msPageNum}
               msPageThumbnails={msPageThumbnails}
@@ -509,11 +607,22 @@ const QuestionCard = ({
               </div>
             )}
             {/* Mark scheme page image — open by default when editing */}
+            {(question.markSchemeImages || []).map((d, i) => (
+              <div key={i} className="max-w-xs border border-gray-200 rounded overflow-hidden mt-1">
+                <p className="text-xs text-gray-500 px-2 pt-1">Mark scheme diagram</p>
+                <DiagramRenderer diagram={d} />
+              </div>
+            ))}
             <MarkSchemeImagePanel
               msPageNum={question.msPageNum}
               msPageThumbnails={msPageThumbnails}
             />
-            <QuestionInlineEditor question={question} onChange={handleInlineChange} />
+            <QuestionInlineEditor 
+              question={question} 
+              onChange={handleInlineChange}
+              pageImages={pageImages}
+              extractionId={extractionId}
+            />
           </div>
         )}
       </div>
@@ -593,12 +702,15 @@ const OCRExtractionReview = ({
   pageImages,
   msPageThumbnails,
   extractionId,
+  validation: initialValidation,
   onConfirm,
   onBack,
 }) => {
   const [questions, setQuestions] = useState(() =>
-    (initialQuestions || []).map((q, i) => ({ ...q, questionNumber: i + 1 }))
+    (initialQuestions || []).map((q, i) => withBaseline({ ...q, questionNumber: i + 1 }))
   );
+  const questionsRef = useRef(questions);
+  questionsRef.current = questions;
   const [filterTier, setFilterTier] = useState('all');
   // Set of question indices the teacher has opened for editing
   const [reviewedSet, setReviewedSet] = useState(() => new Set());
@@ -610,6 +722,56 @@ const OCRExtractionReview = ({
     });
   }, []);
 
+  const [validation, setValidation] = useState(initialValidation || null);
+  const [reprocessing, setReprocessing] = useState(false);
+  const [reprocessMsg, setReprocessMsg] = useState(null);
+  const [ackFailed, setAckFailed] = useState(false);
+
+  const handleReprocess = useCallback(async (document, pages) => {
+    setReprocessing(true);
+    setReprocessMsg(null);
+    try {
+      const current = questionsRef.current;
+      const targets = document === 'ms'
+        ? current.flatMap((q) => [
+            { printedNumber: q.printedNumber, partLabel: null },
+            ...(q.parts || []).map((p) => ({ printedNumber: q.printedNumber, partLabel: p.partLabel })),
+          ])
+        : [];
+      const res = await teacherApi.reprocessExtraction(extractionId, { document, pages, targets });
+      const data = res.data;
+
+      // Remember which printed questions the teacher had already reviewed (indices shift on insert)
+      const reviewedNums = new Set([...reviewedSet].map((i) => current[i]?.printedNumber));
+
+      if (document === 'qp') {
+        const { questions: merged, touched, stats } = mergeReprocessedQuestions(current, data.questions);
+        setQuestions(merged);
+        setReviewedSet(new Set(
+          merged.map((q, i) => (reviewedNums.has(q.printedNumber) && !touched.has(q.printedNumber) ? i : -1))
+                .filter((i) => i >= 0)
+        ));
+        setReprocessMsg(
+          `Reprocessed page${pages.length > 1 ? 's' : ''} ${data.reprocessed_pages.join(', ')}: ` +
+          `${stats.added} question(s) and ${stats.partsAdded + stats.upgraded} sub-part group(s) added. ` +
+          'Existing questions were not changed.'
+        );
+      } else {
+        const { questions: merged, stats } = mergeMarkSchemeUpdates(current, data.updates);
+        setQuestions(merged);
+        setReprocessMsg(
+          `Reprocessed mark scheme page${pages.length > 1 ? 's' : ''} ${data.reprocessed_pages.join(', ')}: ` +
+          `${stats.filled} filled, ${stats.keptEdited} left alone (you edited them), ` +
+          `${stats.stillMissing} still not found.`
+        );
+      }
+      setValidation(data.validation);
+    } catch (err) {
+      setReprocessMsg(err?.response?.data?.detail || 'Reprocessing failed. Please try again.');
+    } finally {
+      setReprocessing(false);
+    }
+  }, [extractionId, reviewedSet]);
   // Counts based on live question state
   const highCount    = questions.filter(q => getEffectiveTier(q) === 'high').length;
   const medCount     = questions.filter(q => getEffectiveTier(q) === 'medium').length;
@@ -729,6 +891,15 @@ const OCRExtractionReview = ({
           </div>
         )}
       </div>
+      
+      <ValidationPanel
+        validation={validation}
+        busy={reprocessing}
+        message={reprocessMsg}
+        onReprocess={handleReprocess}
+        ackFailed={ackFailed}
+        onAckChange={setAckFailed}
+      />
 
       {/* Source pages panel */}
       <SourcePagesPanel thumbnails={pageThumbnails} />
@@ -803,7 +974,7 @@ const OCRExtractionReview = ({
         </div>
         <button
           onClick={() => onConfirm(questions)}
-          disabled={questions.length === 0 || unreviewedCount > 0}
+          disabled={questions.length === 0 || unreviewedCount > 0 || (validation?.status === 'failed' && !ackFailed)}
           title={unreviewedCount > 0 ? `${unreviewedCount} question${unreviewedCount !== 1 ? 's' : ''} still need review` : undefined}
           className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
