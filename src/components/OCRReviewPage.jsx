@@ -155,8 +155,10 @@ export default function OCRReviewPage({ user }) {
       )
       .filter(Boolean);
     const previewParts = [];
-    if (responseBlock?.extracted_text?.trim()) {
-      previewParts.push(responseBlock.extracted_text.trim());
+    const displayText = responseBlock?.cleaned_text || responseBlock?.extracted_text || "";
+
+    if (displayText.trim()) {
+      previewParts.push(displayText.trim());
     }
     if (componentPreviews?.length > 0) {
       previewParts.push(componentPreviews.join("\n"));
@@ -335,8 +337,11 @@ export default function OCRReviewPage({ user }) {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to save page");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to save page");
       }
+
+      const data = await response.json();
 
       const updatedPages = [...pages];
       updatedPages[currentPageIndex] = {
@@ -346,6 +351,10 @@ export default function OCRReviewPage({ user }) {
       };
 
       setPages(updatedPages);
+      
+      if (Array.isArray(data.response_blocks)) {
+        setResponseBlocks(data.response_blocks);
+      }
       if (!keepBusy) {
         toast({ title: "Saved", description: "Page saved and approved." });
       }
