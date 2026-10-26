@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
 import { ChevronDown } from 'lucide-react';
+import SubmissionPreview from "@/components/SubmissionPreview";
 
 // Real submission lifecycle (see routes/ocr_routes.py):
 // boundary_detected → ocr_processing → ocr_ready → approved → marked_draft → finalized
@@ -64,6 +65,7 @@ export default function BulkUploadReviewPage({ user }) {
   const [savingMarkingId, setSavingMarkingId] = useState(null);
   const [reviewedFeedbackIds, setReviewedFeedbackIds] = useState({});
   const [finalizingFeedback, setFinalizingFeedback] = useState(false);
+  const [showApproveAllModal, setShowApproveAllModal] = useState(false);
 
   // Batch + child submissions only — cheap enough to poll. The roster is
   // loaded once by load() below, not on every poll.
@@ -138,6 +140,12 @@ export default function BulkUploadReviewPage({ user }) {
     await load();
   };
 
+  const handleTogglePreview = (submissionId) => {
+    setExpandedSubmissionId((currentId) =>
+      currentId === submissionId ? null : submissionId
+    );
+  };
+
   const handleEditPageRange = (submissionId, field, value) => {
     setEdits((prev) => ({ ...prev, [submissionId]: { ...prev[submissionId], [field]: value } }));
   };
@@ -182,42 +190,56 @@ export default function BulkUploadReviewPage({ user }) {
 
   // Approve & send to marking every extracted script that is safe to
   // bulk-approve. The backend skips scripts with failed or low-confidence
-  // extraction and never re-marks scripts that are already approved/marked.
-  const handleApproveAll = async () => {
-    const plural = approvableCount !== 1 ? 's' : '';
-    const ok = window.confirm(
-      `Approve ${approvableCount} script${plural} and send ${approvableCount !== 1 ? 'them' : 'it'} to AI marking?\n\n` +
-      'Each script uses one AI marking run from your allowance. Scripts with failed or ' +
-      'low-confidence extraction are skipped so you can review them individually.'
-    );
-    if (!ok) return;
+  // extraction and never re-marks scripts that are already approved/marked.  
+  const handleApproveAll = () => {
+    if (approvableCount === 0) return;
+    setShowApproveAllModal(true);
+  };
 
+  const confirmApproveAll = async () => {
+    setShowApproveAllModal(false);
     setApprovingAll(true);
+
     try {
-      const res = await fetch(`${API_URL}/api/ocr/batches/${batchId}/approve-all`, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'include',
-      });
+      const res = await fetch(
+        `${API_URL}/api/ocr/batches/${batchId}/approve-all`,
+        {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'include',
+        }
+      );
+
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.detail || 'Failed to start Approve All');
+
+      if (!res.ok) {
+        throw new Error(body.detail || 'Failed to start Approve All');
+      }
 
       const skippedNote = body.skipped?.length
         ? ` ${body.skipped.length} skipped for individual review.`
         : '';
+
       toast({
         title: 'Sending to marking',
         description: `${body.queued} script${body.queued !== 1 ? 's' : ''} queued.${skippedNote}`,
       });
+
       await fetchBatch(true);
     } catch (err) {
-      toast({ title: 'Approve All failed', description: err.message, variant: 'destructive' });
+      toast({
+        title: 'Approve All failed',
+        description: err.message,
+        variant: 'destructive',
+      });
     } finally {
       setApprovingAll(false);
     }
   };
 
   const handleToggleFeedback = async (submissionId, status) => {
+    if (!REVIEWABLE.includes(status)) return;
+
     if (expandedSubmissionId === submissionId) {
       setExpandedSubmissionId(null);
       return;
@@ -658,6 +680,7 @@ export default function BulkUploadReviewPage({ user }) {
             const isMarked = ['marked_draft', 'finalized'].includes(sub.status);
             const isFinalized = sub.status === 'finalized';
             const hasReviewedFeedback = reviewedFeedbackIds[sub.id] === true;
+            const canPreview = REVIEWABLE.includes(sub.status);
             return (
               <Card key={sub.id} className={sub.needs_review && isPending ? 'border-amber-300' : ''}>         
                 <CardHeader className="pb-3">
@@ -688,7 +711,7 @@ export default function BulkUploadReviewPage({ user }) {
                         );
                       })()}
 
-                      {!isPending && (
+                      {canPreview && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -703,7 +726,7 @@ export default function BulkUploadReviewPage({ user }) {
                     </div>
                   </div>
 
-                  {!isPending && isExpanded && (
+                  {canPreview && isExpanded && (
                     <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
                       {isMarked ? (
                         loadingMarkingId === sub.id ? (
@@ -852,9 +875,10 @@ export default function BulkUploadReviewPage({ user }) {
                           </>
                         )
                       ) : (
-                        <p className="text-sm text-slate-600">
-                          Open the extracted-answer review page below to inspect the OCR results.
-                        </p>
+                        <SubmissionPreview
+                          submissionId={sub.id}
+                          isOpen={true}
+                        />
                       )}
                     </div>
                   )}
@@ -933,13 +957,17 @@ export default function BulkUploadReviewPage({ user }) {
                       Marking failed: {sub.mark_error}. Open the script to retry.
                     </p>
                   )}
-                  {!isPending && (
-                    <Link
-                      to={`/teacher/ocr-review/${sub.id}?batch=${batchId}`}
-                      className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
-                    >
-                      Review extracted answers →
-                    </Link>
+                  {canPreview && (
+                    <>
+                      {REVIEWABLE.includes(sub.status) && (
+                        <Link
+                          to={`/teacher/ocr-review/${sub.id}?batch=${batchId}`}
+                          className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          Review extracted answers →
+                        </Link>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -953,6 +981,112 @@ export default function BulkUploadReviewPage({ user }) {
           </div>
         )}
       </div>
+      {showApproveAllModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !approvingAll) {
+              setShowApproveAllModal(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="approve-all-title"
+            aria-describedby="approve-all-description"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <path d="m9 15 2 2 4-4" />
+                </svg>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="approve-all-title"
+                  className="text-xl font-bold tracking-tight text-slate-900"
+                >
+                  Approve scripts &amp; send to marking
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Review this action before continuing.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close confirmation"
+                disabled={approvingAll}
+                onClick={() => setShowApproveAllModal(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="my-6 rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-2xl font-bold text-blue-700">
+                {approvableCount} script{approvableCount !== 1 ? 's' : ''}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Ready to be sent for AI marking
+              </p>
+            </div>
+
+            <div
+              id="approve-all-description"
+              className="rounded-xl border border-amber-200 bg-amber-50 p-4"
+            >
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                <span aria-hidden="true">ⓘ</span>
+                Before you continue
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-amber-800">
+                Each script uses one AI marking run from your allowance. Scripts
+                with failed or low-confidence extraction will be skipped so you can
+                review them individually.
+              </p>
+            </div>
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={approvingAll}
+                onClick={() => setShowApproveAllModal(false)}
+                className="sm:min-w-28"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                disabled={approvingAll || approvableCount === 0}
+                onClick={confirmApproveAll}
+                className="bg-blue-600 text-white hover:bg-blue-700 sm:min-w-48"
+              >
+                {approvingAll ? 'Sending to marking…' : 'Approve & send to marking'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
