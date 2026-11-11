@@ -251,7 +251,7 @@ export const AssessmentsPage = ({ user }) => {
 
   const filtered = useMemo(() => {
     const { subject, classId, status, from, to } = filters;
-    const byText = (x, y) => (x || "\uffff").localeCompare(y || "\uffff"); // blanks last
+    const byText = (x, y) => (x || "￿").localeCompare(y || "￿"); // blanks last
 
     const rows = enriched.filter((r) => {
       // existing stat-card filter
@@ -702,6 +702,7 @@ export const AssessmentsPage = ({ user }) => {
                               onViewSubmissions={() => navigate(`/teacher/assessments/${a.id}`)}
                               onViewEnhanced={() => navigate(`/teacher/assessments/${a.id}/enhanced`)}
                               onDelete={a.status !== 'started' ? () => handleDeleteAssessment(a.id, a.title || question?.topic || 'this assessment') : undefined}
+                              onUploadPhotos={() => navigate(`/teacher/photo-batch/upload?assessmentId=${a.id}`)}
                             />
                           );
                         })}
