@@ -297,6 +297,8 @@ const JoinCodeBlock = ({ code, status, assignments = [] }) => {
 
 // ─── Main card ────────────────────────────────────────────────────────────────
 
+import { Camera } from "lucide-react";
+
 export const AssessmentCard = ({
   assessment: a,
   question,
@@ -309,6 +311,7 @@ export const AssessmentCard = ({
   onViewSubmissions,
   onViewEnhanced,
   onDelete,
+  onUploadPhotos,   // ← new: navigate to /teacher/photo-batch/upload?assessmentId=<id>
 }) => {
   const isEnhanced = a.assessmentMode && a.assessmentMode !== "CLASSIC";
 
@@ -355,6 +358,12 @@ export const AssessmentCard = ({
       icon: "📋",
       testId: `view-subs-overflow-${a.id}`,
       onClick: viewDetailRoute,
+    },
+    onUploadPhotos && {
+      label: "Upload photo scripts",
+      icon: <Camera size={16} />,
+      testId: `upload-photos-${a.id}`,
+      onClick: onUploadPhotos,
     },
     onDelete && {
       label: "Delete",
@@ -485,6 +494,19 @@ export const AssessmentCard = ({
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
                 Reopen
+              </button>
+            )}
+
+            {/* Upload photos — inline button (closed or live assessments) */}
+            {onUploadPhotos && (isClosed || isStarted) && (
+              <button
+                onClick={onUploadPhotos}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 text-xs font-medium hover:bg-gray-50 active:scale-95 transition-all"
+                data-testid={`upload-photos-${a.id}`}
+                title="Upload photographed exam scripts for OCR"
+              >
+                <Camera size={16} />
+                Upload photos
               </button>
             )}
 
