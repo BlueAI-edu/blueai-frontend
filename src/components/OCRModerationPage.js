@@ -8,6 +8,88 @@ import { toDisplayText, toBulletList } from '@/lib/feedback-format';
 import BatchScriptNav from "@/components/BatchScriptNav";
 import { Navbar } from "@/components/Navbar"
 
+const groupFeedbackByQuestion = (value) => {
+  const lines = toDisplayText(value)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const groups = new Map();
+  const generalFeedback = [];
+
+  lines.forEach((line) => {
+    const match = line.match(
+      /^\s*(?:[•*-]\s*)?Question\s+(\d+)\s*:\s*(.*)$/i
+    );
+
+    if (!match) {
+      generalFeedback.push(line);
+      return;
+    }
+
+    const questionNumber = Number(match[1]);
+    const feedback = match[2].trim();
+
+    if (!groups.has(questionNumber)) {
+      groups.set(questionNumber, []);
+    }
+
+    if (feedback) {
+      groups.get(questionNumber).push(feedback);
+    }
+  });
+
+  const sortedGroups = [...groups.entries()]
+    .sort(([questionA], [questionB]) => questionA - questionB)
+    .map(([questionNumber, feedback]) => ({
+      questionNumber,
+      feedback,
+    }));
+
+  if (generalFeedback.length) {
+    sortedGroups.push({
+      questionNumber: null,
+      feedback: generalFeedback,
+    });
+  }
+
+  return sortedGroups;
+};
+
+const GroupedFeedback = ({ value }) => {
+  const groups = groupFeedbackByQuestion(value);
+
+  if (!groups.length) {
+    return <p className="text-sm text-gray-500">No feedback available.</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {groups.map((group, index) => (
+        <div key={group.questionNumber ?? `general-${index}`}>
+          <h4 className="text-sm font-semibold text-blue-900 mb-2">
+            {group.questionNumber !== null
+              ? `Question ${group.questionNumber}`
+              : "General Feedback"}
+          </h4>
+
+          <div className="bg-white rounded-lg border border-blue-100 p-3 space-y-2">
+            <ul className="list-disc pl-5 space-y-1">
+              {group.feedback.map((item, feedbackIndex) => (
+                <li
+                  key={feedbackIndex}
+                  className="text-sm text-blue-900"
+                >
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function OCRModerationPage({ user }) {
   const navigate = useNavigate();
@@ -339,20 +421,16 @@ export default function OCRModerationPage({ user }) {
               <p className="text-2xl font-bold text-blue-900">{markingResult.total_score} / {markingResult.max_marks || question?.max_marks || '?'}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">What Went Well (AI Suggested)</p>
-              <div className="text-sm text-blue-900 bg-white rounded p-3 mt-1">
-                {toBulletList(markingResult.www).map((item, i) => (
-                  <p key={i}>• {item}</p>
-                ))}
-              </div>
+              <p className="text-sm font-medium text-blue-800 mb-2">
+                What Went Well (AI Suggested)
+              </p>
+              <GroupedFeedback value={markingResult.www} />
             </div>
             <div>
-              <p className="text-sm font-medium text-blue-800">Next Steps (AI Suggested)</p>
-              <div className="text-sm text-blue-900 bg-white rounded p-3 mt-1">
-                {toBulletList(markingResult.next_steps).map((item, i) => (
-                  <p key={i}>• {item}</p>
-                ))}
-              </div>
+              <p className="text-sm font-medium text-blue-800 mb-2">
+                Next Steps (AI Suggested)
+              </p>
+              <GroupedFeedback value={markingResult.next_steps} />
             </div>
             <div>
               <p className="text-sm font-medium text-blue-800">Overall Feedback (AI Suggested)</p>
