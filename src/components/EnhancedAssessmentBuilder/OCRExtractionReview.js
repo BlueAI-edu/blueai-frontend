@@ -703,6 +703,7 @@ const OCRExtractionReview = ({
   msPageThumbnails,
   extractionId,
   validation: initialValidation,
+  pipeline,
   onConfirm,
   onBack,
 }) => {
@@ -819,6 +820,12 @@ const OCRExtractionReview = ({
 
   return (
     <div className="space-y-4">
+      {pipeline === 'legacy_fallback' && (
+        <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-sm text-amber-900">
+          ⚠ The improved importer hit a problem, so the backup method was used for this paper. There is no
+          automatic completeness check this time: please check every question and mark scheme against the original.
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-5">
         <div className="flex items-start justify-between gap-4">
