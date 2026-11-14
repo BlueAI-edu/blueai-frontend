@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Navbar } from '@/components/Navbar';
+import SubmissionPreview from '@/components/SubmissionPreview';
 
 const STATUS_LABELS = {
   uploaded: { label: 'Queued', className: 'bg-slate-100 text-slate-700' },
@@ -43,7 +44,14 @@ export default function MultiUploadDashboardPage({ user }) {
   const [busyIds, setBusyIds] = useState({});
   const [approvingAll, setApprovingAll] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [expandedSubmissionId, setExpandedSubmissionId] = useState(null);
   const pollRef = useRef(null);
+
+  const handleTogglePreview = (submissionId) => {
+    setExpandedSubmissionId((currentId) =>
+      currentId === submissionId ? null : submissionId
+    );
+  };
 
   const load = useCallback(async () => {
     const res = await fetch(`${API_URL}/api/ocr/multi-batches/${batchId}`, { credentials: 'include' });
@@ -273,14 +281,42 @@ export default function MultiUploadDashboardPage({ user }) {
         <div className="space-y-3">
           {submissions.map((sub) => {
             const busy = !!busyIds[sub.id];
+            const canPreview = ['marked_draft', 'finalized'].includes(sub.status);
+            const isExpanded = expandedSubmissionId === sub.id;
             return (
-              <Card key={sub.id} className={sub.needs_review || sub.status === 'file_error' ? 'border-amber-300' : ''}>
+              <Card key={sub.id} className={sub.needs_review || sub.status === 'file_error' ? 'border-amber-300' : ''}>            
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <CardTitle className="text-base">
-                      {sub.student_name} <span className="text-slate-400 font-normal text-sm">· {sub.source_filename}</span>
+                      {sub.student_name}{' '}
+                      <span className="text-slate-400 font-normal text-sm">
+                        · {sub.source_filename}
+                      </span>
                     </CardTitle>
-                    <StatusBadge status={sub.status} />
+
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={sub.status} />
+
+                      {canPreview && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePreview(sub.id)}
+                          aria-expanded={isExpanded}
+                          aria-label={
+                            isExpanded ? 'Hide script preview' : 'Show script preview'
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition-colors hover:bg-slate-50"
+                        >
+                        <span
+                          aria-hidden="true"
+                          className={`inline-block transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : 'rotate-0'
+                          }`}
+                        >
+                          ▾
+                        </span>
+                      </button>)}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -330,14 +366,6 @@ export default function MultiUploadDashboardPage({ user }) {
                         {busy ? 'Approving…' : 'Approve'}
                       </Button>
                     )}
-                    {['marked_draft', 'finalized'].includes(sub.status) && (
-                      <Link
-                        to={`/teacher/ocr-review/${sub.id}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        Review extracted answers →
-                      </Link>
-                    )}
                     {sub.status === 'finalized' && (
                       <a
                         href={`${API_URL}/api/ocr/submissions/${sub.id}/download-pdf`}
@@ -349,6 +377,21 @@ export default function MultiUploadDashboardPage({ user }) {
                       </a>
                     )}
                   </div>
+                  {canPreview && (
+                    <>
+                      <SubmissionPreview
+                        submissionId={sub.id}
+                        isOpen={isExpanded}
+                      />
+
+                      <Link
+                        to={`/teacher/ocr-review/${sub.id}`}
+                        className="inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        Review extracted answers →
+                      </Link>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             );

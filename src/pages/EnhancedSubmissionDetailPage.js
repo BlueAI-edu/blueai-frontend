@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
 import StudentAnswerDisplay from '../components/StudentAnswerDisplay';
+import MarkSchemeExtras, { hasMarkSchemeExtras } from '../components/MarkSchemeExtras';
 import { Navbar } from '../components/Navbar';
 import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
@@ -490,7 +491,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
 
                           {/* Mark Scheme for part — includes the enriched fields
                               captured during mark-scheme PDF extraction */}
-                          {(part.markScheme || part.methodMarks?.length > 0 || part.levelDescriptors?.length > 0 || part.examinerNotes) ? (
+                          {(part.markScheme || hasMarkSchemeExtras(part)) ? (
                             <div className="mb-3 p-3 bg-green-50 rounded space-y-2">
                               {part.markScheme && (
                                 <div>
@@ -500,32 +501,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                                   </div>
                                 </div>
                               )}
-                              {part.methodMarks?.length > 0 && (
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1 font-medium">Method Marks:</p>
-                                  <ul className="list-disc pl-4 text-sm space-y-0.5">
-                                    {part.methodMarks.map((m, i) => (
-                                      <li key={i}><LaTeXRenderer text={String(m)} inline /></li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              {part.levelDescriptors?.length > 0 && (
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1 font-medium">Level Descriptors:</p>
-                                  <ul className="list-disc pl-4 text-sm space-y-0.5">
-                                    {part.levelDescriptors.map((d, i) => (
-                                      <li key={i}><LaTeXRenderer text={String(d)} inline /></li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              {part.examinerNotes && (
-                                <div>
-                                  <p className="text-xs text-gray-600 mb-1 font-medium">Examiner Notes:</p>
-                                  <p className="text-sm text-gray-700 italic">{part.examinerNotes}</p>
-                                </div>
-                              )}
+                              <MarkSchemeExtras item={part} />
                             </div>
                           ) : (
                             <div className="mb-3 p-3 bg-gray-50 border border-dashed border-gray-300 rounded">
@@ -572,12 +548,17 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                     </div>
 
                     {/* Mark Scheme (if available) */}
-                    {question.markScheme ? (
-                      <div className="mb-4 p-4 bg-green-50 rounded-lg">
-                        <p className="text-sm text-gray-600 mb-2 font-medium">Mark Scheme:</p>
-                        <div className="prose max-w-none text-sm">
-                          <LaTeXRenderer text={question.markScheme || ''} />
-                        </div>
+                    {(question.markScheme || hasMarkSchemeExtras(question)) ? (
+                      <div className="mb-4 p-4 bg-green-50 rounded-lg space-y-2">
+                        {question.markScheme && (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2 font-medium">Mark Scheme:</p>
+                            <div className="prose max-w-none text-sm">
+                              <LaTeXRenderer text={question.markScheme || ''} />
+                            </div>
+                          </div>
+                        )}
+                        <MarkSchemeExtras item={question} />
                       </div>
                     ) : !question.modelAnswer && (
                       <div className="mb-4 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg">

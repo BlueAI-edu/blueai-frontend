@@ -43,12 +43,8 @@ export default function OCRReviewPage({ user }) {
   const [saving, setSaving] = useState(false);
   const [reExtracting, setReExtracting] = useState(false);
 
-  useEffect(() => {
-  setLoading(true);
-  setCurrentPageIndex(0);
-  setPages([]);
-  fetchSubmission();
-}, [submissionId]);
+  const currentIdRef = useRef(submissionId);
+
   useEffect(() => {
     if (pages.length > 0) {
       const page = pages[currentPageIndex];
@@ -56,8 +52,8 @@ export default function OCRReviewPage({ user }) {
     }
   }, [currentPageIndex, pages]);
 
-  const currentIdRef = useRef(submissionId);
-
+  // Single effect that resets state and loads the submission whenever the
+  // route changes. (A duplicate effect used to fetch the submission twice.)
   useEffect(() => {
     currentIdRef.current = submissionId;
     setLoading(true);
@@ -159,8 +155,10 @@ export default function OCRReviewPage({ user }) {
       )
       .filter(Boolean);
     const previewParts = [];
-    if (responseBlock?.extracted_text?.trim()) {
-      previewParts.push(responseBlock.extracted_text.trim());
+    const displayText = responseBlock?.cleaned_text || responseBlock?.extracted_text || "";
+
+    if (displayText.trim()) {
+      previewParts.push(displayText.trim());
     }
     if (componentPreviews?.length > 0) {
       previewParts.push(componentPreviews.join("\n"));
@@ -281,8 +279,9 @@ export default function OCRReviewPage({ user }) {
   };
 
   const fetchSubmission = async () => {
+    const targetId = submissionId;
     try {
-      const response = await fetch(`${API_URL}/api/ocr/submissions/${submissionId}`, {
+      const response = await fetch(`${API_URL}/api/ocr/submissions/${targetId}`, {
         credentials: "include",
       });
 
@@ -291,6 +290,8 @@ export default function OCRReviewPage({ user }) {
       }
 
       const data = await response.json();
+      // Teacher moved to another script while this was loading: drop the response.
+      if (currentIdRef.current !== targetId) return;
       const normalizedPages = (data.pages || []).map((page) => ({
         ...page,
         page_type: page.page_type || page.page_classification?.page_type || "unknown",
@@ -304,62 +305,105 @@ export default function OCRReviewPage({ user }) {
         setEditedText(getPageAnswerText(normalizedPages[0]));
       }
     } catch (err) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      if (currentIdRef.current === targetId) {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      }
     } finally {
-      setLoading(false);
+      if (currentIdRef.current === targetId) setLoading(false);
     }
   };
 
-  const handleSavePage = async (keepBusy = false) => {
-  setSaving(true);
-  try {
-    const currentPage = pages[currentPageIndex];
-    const response = await fetch(
-      `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
+  // Takes an options object, NOT a bare boolean: when used directly as an
+  // onClick handler React passes the click event as the first argument, which
+  // used to be read as a truthy `keepBusy` and left the spinner stuck forever.
+  const handleSavePage = async ({ keepBusy = false } = {}) => {
+    setSaving(true);
+    try {
+      const currentPage = pages[currentPageIndex];
+      const response = await fetch(
+        `${API_URL}/api/ocr/pages/${submissionId}/${currentPage.page_number}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            approved_ocr_text: editedText,
+            is_approved: true,
+          }),
         },
-        credentials: "include",
-        body: JSON.stringify({
-          approved_ocr_text: editedText,
-          is_approved: true,
-        }),
-      },
-    );
+      );
 
-    if (!response.ok) {
-      throw new Error("Failed to save page");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to save page");
+      }
+
+      const data = await response.json();
+
+      const updatedPages = [...pages];
+      updatedPages[currentPageIndex] = {
+        ...updatedPages[currentPageIndex],
+        approved_ocr_text: editedText,
+        is_approved: true,
+      };
+
+      setPages(updatedPages);
+      
+      if (Array.isArray(data.response_blocks)) {
+        setResponseBlocks(data.response_blocks);
+      }
+      if (!keepBusy) {
+        toast({ title: "Saved", description: "Page saved and approved." });
+      }
+      return true;
+    } catch (err) {
+      toast({ title: "Save Failed", description: err.message, variant: "destructive" });
+      return false;
+    } finally {
+      if (!keepBusy) setSaving(false);
     }
-
-    const updatedPages = [...pages];
-    updatedPages[currentPageIndex] = {
-      ...updatedPages[currentPageIndex],
-      approved_ocr_text: editedText,
-      is_approved: true,
-    };
-
-    setPages(updatedPages);
-    if (!keepBusy) {
-      toast({ title: "Saved", description: "Page saved and approved." });
-    }
-    return true;
-  } catch (err) {
-    toast({ title: "Save Failed", description: err.message, variant: "destructive" });
-    return false;
-  } finally {
-    if (!keepBusy) setSaving(false);
-  }
-};
+  };
 
   const handleApproveAll = async () => {
     if (alreadyMarked) return;
+
+    // Guard: pages that failed OCR or have no answer text would be sent to
+    // marking as "No answer provided". Make the teacher confirm first.
+    const pageText = (p) =>
+      (p.page_number === currentPage?.page_number ? editedText : getPageAnswerText(p)).trim();
+    const emptyPages = pages.filter(
+      (p) =>
+        !isPageSkipped(p.page_type) && !isPageFailed(p.page_type) && !pageText(p),
+    );
+    // A page classified cover/instruction/blank is excluded from marking. If it
+    // nevertheless holds extracted text, it was probably misclassified and its
+    // answers would be silently dropped.
+    const skippedWithText = pages.filter(
+      (p) => isPageSkipped(p.page_type) && pageText(p),
+    );
+    const problemPages = failedPageCount + emptyPages.length;
+    const warnings = [];
+    if (problemPages > 0) {
+      warnings.push(
+        `${problemPages} page${problemPages !== 1 ? "s have" : " has"} no usable answer text and will be marked as blank.`,
+      );
+    }
+    if (skippedWithText.length > 0) {
+      warnings.push(
+        `${skippedWithText.length} page${skippedWithText.length !== 1 ? "s are" : " is"} classified as skipped (cover/instructions/blank) but contain text, so ${skippedWithText.length !== 1 ? "their answers" : "its answers"} will NOT be marked.`,
+      );
+    }
+    if (warnings.length > 0) {
+      if (!window.confirm(`${warnings.join("\n\n")}\n\nSend to marking anyway?`)) return;
+    }
+
     const targetId = submissionId;
     setSaving(true);
     try {
-      const saved = await handleSavePage(true);
+      const saved = await handleSavePage({ keepBusy: true });
       if (!saved) return;
 
       const approveResponse = await fetch(
@@ -485,11 +529,10 @@ export default function OCRReviewPage({ user }) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <Button
-               onClick={() => {
+                onClick={() => {
                     if (!confirmDiscard()) return;
                     navigate(batchId ? `/teacher/ocr-bulk-review/${batchId}` : "/teacher/dashboard");
-                  }}
-                onClick={() => navigate(-1)}
+                }}
                 variant="ghost"
                 size="sm"
                 className="shrink-0 px-2 text-slate-600"
@@ -728,7 +771,7 @@ export default function OCRReviewPage({ user }) {
               />
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button onClick={handleSavePage} disabled={saving || reExtracting} className="flex-1">
+                <Button onClick={() => handleSavePage()} disabled={saving || reExtracting} className="flex-1">
                   {saving && (
                     <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
