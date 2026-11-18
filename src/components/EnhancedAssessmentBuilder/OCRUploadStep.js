@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 
 /**
  * OCRUploadStep
@@ -110,7 +111,7 @@ const OCRUploadStep = ({
               Extracting…
             </>
           ) : (
-            '🔍 Extract Questions'
+            <><Search size={16} /> Extract Questions</>
           )}
         </button>
       </div>

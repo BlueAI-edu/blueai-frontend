@@ -43,6 +43,8 @@ const BulkUploadReviewPage = lazy(() => import('./components/BulkUploadReviewPag
 const MultiFileUploadPage = lazy(() => import('./components/MultiFileUploadPage').then(m => ({ default: m.default || m.MultiFileUploadPage })));
 const MultiUploadDashboardPage = lazy(() => import('./components/MultiUploadDashboardPage').then(m => ({ default: m.default || m.MultiUploadDashboardPage })));
 const HelpPage = lazy(() => import('./pages/HelpPage').then(m => ({ default: m.HelpPage })));
+const PhotoBatchUploadPage = lazy(() => import("@/pages/PhotoBatchUploadPage"));
+const PhotoBatchReviewPage = lazy(() => import("@/pages/PhotoBatchReviewPage"));
 
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute').then(m => ({ default: m.ProtectedRoute })));
 
@@ -98,6 +100,9 @@ function App() {
         <Route path="/teacher/bulk-assessment-upload" element={<LazyProtectedRoute>{(user) => <MultiFileUploadPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/bulk-assessment-upload/:batchId" element={<LazyProtectedRoute>{(user) => <MultiUploadDashboardPage user={user} />}</LazyProtectedRoute>} />
         <Route path="/teacher/help" element={<LazyProtectedRoute>{(user) => <HelpPage user={user} />}</LazyProtectedRoute>} />
+        <Route path="/teacher/photo-batch/upload" element={<LazyProtectedRoute>{() => <PhotoBatchUploadPage />}</LazyProtectedRoute>} />
+        <Route path="/teacher/photo-batch/:batchId/review" element={<PhotoBatchReviewPage />} />
+
         <Route path="/admin/dashboard" element={<LazyProtectedRoute adminOnly={true}>{(user) => <AdminDashboard user={user} />}</LazyProtectedRoute>} />
         <Route path="/school-admin" element={<LazyProtectedRoute roles={['school_admin', 'admin']}>{(user) => <SchoolAdminPage user={user} />}</LazyProtectedRoute>} />
         
