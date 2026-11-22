@@ -3,6 +3,7 @@ import { authApi } from '@/services/api';
 import { BlueAILogo } from '@/components/ui/BlueAI-logo';
 import { EntraConnectorPanel } from '@/components/EntraConnectorPanel';
 import { SchoolManagementPanel } from '@/components/SchoolManagementPanel';
+import { SchoolReportSettingsPanel } from '@/components/SchoolReportSettingsPanel';
 
 /**
  * School admin console (#269 Phase A, extended with teacher/class
@@ -60,6 +61,7 @@ export const SchoolAdminPage = ({ user }) => {
         </p>
         <EntraConnectorPanel />
         <SchoolManagementPanel />
+        <SchoolReportSettingsPanel />
       </main>
     </div>
   );
