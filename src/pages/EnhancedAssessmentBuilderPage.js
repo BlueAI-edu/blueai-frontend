@@ -528,7 +528,10 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         
         showNotification('Draft saved successfully!', 'success');
       } else {
-        const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+        // extractionId links the saved paper to its extraction so corrections are logged (#350)
+        const payload = isOcrMode
+          ? { ...assessmentData, ocrConfirmed: true, extractionId: extractionId || undefined }
+          : assessmentData;
         const response = await teacherApi.createEnhancedAssessment(payload);
         const newId = response.data.assessment.id;
         await createAssignments(newId);
@@ -556,7 +559,10 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         let finalAssessmentId = assessmentId;
 
         if (!isEdit) {
-          const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+          // extractionId links the saved paper to its extraction so corrections are logged (#350)
+        const payload = isOcrMode
+          ? { ...assessmentData, ocrConfirmed: true, extractionId: extractionId || undefined }
+          : assessmentData;
           const response = await teacherApi.createEnhancedAssessment(payload);
           finalAssessmentId = response.data.assessment.id;
           await createAssignments(finalAssessmentId);
