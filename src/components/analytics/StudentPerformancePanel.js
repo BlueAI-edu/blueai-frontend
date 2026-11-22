@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -23,13 +23,24 @@ const getStatusColor = (percentage) => {
   return COLORS.red;
 };
 
+// "12 Oct": the day the class sat it (#408 item 9)
+const shortDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+};
+const assessmentLabel = (a, idx) => {
+  const name = a.title || a.subject || `Assessment ${idx + 1}`;
+  const date = shortDate(a.sat_on || a.date);
+  return date ? `${name} (${date})` : name;
+};
+
 // Panel A: Student Performance Trends
 const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
-  const [filter, setFilter] = useState({ subject: '', dateRange: 'all' });
-
-  // Prepare line chart data (student trends over time)
+  // One line per student (only their own points are joined); x-axis is the
+  // date sat, in order. Only shown once there are 2+ assessments (#408 item 9).
   const trendData = useMemo(() => heatmapData?.assessments?.map((assessment, idx) => {
-    const dataPoint = { name: (assessment.title || assessment.subject)?.substring(0, 14) || `A${idx + 1}` };
+    const dataPoint = { name: `${shortDate(assessment.sat_on || assessment.date)} ${(assessment.title || assessment.subject || '').substring(0, 12)}`.trim() || `A${idx + 1}` };
     heatmapData.heatmap?.forEach(student => {
       if (student.scores[idx]?.percentage !== null) {
         dataPoint[student.student] = student.scores[idx].percentage;
@@ -52,23 +63,11 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
         Student Performance Trends
       </h3>
 
-      {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        <select
-          className="border rounded-lg px-3 py-2 text-sm"
-          value={filter.dateRange}
-          onChange={(e) => setFilter({...filter, dateRange: e.target.value})}
-        >
-          <option value="all">All Time</option>
-          <option value="month">Last Month</option>
-          <option value="week">Last Week</option>
-        </select>
-      </div>
-
       {/* Line Chart: Trends over time */}
-      {trendData.length > 0 && (
+      {trendData.length > 1 && (
         <div className="mb-8">
-          <h4 className="text-lg font-medium text-gray-700 mb-3">Performance Over Time</h4>
+          <h4 className="text-lg font-medium text-gray-700 mb-1">Performance Over Time</h4>
+          <p className="text-xs text-gray-500 mb-3">One line per student (first five shown), by the date each assessment was sat.</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -96,11 +95,12 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
       {studentAverages.length > 0 && (
         <div className="mb-8">
           <h4 className="text-lg font-medium text-gray-700 mb-3">Average Score by Student</h4>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={Math.max(200, studentAverages.length * 28 + 40)}>
             <BarChart data={studentAverages} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" domain={[0, 100]} />
-              <YAxis type="category" dataKey="name" width={120} />
+              {/* interval 0: label every bar (alternate bars were unlabelled) */}
+              <YAxis type="category" dataKey="name" width={130} interval={0} tick={{ fontSize: 12 }} />
               <Tooltip
                 content={({ payload }) => {
                   if (payload && payload[0]) {
@@ -135,11 +135,11 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
                 {heatmapData.assessments?.map((a, idx) => (
                   <th
                     key={idx}
-                    className="border px-3 py-2 bg-gray-50 text-center text-xs max-w-[80px]"
-                    title={a.title || a.subject || `Assessment ${idx + 1}`}
+                    className="border px-2 py-2 bg-gray-50 text-center text-xs min-w-[90px] max-w-[120px] align-bottom"
+                    title={assessmentLabel(a, idx)}
                   >
-                    {(a.title || a.subject || `A${idx + 1}`).substring(0, 10)}
-                    {(a.title || a.subject || '').length > 10 ? '…' : ''}
+                    <span className="block truncate font-medium">{a.title || a.subject || `Assessment ${idx + 1}`}</span>
+                    <span className="block text-gray-500 font-normal">{shortDate(a.sat_on || a.date)}</span>
                   </th>
                 ))}
               </tr>
@@ -185,9 +185,9 @@ const StudentPerformancePanel = ({ students, heatmapData, onStudentClick }) => {
         </div>
       )}
 
-      {students?.length === 0 && (
+      {!students?.length && (
         <div className="text-center py-8 text-gray-500">
-          No student data available yet. Students will appear here after they submit assessments.
+          No data yet. Students appear here once a submission has been marked.
         </div>
       )}
     </div>

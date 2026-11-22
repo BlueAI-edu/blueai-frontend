@@ -7,7 +7,6 @@ import StudentPerformancePanel from '@/components/analytics/StudentPerformancePa
 import AssessmentInsightsPanel from '@/components/analytics/AssessmentInsightsPanel';
 import InterventionPanel from '@/components/analytics/InterventionPanel';
 import MathAnalyticsPanel from '@/components/analytics/MathAnalyticsPanel';
-import CostsPanel from '@/components/analytics/CostsPanel';
 import StudentProfileModal from '@/components/analytics/StudentProfileModal';
 
 // Main Analytics Page
@@ -22,6 +21,7 @@ export const AnalyticsPage = ({ user }) => {
   const [studentsData, setStudentsData] = useState(null);
   const [assessmentsData, setAssessmentsData] = useState(null);
   const [aiInsights, setAiInsights] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [studentProfile, setStudentProfile] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -31,22 +31,24 @@ export const AnalyticsPage = ({ user }) => {
     loadClasses();
   }, []);
 
+  // One request for the whole page (#408): it used to make three, and if any
+  // failed (as on mobile) every card silently showed 0.
   const loadAnalyticsData = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const [overviewRes, studentsRes, assessmentsRes] = await Promise.all([
-        axios.get(`${API}/teacher/analytics/overview`),
-        axios.get(`${API}/teacher/analytics/students`),
-        axios.get(`${API}/teacher/analytics/assessments`)
-      ]);
-
-      setOverview(overviewRes.data);
-      setStudentsData(studentsRes.data);
-      setAssessmentsData(assessmentsRes.data.assessments);
+      const { data } = await axios.get(`${API}/teacher/analytics/summary`);
+      setOverview(data.overview);
+      setStudentsData({ students: data.students, heatmap: data.heatmap, total_students: data.total_students });
+      setAssessmentsData(data.assessments);
     } catch (error) {
+      console.error('Analytics failed to load', error);
+      setLoadError(true);
     }
     setLoading(false);
   };
+
+  const hasMaths = (assessmentsData || []).some((a) => /math/i.test(a.subject || ''));
 
   const loadClasses = async () => {
     try {
@@ -139,14 +141,14 @@ export const AnalyticsPage = ({ user }) => {
       <Navbar user={user} />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900" data-testid="analytics-title">Analytics Dashboard</h2>
             <p className="text-gray-600">Track student performance and identify areas for intervention</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={exportCSV}
               className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-2"
@@ -170,8 +172,15 @@ export const AnalyticsPage = ({ user }) => {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6 border-b">
+        {loadError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-red-700">Analytics could not be loaded, so no figures are shown. Check your connection and try again.</p>
+            <button onClick={loadAnalyticsData} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">Try again</button>
+          </div>
+        )}
+
+        {/* Tab Navigation (scrolls sideways on a phone) */}
+        <div className="flex gap-2 mb-6 border-b overflow-x-auto whitespace-nowrap">
           <button
             onClick={() => setActiveTab('students')}
             className={`px-4 py-2 font-medium border-b-2 transition-colors ${
@@ -192,6 +201,7 @@ export const AnalyticsPage = ({ user }) => {
           >
             Assessment Analysis
           </button>
+          {hasMaths && (
           <button
             onClick={() => setActiveTab('math')}
             className={`px-4 py-2 font-medium border-b-2 transition-colors ${
@@ -200,8 +210,9 @@ export const AnalyticsPage = ({ user }) => {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            Math Analytics
+            Maths Analytics
           </button>
+          )}
           <button
             onClick={() => setActiveTab('support')}
             className={`px-4 py-2 font-medium border-b-2 transition-colors ${
@@ -212,16 +223,7 @@ export const AnalyticsPage = ({ user }) => {
           >
             Intervention Support
           </button>
-          <button
-            onClick={() => setActiveTab('costs')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-              activeTab === 'costs'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Costs
-          </button>
+
         </div>
 
         {/* Tab Content */}
@@ -237,7 +239,7 @@ export const AnalyticsPage = ({ user }) => {
           <AssessmentInsightsPanel assessments={assessmentsData} />
         )}
 
-        {activeTab === 'math' && (
+        {activeTab === 'math' && hasMaths && (
           <MathAnalyticsPanel
             classes={classes}
             assessments={assessmentsData}
@@ -253,7 +255,6 @@ export const AnalyticsPage = ({ user }) => {
           />
         )}
 
-        {activeTab === 'costs' && <CostsPanel />}
       </div>
 
       {/* Student Profile Modal */}
