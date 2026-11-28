@@ -179,6 +179,12 @@ export const adminApi = {
     client.post(`/admin/organisations/${organisationId}/school-admins`, data),
   removeSchoolAdmin: (organisationId, userId) =>
     client.delete(`/admin/organisations/${organisationId}/school-admins/${userId}`),
+
+  // Past Paper extraction corrections (#350)
+  getExtractionCorrectionsSummary: (params) =>
+    client.get('/admin/extraction-corrections/summary', { params }),
+  exportExtractionCorrections: (params) =>
+    client.get('/admin/extraction-corrections/export', { params, responseType: 'blob' }),
 };
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
