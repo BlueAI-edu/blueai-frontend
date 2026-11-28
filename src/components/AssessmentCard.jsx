@@ -297,6 +297,8 @@ const JoinCodeBlock = ({ code, status, assignments = [] }) => {
 
 // ─── Main card ────────────────────────────────────────────────────────────────
 
+import { Camera } from "lucide-react";
+
 export const AssessmentCard = ({
   assessment: a,
   question,
@@ -309,6 +311,7 @@ export const AssessmentCard = ({
   onViewSubmissions,
   onViewEnhanced,
   onDelete,
+  onUploadPhotos,   // ← new: navigate to /teacher/photo-batch/upload?assessmentId=<id>
 }) => {
   const isEnhanced = a.assessmentMode && a.assessmentMode !== "CLASSIC";
 
@@ -356,6 +359,12 @@ export const AssessmentCard = ({
       testId: `view-subs-overflow-${a.id}`,
       onClick: viewDetailRoute,
     },
+    onUploadPhotos && {
+      label: "Upload photo scripts",
+      icon: <Camera size={16} />,
+      testId: `upload-photos-${a.id}`,
+      onClick: onUploadPhotos,
+    },
     onDelete && {
       label: "Delete",
       icon: "🗑️",
@@ -380,7 +389,7 @@ export const AssessmentCard = ({
         }`}
       />
 
-      <div className="p-5">
+      <div className="px-4 py-5">
         {/* ── Row 1: badges + join code ── */}
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -436,7 +445,7 @@ export const AssessmentCard = ({
             {canStart && (
               <button
                 onClick={onStart}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-green-600 text-white text-xs font-semibold hover:bg-green-700 active:scale-95 transition-all max-[480px]:flex-1 max-[480px]:min-w-0"
                 data-testid={`start-assessment-${a.id}`}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -447,7 +456,7 @@ export const AssessmentCard = ({
             {isStarted && (
               <button
                 onClick={onClose}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 active:scale-95 transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 active:scale-95 transition-all max-[480px]:flex-1 max-[480px]:min-w-0"
                 data-testid={`close-assessment-${a.id}`}
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
@@ -458,7 +467,7 @@ export const AssessmentCard = ({
             {/* View submissions — always present */}
             <button
               onClick={viewDetailRoute}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 active:scale-95 transition-all max-[480px]:flex-1 max-[480px]:min-w-0"
               data-testid={`view-submissions-${a.id}`}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -488,9 +497,23 @@ export const AssessmentCard = ({
               </button>
             )}
 
+            {/* Upload photos — inline button (closed or live assessments) */}
+            {onUploadPhotos && (isClosed || isStarted) && (
+              <button
+                onClick={onUploadPhotos}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 text-xs font-medium hover:bg-gray-50 active:scale-95 transition-all"
+                data-testid={`upload-photos-${a.id}`}
+                title="Upload photographed exam scripts for OCR"
+              >
+                <Camera size={16} />
+                Upload photos
+              </button>
+            )}
+
             {/* Spacer + overflow */}
-            <div className="flex-1" />
-            <OverflowMenu items={overflowItems} />
+            <div className="ml-auto shrink-0">
+              <OverflowMenu items={overflowItems} />
+            </div>
           </div>
         </div>
       </div>

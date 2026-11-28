@@ -7,7 +7,8 @@ const EditClassModal = ({ classData, onClose, onUpdated }) => {
   const [formData, setFormData] = useState({
     class_name: classData.class_name || '',
     subject: classData.subject || '',
-    year_group: classData.year_group || ''
+    year_group: classData.year_group || '',
+    is_test: Boolean(classData.is_test),
   });
   const [runSave, saving] = useAsync();
   const [error, setError] = useState('');
@@ -76,6 +77,20 @@ const EditClassModal = ({ classData, onClose, onUpdated }) => {
               className="w-full border rounded-lg px-4 py-2"
             />
           </div>
+
+          {/* #408: test/demo classes are left out of analytics */}
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={formData.is_test}
+              onChange={(e) => setFormData({...formData, is_test: e.target.checked})}
+              className="mt-1 rounded"
+            />
+            <span className="text-sm text-gray-700">
+              Test or demo class
+              <span className="block text-xs text-gray-500">Its submissions are left out of analytics and dashboard figures.</span>
+            </span>
+          </label>
 
           <div className="flex gap-3 pt-4">
             <button

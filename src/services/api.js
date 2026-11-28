@@ -43,6 +43,8 @@ export const teacherApi = {
     client.post('/teacher/assessments/extract-past-paper', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  reprocessExtraction: (extractionId, payload) =>
+    client.post(`/teacher/extractions/${extractionId}/reprocess`, payload),
 
   // Assignments — ALWAYS use this; never call axios directly
   getAssignments: () => client.get('/teacher/assignments'),
@@ -105,6 +107,14 @@ export const teacherApi = {
   getAttempt: (id) => client.get(`/teacher/submissions/${id}`),
   getEnhancedAttempt: (id) => client.get(`/teacher/submissions/${id}/enhanced`),
   markEnhancedAttempt: (id, data) => client.post(`/teacher/submissions/${id}/mark-enhanced`, data),
+  // "Show score on student report" (#407)
+  getScoreVisibility: (assessmentId) => client.get(`/teacher/assessments/${assessmentId}/score-visibility`),
+  setScoreVisibility: (assessmentId, scoreVisibility) =>
+    client.put(`/teacher/assessments/${assessmentId}/score-visibility`, { scoreVisibility }),
+  setNextStepResponse: (attemptId, done) =>
+    client.post(`/teacher/submissions/${attemptId}/next-step-response`, { done }),
+  releaseScore: (attemptId, released) =>
+    client.post(`/teacher/submissions/${attemptId}/release-score`, { released }),
   autoMarkAttempt: (id) => client.post(`/teacher/submissions/${id}/auto-mark`),
 
   // Analytics
@@ -131,6 +141,9 @@ export const publicApi = {
 
 export const adminApi = {
   getTeachers: () => client.get('/admin/teachers'),
+  // School report settings (#407), school_admin's own organisation
+  getSchoolSettings: () => client.get('/admin/school/settings'),
+  updateSchoolSettings: (data) => client.put('/admin/school/settings', data),
   updateTeacherRole: (teacherId, role) =>
     client.put(`/admin/teachers/${teacherId}/role`, null, { params: { role } }),
   getAllUsage: () => client.get('/admin/usage'),
@@ -177,6 +190,12 @@ export const adminApi = {
     client.post(`/admin/organisations/${organisationId}/school-admins`, data),
   removeSchoolAdmin: (organisationId, userId) =>
     client.delete(`/admin/organisations/${organisationId}/school-admins/${userId}`),
+
+  // Past Paper extraction corrections (#350)
+  getExtractionCorrectionsSummary: (params) =>
+    client.get('/admin/extraction-corrections/summary', { params }),
+  exportExtractionCorrections: (params) =>
+    client.get('/admin/extraction-corrections/export', { params, responseType: 'blob' }),
 };
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
