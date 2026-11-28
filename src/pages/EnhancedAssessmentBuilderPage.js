@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import ScoreVisibilityField from '@/components/EnhancedAssessmentBuilder/ScoreVisibilityField';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
@@ -101,6 +102,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     markingStrictness: 'STANDARD_STRICT',
     calculatorAllowed: false,
     mathKeyboardEnabled: false,
+    scoreVisibility: null,
     questions: [],
     class_id: null
   });
@@ -525,6 +527,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         if (selectedClassIds.length > 0) {
           await teacherApi.updateClassAssignments(assessmentId, selectedClassIds);
         }
+        await teacherApi.setScoreVisibility(assessmentId, assessmentData.scoreVisibility || null);
         
         showNotification('Draft saved successfully!', 'success');
       } else {
@@ -572,6 +575,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             calculatorAllowed: assessmentData.calculatorAllowed,
             mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
           });
+          await teacherApi.setScoreVisibility(assessmentId, assessmentData.scoreVisibility || null);
         }
 
         await teacherApi.publishAssessment(finalAssessmentId);
@@ -790,6 +794,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
               <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
+
+            <ScoreVisibilityField
+              value={assessmentData.scoreVisibility}
+              assessmentMode={assessmentData.assessmentMode}
+              onChange={(value) => updateField('scoreVisibility', value)}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1047,6 +1057,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
               <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
+
+            <ScoreVisibilityField
+              value={assessmentData.scoreVisibility}
+              assessmentMode={assessmentData.assessmentMode}
+              onChange={(value) => updateField('scoreVisibility', value)}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

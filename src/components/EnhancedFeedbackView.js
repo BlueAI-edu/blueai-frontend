@@ -34,9 +34,9 @@ const EnhancedFeedbackView = ({ attempt, assessment }) => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Assessment Results</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">{isFormative ? 'Formative Feedback' : 'Assessment Results'}</h1>
 
-          {attempt.score !== null && (
+          {attempt.score != null && !attempt.score_hidden && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
               <p className="text-sm text-gray-600 mb-1">
                 {isFormative ? 'Marks Awarded' : 'Your Score'}
@@ -49,7 +49,7 @@ const EnhancedFeedbackView = ({ attempt, assessment }) => {
 
          {attempt.www && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-green-700 mb-2">What Went Well (WWW)</h3>
+              <h3 className="text-lg font-semibold text-green-700 mb-2">What went well</h3>
               <div className="text-gray-700">
                 {toBulletList(attempt.www).map((item, i) => (
                   <p key={i}>• {item}</p>
@@ -60,7 +60,7 @@ const EnhancedFeedbackView = ({ attempt, assessment }) => {
 
           {attempt.next_steps && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-orange-700 mb-2">Even Better If / Next Steps (EBI)</h3>
+              <h3 className="text-lg font-semibold text-orange-700 mb-2">Even better if</h3>
               <div className="text-gray-700">
                 {toBulletList(attempt.next_steps).map((item, i) => (
                   <p key={i}>• {item}</p>
@@ -69,7 +69,32 @@ const EnhancedFeedbackView = ({ attempt, assessment }) => {
             </div>
           )}
 
-          {attempt.overall_feedback && (
+          {isFormative && attempt.misconceptions_to_fix?.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-red-700 mb-2">Misconceptions to fix</h3>
+              <div className="text-gray-700 space-y-2">
+                {attempt.misconceptions_to_fix.map((m, i) => (
+                  <p key={i}>
+                    <span className="text-red-700">"{m.student_wrote}"</span> → {m.correction}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isFormative && attempt.next_step_targets?.length > 0 && (
+            <div className="mb-6 border-2 border-blue-600 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-blue-700 mb-1">Your next steps</h3>
+              <p className="text-sm font-semibold text-red-700 mb-2">Answer these on your feedback sheet in red pen.</p>
+              <ol className="list-decimal ml-5 text-gray-700 space-y-1">
+                {attempt.next_step_targets.map((task, i) => (
+                  <li key={i}>{task}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {!isFormative && attempt.overall_feedback && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-blue-700 mb-2">Overall Feedback</h3>
               <div className="text-gray-700">
