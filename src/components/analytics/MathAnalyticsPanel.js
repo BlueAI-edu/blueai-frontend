@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { API } from '@/config';
 
@@ -66,14 +64,18 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Math Performance Analytics</h3>
         <div className="text-center py-12 text-gray-500">
-          No math assessment data available yet. Math-specific metrics will appear here after students complete math assessments.
+          No data yet. Maths results appear here once a maths submission has been marked.
         </div>
       </div>
     );
   }
 
-  const { analytics, total_submissions } = mathData;
-  const { overview, performance_by_type, working_quality, common_mistakes, recommendations } = analytics;
+  const { analytics, total_submissions, answers_analysed } = mathData;
+  // Engine metrics (LaTeX usage, working length, equivalence checks) are no
+  // longer sent to teachers (#408 item 6): they describe how answers were
+  // typed, not what students know.
+  const { performance_by_type, common_mistakes, recommendations } = analytics;
+  const mathsAssessments = (assessments || []).filter((a) => /math/i.test(a.subject || '') && a.total_submissions > 0);
 
   // Human-readable labels for answer_type / questionType keys
   const TYPE_LABELS = {
@@ -93,25 +95,21 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
 
   // Prepare data for charts
   const performanceData = Object.entries(performance_by_type || {}).map(([type, data]) => ({
-    name: TYPE_LABELS[type] || type,
+    name: TYPE_LABELS[type] || String(type).replace(/_/g, ' ').toLowerCase().replace(/^./, (c) => c.toUpperCase()),
     avgScore: parseFloat(data.avg_score.toFixed(1)),
     passRate: parseFloat(data.pass_rate.toFixed(1)),
     count: data.count
   }));
 
-  const usageData = [
-    { name: 'LaTeX Usage', value: overview.latex_usage_percentage, color: COLORS.blue },
-    { name: 'Working Provided', value: overview.working_provided_percentage, color: COLORS.green },
-    { name: 'Equivalence Success', value: overview.equivalence_success_rate, color: COLORS.purple }
-  ];
+
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Math Performance Analytics</h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">Maths Performance</h3>
 
         {/* Filters */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-wrap gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Class</label>
             <select
@@ -136,9 +134,9 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
               onChange={(e) => setSelectedAssessment(e.target.value)}
             >
               <option value="all">All Assessments</option>
-              {assessments?.map(assess => (
+              {mathsAssessments.map(assess => (
                 <option key={assess.assessment_id} value={assess.assessment_id}>
-                  {assess.title || assess.subject} ({assess.total_submissions} submissions)
+                  {assess.title || assess.subject} ({assess.total_submissions} marked)
                 </option>
               ))}
             </select>
@@ -146,23 +144,14 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
         </div>
 
         {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
           <div className="bg-blue-50 rounded-lg p-4">
-            <p className="text-sm text-blue-600 mb-1">Total Submissions</p>
+            <p className="text-sm text-blue-600 mb-1">Marked submissions</p>
             <p className="text-3xl font-bold text-blue-700">{total_submissions}</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-4">
-            <p className="text-sm text-green-600 mb-1">LaTeX Usage</p>
-            <p className="text-3xl font-bold text-green-700">{overview.latex_usage_percentage}%</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4">
-            <p className="text-sm text-purple-600 mb-1">Working Provided</p>
-            <p className="text-3xl font-bold text-purple-700">{overview.working_provided_percentage}%</p>
-          </div>
-          <div className="bg-amber-50 rounded-lg p-4">
-            <p className="text-sm text-amber-600 mb-1">Equivalence Checked</p>
-            <p className="text-3xl font-bold text-amber-700">{overview.equivalence_checked}</p>
-            <p className="text-xs text-amber-600 mt-1">Success: {overview.equivalence_success_rate}%</p>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Answers analysed</p>
+            <p className="text-3xl font-bold text-gray-800">{answers_analysed ?? '—'}</p>
           </div>
         </div>
       </div>
@@ -186,61 +175,13 @@ const MathAnalyticsPanel = ({ classes, assessments }) => {
             {performanceData.map((item, idx) => (
               <div key={idx} className="border rounded-lg p-3">
                 <p className="text-sm font-medium text-gray-700">{item.name}</p>
-                <p className="text-xs text-gray-500">{item.count} submissions</p>
+                <p className="text-xs text-gray-500">{item.count} answers</p>
                 <div className="mt-2 flex justify-between text-xs">
                   <span>Avg: {item.avgScore}%</span>
                   <span>Pass: {item.passRate}%</span>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Usage Statistics */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Student Engagement &amp; Tool Usage</h4>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={usageData} layout="horizontal">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" domain={[0, 100]} />
-            <YAxis type="category" dataKey="name" width={150} />
-            <Tooltip />
-            <Bar dataKey="value" name="Percentage (%)">
-              {usageData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Working Quality Analysis */}
-      {working_quality && working_quality.submissions_with_working > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Working Quality Analysis</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-600">Submissions with Working</p>
-              <p className="text-2xl font-bold text-gray-900">{working_quality.submissions_with_working}</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-600">Avg Working Length</p>
-              <p className="text-2xl font-bold text-gray-900">{working_quality.average_length} chars</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-600">Structured Working</p>
-              <p className="text-2xl font-bold text-gray-900">{working_quality.structured_working_pct}%</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-gray-600">Quality Score</p>
-              <p className="text-2xl font-bold text-green-700">{working_quality.quality_score}/100</p>
-            </div>
-          </div>
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
-            <p className="text-sm text-blue-700">
-              <strong>LaTeX in Working:</strong> {working_quality.latex_usage_in_working_pct}% of students use LaTeX notation in their working
-            </p>
           </div>
         </div>
       )}

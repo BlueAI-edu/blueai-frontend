@@ -1,6 +1,7 @@
 
 // Panel C: Class Support Indicators (Intervention)
 const InterventionPanel = ({ overview, aiInsights, onGenerateInsights, loading }) => {
+  const hasData = (overview?.total_students || 0) > 0;
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
@@ -31,6 +32,14 @@ const InterventionPanel = ({ overview, aiInsights, onGenerateInsights, loading }
           )}
         </button>
       </div>
+
+      {/* The rule behind "Need Support", so teachers can judge it (#408 item 8) */}
+      {overview?.support_rule && (
+        <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-6">
+          <span className="font-medium text-gray-800">How students are flagged: </span>
+          {overview.support_rule}
+        </p>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -75,15 +84,17 @@ const InterventionPanel = ({ overview, aiInsights, onGenerateInsights, loading }
           </h4>
           {overview?.underperforming_students?.length > 0 ? (
             <ul className="space-y-2">
-              {overview.underperforming_students.slice(0, 5).map((student, idx) => (
-                <li key={idx} className="flex justify-between items-center bg-red-50 rounded px-3 py-2">
+              {overview.underperforming_students.map((student, idx) => (
+                <li key={idx} className="bg-red-50 rounded px-3 py-2">
                   <span className="font-medium">{student.student_name}</span>
-                  <span className="text-red-600 font-bold">{student.average}%</span>
+                  {(student.reasons || []).map((reason, r) => (
+                    <p key={r} className="text-sm text-red-700">{reason}</p>
+                  ))}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">All students are on track</p>
+            <p className="text-gray-500 text-sm">{hasData ? 'No students meet the rule above.' : 'No data yet.'}</p>
           )}
         </div>
 
@@ -95,22 +106,23 @@ const InterventionPanel = ({ overview, aiInsights, onGenerateInsights, loading }
           </h4>
           {overview?.declining_students?.length > 0 ? (
             <ul className="space-y-2">
-              {overview.declining_students.slice(0, 5).map((student, idx) => (
-                <li key={idx} className="flex justify-between items-center bg-amber-50 rounded px-3 py-2">
+              {overview.declining_students.map((student, idx) => (
+                <li key={idx} className="flex justify-between items-center gap-3 bg-amber-50 rounded px-3 py-2">
                   <span className="font-medium">{student.student_name}</span>
-                  <span className="text-amber-600">{student.trend}</span>
+                  <span className="text-amber-700 text-sm">{student.trend_subject || ''}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">No declining trends detected</p>
+            <p className="text-gray-500 text-sm">{hasData ? 'No declining trends (needs 3+ assessments in a subject).' : 'No data yet.'}</p>
           )}
         </div>
       </div>
 
       {/* Topic Weakness */}
       <div className="mt-6">
-        <h4 className="font-semibold text-gray-700 mb-3">Topic Analysis</h4>
+        <h4 className="font-semibold text-gray-700 mb-1">Topic Analysis</h4>
+        <p className="text-xs text-gray-500 mb-3">Topics come from the topic tag on each question.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Weak Topics */}
           <div>
@@ -125,7 +137,7 @@ const InterventionPanel = ({ overview, aiInsights, onGenerateInsights, loading }
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm">All topics are performing well</p>
+              <p className="text-gray-500 text-sm">{hasData ? 'No topic is below 50%.' : 'No data yet.'}</p>
             )}
           </div>
 
@@ -142,7 +154,7 @@ const InterventionPanel = ({ overview, aiInsights, onGenerateInsights, loading }
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm">No strong topics identified yet</p>
+              <p className="text-gray-500 text-sm">{hasData ? 'No topic is above 70% yet.' : 'No data yet.'}</p>
             )}
           </div>
         </div>

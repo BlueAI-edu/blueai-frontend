@@ -212,7 +212,8 @@ const [showArchived, setShowArchived] = useState(false);
       onClick: () => navigate('/teacher/assessments'), testId: 'stat-live',
     },
     {
-      label: 'Submissions', value: stats?.total_submissions ?? '—',
+      // Marked submissions: the same figure Analytics shows (#408 item 1)
+      label: 'Marked submissions', value: stats?.marked ?? '—',
       icon: Upload, color: 'text-purple-600 bg-purple-50',
       onClick: () => navigate('/teacher/assessments'), testId: 'stat-submissions',
       showIndicator: hasNewSubmissions,
