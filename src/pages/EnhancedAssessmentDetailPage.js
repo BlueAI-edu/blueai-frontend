@@ -32,7 +32,24 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
         axios.get(`${API}/teacher/assessments/${assessmentId}/enhanced`),
         axios.get(`${API}/teacher/assessments/${assessmentId}/assignments`).catch(() => ({ data: { assignments: [] } })),
       ]);
-      setData(assessmentRes.data);
+      const assessmentData = assessmentRes.data;
+
+      const visibleSubmissions = (assessmentData.submissions || []).filter(
+        (submission) => {
+          // Website submissions retain their existing visibility rules.
+          if (submission.submission_type !== 'ocr') {
+            return true;
+          }
+
+          // Only teacher-reviewed or finalized OCR submissions appear.
+          return ['marked_draft', 'finalized'].includes(submission.status);
+        }
+      );
+
+      setData({
+        ...assessmentData,
+        submissions: visibleSubmissions,
+      });
       setDetailAssignments(assignmentsRes.data.assignments || []);
       setLoading(false);
     } catch (error) {
@@ -81,6 +98,20 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
         return newSet;
       });
     }
+  };
+
+  const handleViewSubmission = (submission) => {
+    const submissionId =
+      submission.submission_type === 'ocr'
+        ? submission.id
+        : submission.attempt_id;
+
+    if (!submissionId) {
+      console.error('Submission ID is missing:', submission);
+      return;
+    }
+
+    navigate(`/teacher/submissions/${submissionId}/enhanced`);
   };
 
   const handleBulkReleaseFeedback = async () => {
@@ -172,6 +203,24 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
     }
   };
 
+  const getDisplayStatus = (submission) => {
+    if (
+      submission.submission_type === 'ocr' &&
+      submission.status === 'finalized'
+    ) {
+      return 'marked';
+    }
+
+    if (
+      submission.submission_type === 'ocr' &&
+      submission.status === 'marked_draft'
+    ) {
+      return 'marked_draft';
+    }
+
+    return submission.status;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar user={user} />
@@ -220,7 +269,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                   ) : (
                     <p><strong>Join Code:</strong> <span className="text-blue-600 font-bold">{assessment.join_code}</span></p>
                   )}
-                  <p><strong>Submissions:</strong> {attempts_count}</p>
+                  <p><strong>Submissions:</strong> {submissions?.length ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -306,7 +355,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
             <div className="space-y-4">
               {submissions.map((submission) => (
                 <div 
-                  key={submission.attempt_id} 
+                  key={submission.submission_type === "ocr" ? `ocr-${submission.id}` : `attempt-${submission.attempt_id}`}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex justify-between items-start">
@@ -315,6 +364,12 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                         <h4 className="text-lg font-semibold text-gray-900">
                           {submission.student_name}
                         </h4>
+                        {/* NEW: Show submission type badge */}
+                        {submission.submission_type === "ocr" && (
+                          <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+                            OCR Submission
+                          </span>
+                        )}
                         {/* NEW: Needs Review badge */}
                         {submission.needs_review && (
                           <span
@@ -324,7 +379,7 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                             ⚠️ Needs Review
                           </span>
                         )}
-                        <StatusBadge status={submission.status} />
+                        <StatusBadge status={getDisplayStatus(submission)} />
                         {submission.feedback_released && (
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
                             Released
@@ -361,46 +416,73 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
                                 : `Auto-submitted: ${submission.submission_reason}`}
                           </p>
                         )}
-                        {submission.status === 'marked' && !isFormative && submission.score !== null && (
-                          <p>
-                            <strong>Score:</strong> {submission.score} / {assessment.totalMarks}
-                          </p>
-                        )}
-                        {submission.status === 'marked' && submission.marked_at && (
-                          <p>
-                            <strong>Marked:</strong>{' '}
-                            {new Date(submission.marked_at).toLocaleString()}
-                          </p>
+                        {!isFormative && (
+                          <>
+                            {submission.submission_type === "ocr" ? (submission.marking_result && (
+                                <p>
+                                  <strong>Score:</strong>{" "}
+                                  {submission.marking_result.total_score} / {submission.marking_result.max_marks ?? assessment.totalMarks}
+                                </p>
+                              )
+                            ) : (
+                              submission.status === "marked" && submission.score !== null && (
+                                <p>
+                                  <strong>Score:</strong> {submission.score} / {assessment.totalMarks}
+                                </p>
+                              )
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => navigate(`/teacher/submissions/${submission.attempt_id}/enhanced`)}
+                        onClick={() => handleViewSubmission(submission)}
                         className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 text-sm"
                       >
-                        {submission.status === 'marked' ? 'View' : 'Mark'}
+                        {submission.submission_type === "ocr"
+                          ? (['marked_draft', 'finalized'].includes(submission.status) ? 'View' : 'Review')
+                          : (submission.status === 'marked' ? 'View' : 'Mark')}
                       </button>
-                      
-                      {submission.status === 'marked' && !submission.feedback_released && (
-                        <button
-                          onClick={() => handleReleaseFeedback(submission.attempt_id)}
-                          disabled={releasingIds.has(submission.attempt_id)}
-                          className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 text-sm disabled:opacity-50"
-                        >
-                          {releasingIds.has(submission.attempt_id) ? 'Releasing...' : 'Release'}
-                        </button>
-                      )}
-                      
-                      {submission.status === 'submitted' && !submission.auto_marked && (
-                        <button
-                          onClick={() => handleAutoMark(submission.attempt_id)}
-                          disabled={releasingIds.has(submission.attempt_id)}
-                          className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 text-sm disabled:opacity-50"
-                        >
-                          {releasingIds.has(submission.attempt_id) ? 'Marking...' : '🤖 Auto-Mark'}
-                        </button>
+                              
+                        {((submission.submission_type !== "ocr" && submission.status === "marked" &&
+                            !submission.feedback_released) || (submission.submission_type === "ocr" &&
+                            submission.status === "finalized" && !submission.marking_result?.feedback_released)
+                        ) && (
+                          <button
+                            onClick={() => handleReleaseFeedback(
+                              submission.submission_type === "ocr"
+                                ? submission.submission_id
+                                : submission.attempt_id
+                            )}
+                            disabled={releasingIds.has(
+                              submission.submission_type === "ocr"
+                                ? submission.submission_id
+                                : submission.attempt_id
+                            )}
+                            className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 text-sm disabled:opacity-50"
+                          >
+                            {releasingIds.has(
+                              submission.submission_type === "ocr"
+                                ? submission.submission_id
+                                : submission.attempt_id
+                            )
+                              ? "Releasing..."
+                              : "Release"}
+                          </button>
+                        )}
+
+                      {submission.submission_type !== "ocr" &&
+                        submission.status === 'submitted' &&
+                        !submission.auto_marked && (
+                          <button
+                            onClick={() => handleAutoMark(submission.attempt_id)}
+                            disabled={releasingIds.has(submission.attempt_id)}
+                            className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 text-sm disabled:opacity-50"
+                          >
+                            {releasingIds.has(submission.attempt_id) ? 'Marking...' : '🤖 Auto-Mark'}
+                          </button>
                       )}
                     </div>
                   </div>
@@ -501,6 +583,7 @@ const StatusBadge = ({ status }) => {
     in_progress: 'bg-yellow-100 text-yellow-800',
     submitted: 'bg-blue-100 text-blue-800',
     marked: 'bg-green-100 text-green-800',
+    marked_draft: 'bg-amber-100 text-amber-800',
     error: 'bg-red-100 text-red-800'
   };
 

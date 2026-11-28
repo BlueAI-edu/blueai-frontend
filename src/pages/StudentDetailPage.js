@@ -139,12 +139,12 @@ export const StudentDetailPage = ({ user }) => {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[sub.status] || 'bg-gray-100 text-gray-600'}`}>
                         {sub.status?.replace('_', ' ')}
                       </span>
-                      <button
+                      {/* <button
                         onClick={() => navigate(detailPath)}
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                       >
                         View →
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 );

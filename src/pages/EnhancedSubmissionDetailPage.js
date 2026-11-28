@@ -103,9 +103,12 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         setMisconceptions(response.data.attempt.misconceptions_to_fix || []);
 
         // Initialize question scores if available
-        if (response.data.attempt.questionScores) {
-          setQuestionScores(response.data.attempt.questionScores);
-        }
+        const scores =
+          response.data.attempt.questionScores ||
+          response.data.attempt.question_scores ||
+          {};
+
+        setQuestionScores(scores);
       }
       
       setLoading(false);
@@ -144,7 +147,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
     async () => {
       const totalScore = calculateTotalScore();
 
-      await axios.post(`${API}/teacher/submissions/${attemptId}/mark-enhanced`, {
+      const payload = {
         questionScores,
         totalScore,
         www: toBulletArray(www),
@@ -154,19 +157,26 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
           ? {
               next_step_targets: nextStepTasks.map((t) => t.trim()).filter(Boolean),
               misconceptions_to_fix: misconceptions.filter((m) => m.student_wrote?.trim() && m.correction?.trim()),
-            }
-          : {}),
-      });
+            } : {}),
+      };
 
-      showSuccess('Feedback saved successfully!');
-      loadData();
-    },
-    (error) => handleApiError(error, 'Failed to save feedback')
+      await axios.post(`${API}/teacher/submissions/${attemptId}/mark-enhanced`, payload);
+
+      showSuccess(data.submission_type === 'ocr' ? 'OCR feedback saved successfully!' : 'Feedback saved successfully!');
+
+      await loadData();
+    }, (error) => handleApiError(error, 'Failed to save feedback')
   );
 
+  
   const handleDownloadPDF = () => runDownload(
     async () => {
-      const response = await axios.get(`${API}/teacher/submissions/${attemptId}/download-pdf`, {
+      const downloadUrl =
+        data?.submission_type === 'ocr'
+          ? `${API}/ocr/submissions/${attemptId}/download-pdf`
+          : `${API}/teacher/submissions/${attemptId}/download-pdf`;
+
+      const response = await axios.get(downloadUrl, {
         responseType: 'blob'
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -180,8 +190,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    },
-    (error) => handleApiError(error, 'PDF generation failed. Please retry.')
+    }, (error) => handleApiError(error, 'PDF generation failed. Please retry.')
   );
 
   const handleRegeneratePDF = () => runRegenerate(
@@ -353,6 +362,11 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
                 {isFormative && (
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
                     Formative Feedback
+                  </span>
+                )}
+                {data.submission_type === 'ocr' && (
+                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                    OCR Submission
                   </span>
                 )}
               </div>
