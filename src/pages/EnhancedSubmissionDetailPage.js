@@ -144,7 +144,15 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         totalScore,
         www: toBulletArray(www),
         next_steps: toBulletArray(ebi),
-        overall_feedback: toBulletArray(overallFeedback)
+        overall_feedback: toBulletArray(overallFeedback),
+        ...(isFormativeReport
+          ? {
+              next_step_targets: nextStepTasks.map((t) => t.trim()).filter(Boolean),
+              misconceptions_to_fix: misconceptions.filter(
+                (m) => m.student_wrote?.trim() && m.correction?.trim()
+              ),
+            }
+          : {}),
       };
 
       await axios.post(`${API}/teacher/submissions/${attemptId}/mark-enhanced`, payload);
