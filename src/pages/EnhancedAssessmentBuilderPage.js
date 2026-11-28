@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
+import ScoreVisibilityField from '@/components/EnhancedAssessmentBuilder/ScoreVisibilityField';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getApiErrorMessage } from '@/lib/handle-error';
 import { useAsync } from '@/hooks/use-async';
@@ -101,6 +102,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     markingStrictness: 'STANDARD_STRICT',
     calculatorAllowed: false,
     mathKeyboardEnabled: false,
+    scoreVisibility: null,
     questions: [],
     class_id: null
   });
@@ -129,6 +131,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
   // Server-side extraction session id — pages persist under it so diagram
   // crops can be reproduced later (diagram pipeline D1)
   const [extractionId, setExtractionId] = useState(null);
+  const [validation, setValidation] = useState(null);
+  const [pipeline, setPipeline] = useState(null);
 
   const OCR_GCSE_MODE = 'OCR_GENERATED_GCSE_PAST_PAPER';
 
@@ -194,6 +198,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
       setPageImages(response.data.page_images || {});
       setMsPageThumbnails(response.data.ms_page_thumbnails || {});
       setExtractionId(response.data.extraction_id || null);
+      setValidation(response.data.validation || null);
+      setPipeline(response.data.pipeline || null);
       setOcrReviewState('reviewing');
       showNotification(
         `${questions.length} question${questions.length !== 1 ? 's' : ''} extracted — please review before confirming`,
@@ -223,6 +229,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
     setPageImages({});
     setMsPageThumbnails({});
     setExtractionId(null);
+    setValidation(null);
+    setPipeline(null);
     setOcrReviewState('uploading');
   }, []);
 
@@ -519,10 +527,14 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         if (selectedClassIds.length > 0) {
           await teacherApi.updateClassAssignments(assessmentId, selectedClassIds);
         }
+        await teacherApi.setScoreVisibility(assessmentId, assessmentData.scoreVisibility || null);
         
         showNotification('Draft saved successfully!', 'success');
       } else {
-        const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+        // extractionId links the saved paper to its extraction so corrections are logged (#350)
+        const payload = isOcrMode
+          ? { ...assessmentData, ocrConfirmed: true, extractionId: extractionId || undefined }
+          : assessmentData;
         const response = await teacherApi.createEnhancedAssessment(payload);
         const newId = response.data.assessment.id;
         await createAssignments(newId);
@@ -550,7 +562,10 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
         let finalAssessmentId = assessmentId;
 
         if (!isEdit) {
-          const payload = isOcrMode ? { ...assessmentData, ocrConfirmed: true } : assessmentData;
+          // extractionId links the saved paper to its extraction so corrections are logged (#350)
+        const payload = isOcrMode
+          ? { ...assessmentData, ocrConfirmed: true, extractionId: extractionId || undefined }
+          : assessmentData;
           const response = await teacherApi.createEnhancedAssessment(payload);
           finalAssessmentId = response.data.assessment.id;
           await createAssignments(finalAssessmentId);
@@ -560,6 +575,7 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
             calculatorAllowed: assessmentData.calculatorAllowed,
             mathKeyboardEnabled: assessmentData.mathKeyboardEnabled,
           });
+          await teacherApi.setScoreVisibility(assessmentId, assessmentData.scoreVisibility || null);
         }
 
         await teacherApi.publishAssessment(finalAssessmentId);
@@ -778,6 +794,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               </div>
               <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
+
+            <ScoreVisibilityField
+              value={assessmentData.scoreVisibility}
+              assessmentMode={assessmentData.assessmentMode}
+              onChange={(value) => updateField('scoreVisibility', value)}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1036,6 +1058,12 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
               <p className="text-xs text-gray-400 mt-1">Enabled tools appear as toggle buttons on the right side of the student's screen during the assessment.</p>
             </div>
 
+            <ScoreVisibilityField
+              value={assessmentData.scoreVisibility}
+              assessmentMode={assessmentData.assessmentMode}
+              onChange={(value) => updateField('scoreVisibility', value)}
+            />
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Assign to Classes *
@@ -1133,6 +1161,8 @@ export const EnhancedAssessmentBuilderPage = ({ user }) => {
                   pageImages={pageImages}
                   msPageThumbnails={msPageThumbnails}
                   extractionId={extractionId}
+                  validation={validation}
+                  pipeline={pipeline}
                   onConfirm={handleOcrReviewConfirm}
                   onBack={handleOcrReviewBack}
                 />

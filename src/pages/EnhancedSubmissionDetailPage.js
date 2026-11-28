@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { FormativeNextStepsEditor } from '@/components/FormativeNextStepsEditor';
+import { ScoreReleasePanel } from '@/components/ScoreReleasePanel';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import LaTeXRenderer from '../components/LaTeXRenderer';
@@ -75,6 +77,10 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
   const [www, setWww] = useState('');
   const [ebi, setEbi] = useState('');
   const [overallFeedback, setOverallFeedback] = useState('');
+  // #407 formative report: next-step tasks and misconceptions, reviewed before release
+  const [nextStepTasks, setNextStepTasks] = useState([]);
+  const [misconceptions, setMisconceptions] = useState([]);
+  const isFormativeReport = data?.assessment?.assessmentMode === 'FORMATIVE_SINGLE_LONG_RESPONSE';
   // Manual diagram/graph marking progress: keys the teacher has entered a mark
   // for this session (drives the red→green outlines and the jump panel)
   const [touchedManual, setTouchedManual] = useState(() => new Set());
@@ -93,6 +99,8 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         setWww(toDisplayText(response.data.attempt.www));
         setEbi(toDisplayText(response.data.attempt.next_steps));
         setOverallFeedback(toDisplayText(response.data.attempt.overall_feedback));
+        setNextStepTasks(response.data.attempt.next_step_targets || []);
+        setMisconceptions(response.data.attempt.misconceptions_to_fix || []);
 
         // Initialize question scores if available
         const scores =
@@ -148,11 +156,8 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
         ...(isFormativeReport
           ? {
               next_step_targets: nextStepTasks.map((t) => t.trim()).filter(Boolean),
-              misconceptions_to_fix: misconceptions.filter(
-                (m) => m.student_wrote?.trim() && m.correction?.trim()
-              ),
-            }
-          : {}),
+              misconceptions_to_fix: misconceptions.filter((m) => m.student_wrote?.trim() && m.correction?.trim()),
+            } : {}),
       };
 
       await axios.post(`${API}/teacher/submissions/${attemptId}/mark-enhanced`, payload);
@@ -794,7 +799,7 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
           {/* Overall */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-blue-700 mb-2">
-              💬 Overall Feedback
+              💬 Overall Feedback{isFormativeReport ? ' (teacher view only, not on the student report)' : ''}
             </label>
             <textarea
               value={overallFeedback}
@@ -804,7 +809,20 @@ export const EnhancedSubmissionDetailPage = ({ user }) => {
               placeholder="General comments or summary"
             />
           </div>
+
+          {isFormativeReport && attempt.status === 'marked' && (
+            <div className="mt-6 pt-6 border-t">
+              <FormativeNextStepsEditor
+                tasks={nextStepTasks}
+                onTasksChange={setNextStepTasks}
+                misconceptions={misconceptions}
+                onMisconceptionsChange={setMisconceptions}
+              />
+            </div>
+          )}
         </div>
+
+        <ScoreReleasePanel assessmentId={assessment.id} attempt={attempt} onChanged={loadData} />
 
         {/* Actions */}
         <div className="flex flex-wrap justify-end gap-3">

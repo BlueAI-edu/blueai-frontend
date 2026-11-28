@@ -7,6 +7,7 @@ import { API } from '@/config';
 import { handleApiError, showSuccess } from '@/lib/handle-error';
 import { teacherApi } from '@/services/api';
 import BackButton from '@/components/BackButton';
+import { AssessmentScoreSetting } from '@/components/AssessmentScoreSetting';
 
 export const EnhancedAssessmentDetailPage = ({ user }) => {
   const { assessmentId } = useParams();
@@ -325,6 +326,8 @@ export const EnhancedAssessmentDetailPage = ({ user }) => {
               </button>
             </div>
           )}
+
+          <AssessmentScoreSetting assessmentId={assessmentId} assessmentMode={assessment.assessmentMode} />
 
           {/* Bulk Actions */}
           {unreleasedCount > 0 && (

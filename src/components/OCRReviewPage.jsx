@@ -40,6 +40,7 @@ export default function OCRReviewPage({ user }) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [editedText, setEditedText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reExtracting, setReExtracting] = useState(false);
 
@@ -61,6 +62,7 @@ export default function OCRReviewPage({ user }) {
     setPages([]);
     setResponseBlocks([]);
     setEditedText("");
+    setOcrProcessing(false);
     setSaving(false);
     setReExtracting(false);
     fetchSubmission();
@@ -281,18 +283,34 @@ export default function OCRReviewPage({ user }) {
   const fetchSubmission = async () => {
     const targetId = submissionId;
     try {
-      const response = await fetch(`${API_URL}/api/ocr/submissions/${targetId}`, {
-        credentials: "include",
-      });
+      let data;
+      do {
+        if (currentIdRef.current !== targetId) return;
+        const response = await fetch(`${API_URL}/api/ocr/submissions/${targetId}`, {
+          credentials: "include",
+        });
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch submission");
-      }
+        if (!response.ok) {
+          throw new Error("Failed to fetch submission");
+        }
 
-      const data = await response.json();
+        data = await response.json();
+        if (currentIdRef.current !== targetId) return;
+
+        const status = data.submission?.status;
+        const isProcessing = status === "ocr_processing" || status === "uploaded";
+        setOcrProcessing(isProcessing);
+        if (isProcessing) {
+          await new Promise((resolve) => window.setTimeout(resolve, 3_000));
+        }
+      } while (
+        data.submission?.status === "ocr_processing" ||
+        data.submission?.status === "uploaded"
+      );
+
       // Teacher moved to another script while this was loading: drop the response.
       if (currentIdRef.current !== targetId) return;
-      const normalizedPages = (data.pages || []).map((page) => ({
+      const normalizedPages = (data.pages || []).filter(Boolean).map((page) => ({
         ...page,
         page_type: page.page_type || page.page_classification?.page_type || "unknown",
       }));
@@ -491,7 +509,9 @@ export default function OCRReviewPage({ user }) {
         <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-slate-600">Loading submission...</p>
+            <p className="mt-4 text-slate-600">
+              {ocrProcessing ? "Processing…" : "Loading submission..."}
+            </p>
           </div>
         </div>
       </div>
@@ -580,26 +600,33 @@ export default function OCRReviewPage({ user }) {
               </div>
               <div className="flex items-center gap-1 flex-wrap">
                 {(() => {
-                  const total = pages.length;
+                  const validPageIndices = pages
+                    .map((page, index) => (page ? index : null))
+                    .filter((index) => index !== null);
                   const current = currentPageIndex;
                   const SIBLING_COUNT = 2;
 
                   // Build the set of page indices to show
                   const pageIndices = new Set();
                   // Always show first and last
-                  pageIndices.add(0);
-                  pageIndices.add(total - 1);
+                  if (validPageIndices.length > 0) {
+                    pageIndices.add(validPageIndices[0]);
+                    pageIndices.add(validPageIndices[validPageIndices.length - 1]);
+                  }
                   // Show window around current
                   for (let i = current - SIBLING_COUNT; i <= current + SIBLING_COUNT; i++) {
-                    if (i >= 0 && i < total) pageIndices.add(i);
+                    if (i >= 0 && i < pages.length && pages[i]) pageIndices.add(i);
                   }
 
                   const sorted = [...pageIndices].sort((a, b) => a - b);
+                  const pageEntries = sorted
+                    .map((pageIdx) => (pages[pageIdx] ? { page: pages[pageIdx], pageIdx } : null))
+                    .filter(Boolean);
                   const items = [];
 
-                  sorted.forEach((pageIdx, i) => {
+                  pageEntries.forEach(({ page, pageIdx }, i) => {
                     // Insert ellipsis if there's a gap
-                    if (i > 0 && pageIdx - sorted[i - 1] > 1) {
+                    if (i > 0 && pageIdx - pageEntries[i - 1].pageIdx > 1) {
                       items.push(
                         <span key={`ellipsis-${pageIdx}`} className="w-6 text-center text-slate-400 text-xs">
                           &hellip;
@@ -607,7 +634,6 @@ export default function OCRReviewPage({ user }) {
                       );
                     }
 
-                    const page = pages[pageIdx];
                     const skipped = isPageSkipped(page.page_type);
                     const failed = isPageFailed(page.page_type);
                     items.push(

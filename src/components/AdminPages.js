@@ -6,6 +6,7 @@ import { handleApiError } from '@/lib/handle-error';
 import { Navbar } from './Navbar';
 import { LoadingSpinner } from '@/components/common';
 import { EntraConnectorPanel } from './EntraConnectorPanel';
+import { ExtractionCorrectionsPanel } from './ExtractionCorrectionsPanel';
 
 const ACCOUNT_TYPES = ['free_tester', 'beta_tester', 'paid', 'extended', 'pilot', 'internal'];
 const ACCOUNT_TYPE_LABELS = {
@@ -947,6 +948,9 @@ export const AdminDashboard = ({ user }) => {
                 </div>
               </div>
             )}
+
+            {/* Past Paper extraction corrections (#350) */}
+            <ExtractionCorrectionsPanel />
 
             {/* OCR Metrics */}
             <div className = "bg-white rounded-lg shadow overflow-hidden">
